@@ -96,6 +96,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/commands/newbie.py`: `新手`、`状态`、`修炼` 等原型命令
 - `game/mygame/world/help_entries.py`: 中文帮助条目
 - `game/mygame/world/start_area.py`: 可重复执行的新手区域建图脚本
+- `game/mygame/typeclasses/items.py`: 最小物品类型
 - `game/mygame/typeclasses/characters.py`: 角色默认属性骨架
 - `game/mygame/typeclasses/rooms.py`: 房间默认行为
 

@@ -3,6 +3,7 @@ Simple beginner-facing commands for the localized prototype.
 """
 
 from evennia.utils import evtable
+from evennia.utils.create import create_object
 
 from .command import Command
 
@@ -93,6 +94,8 @@ class CmdStatus(Command):
         max_stamina = caller.db.max_stamina if caller.db.max_stamina is not None else 50
         exp = caller.db.exp if caller.db.exp is not None else 0
         location = caller.location.key if caller.location else "未知"
+        inventory = caller.contents_get(content_type="object")
+        item_count = len([obj for obj in inventory if getattr(obj.db, "is_item", False)])
 
         table = evtable.EvTable(border="cells", pad_width=1)
         table.add_row("姓名", caller.key)
@@ -101,6 +104,7 @@ class CmdStatus(Command):
         table.add_row("体力", f"{stamina}/{max_stamina}")
         table.add_row("修为", str(exp))
         table.add_row("位置", location)
+        table.add_row("背包", f"{item_count} 件")
 
         self.caller.msg("|g角色状态|n\n%s" % table)
 
@@ -340,9 +344,16 @@ class CmdAttack(Command):
             caller.db.exp = exp
             caller.db.realm = new_realm
             target.db.hp = target_max_hp
+            drop = create_object(
+                "typeclasses.items.Item",
+                key="青木碎片",
+                location=caller,
+            )
+            drop.db.desc = "一块从青木傀儡身上掉下来的木质碎片，边缘仍留着浅浅灵纹。"
             caller.msg(
                 f"你一掌击中 {target.key} 的胸口，木屑四散，傀儡轰然倒退。\n"
                 f"|g战斗收获|n: 修为 +{gain}，体力 -{cost}\n"
+                f"你拾起了 |w{drop.key}|n。\n"
                 f"{target.key} 很快被重新扶正，似乎又能继续陪练了。"
             )
             if new_realm != old_realm:
@@ -354,3 +365,33 @@ class CmdAttack(Command):
             f"你朝 {target.key} 猛然出手，打得桩身一震。\n"
             f"|g当前效果|n: {target.key} 气血 {target_hp}/{target_max_hp}，你的体力 {caller.db.stamina}/{max_stamina}"
         )
+
+
+class CmdInventory(Command):
+    """
+    查看背包
+
+    用法:
+      背包
+      inventory
+
+    查看当前持有的基础物品。
+    """
+
+    key = "背包"
+    aliases = ["inventory", "inv", "bag"]
+    locks = "cmd:all()"
+    help_category = "物品"
+
+    def func(self):
+        caller = self.caller
+        items = [obj for obj in caller.contents_get(content_type="object") if getattr(obj.db, "is_item", False)]
+        if not items:
+            caller.msg("你的背包里空空如也。")
+            return
+
+        table = evtable.EvTable("名称", "说明", border="cells", pad_width=1)
+        for item in items:
+            table.add_row(item.key, item.db.desc or "暂无说明")
+
+        caller.msg("|g背包|n\n%s" % table)
