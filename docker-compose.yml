@@ -1,0 +1,26 @@
+services:
+  mud:
+    image: evennia/evennia:latest
+    container_name: jiuzhou-like-mud
+    restart: unless-stopped
+    working_dir: /usr/src/game
+    ports:
+      - "${MUD_TELNET_PORT:-4000}:4000"
+      - "${MUD_WEB_PORT:-4001}:4001"
+      - "${MUD_WS_PORT:-4002}:4002"
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+    volumes:
+      - ./game/mygame:/usr/src/game
+    stdin_open: true
+    tty: true
+    entrypoint: ["/bin/sh", "-lc"]
+    command:
+      - |
+        if [ ! -f server/conf/settings.py ]; then
+          echo "Game directory is not initialized yet."
+          echo "Run the Evennia init step first."
+          sleep infinity
+        fi
+        evennia start
+        tail -F server/logs/server.log server/logs/portal.log

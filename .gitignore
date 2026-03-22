@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.env
+game/mygame/server/evennia.db3
+game/mygame/server/logs/*.log
+game/mygame/server/logs/*.lock
