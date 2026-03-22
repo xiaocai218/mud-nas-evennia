@@ -120,3 +120,4 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `world/start_area.py` 可以重复执行，用于修正或补建新手区
 - 当前新手区内的交互对象 `木人桩` 也是由 `world/start_area.py` 负责维护
 - 当前新手区内的 `守渡老人` 与 `青木傀儡` 也由 `world/start_area.py` 负责维护
+- 当前 `青木碎片` 的处理逻辑在 `commands/newbie.py` 的 `炼化` 命令中

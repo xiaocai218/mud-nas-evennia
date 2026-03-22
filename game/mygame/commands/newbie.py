@@ -61,6 +61,8 @@ class CmdNewbie(Command):
             "  |w练拳|n        在木人桩前练习拳脚\n"
             "  |w交谈 守渡老人|n  向新手 NPC 打听情况\n"
             "  |w攻击 青木傀儡|n  进行最基础战斗测试\n"
+            "  |w炼化 青木碎片|n  将掉落物转成修为\n"
+            "  |w背包|n        查看当前获得的物品\n"
             "  |w北|n / |w东|n      在新手区域中移动\n"
             "  |wchannels|n    查看可用频道\n"
             "\n"
@@ -395,3 +397,54 @@ class CmdInventory(Command):
             table.add_row(item.key, item.db.desc or "暂无说明")
 
         caller.msg("|g背包|n\n%s" % table)
+
+
+class CmdRefine(Command):
+    """
+    炼化物品
+
+    用法:
+      炼化 <物品名>
+      refine <物品名>
+
+    将特定材料炼化为修为。
+    """
+
+    key = "炼化"
+    aliases = ["refine", "absorb"]
+    locks = "cmd:all()"
+    help_category = "物品"
+
+    def func(self):
+        caller = self.caller
+        if not self.args:
+            caller.msg("你要炼化什么？用法：|w炼化 青木碎片|n")
+            return
+
+        item_name = self.args.strip()
+        items = [obj for obj in caller.contents_get(content_type="object") if getattr(obj.db, "is_item", False)]
+        item = next((obj for obj in items if obj.key == item_name), None)
+        if not item:
+            caller.msg("你的背包里没有这个物品。")
+            return
+
+        exp = caller.db.exp if caller.db.exp is not None else 0
+        old_realm = caller.db.realm or get_realm_from_exp(exp)
+
+        if item.key == "青木碎片":
+            gain = 10
+            exp += gain
+            new_realm = get_realm_from_exp(exp)
+            caller.db.exp = exp
+            caller.db.realm = new_realm
+            item.delete()
+            caller.msg(
+                f"你将 {item_name} 捧在掌心，缓缓炼化其中残存的灵息。\n"
+                f"|g炼化收获|n: 修为 +{gain}\n"
+                f"|g当前状态|n: {new_realm}，修为 {exp}"
+            )
+            if new_realm != old_realm:
+                caller.msg(f"|y借这一缕灵息之助，你的境界提升至 {new_realm}。|n")
+            return
+
+        caller.msg(f"{item_name} 现在还无法炼化。")
