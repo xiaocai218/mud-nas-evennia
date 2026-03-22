@@ -58,6 +58,7 @@ class CmdNewbie(Command):
             "  |w状态|n        查看当前角色状态\n"
             "  |w修炼|n        消耗体力获取修为\n"
             "  |w休息|n        恢复体力\n"
+            "  |w调息|n        恢复气血\n"
             "  |w练拳|n        在木人桩前练习拳脚\n"
             "  |w交谈 守渡老人|n  向新手 NPC 打听情况\n"
             "  |w攻击 青木傀儡|n  进行最基础战斗测试\n"
@@ -194,6 +195,39 @@ class CmdRest(Command):
         )
 
 
+class CmdRecoverHp(Command):
+    """
+    调整气息
+
+    用法:
+      调息
+      heal
+
+    平复气血，恢复少量生命。
+    """
+
+    key = "调息"
+    aliases = ["heal", "recoverhp"]
+    locks = "cmd:all()"
+    help_category = "修炼"
+
+    def func(self):
+        caller = self.caller
+        hp = caller.db.hp if caller.db.hp is not None else 100
+        max_hp = caller.db.max_hp if caller.db.max_hp is not None else 100
+        gain = 20
+
+        if hp >= max_hp:
+            caller.msg("你默运周天，只觉气血充盈，暂时无需额外调息。")
+            return
+
+        caller.db.hp = min(max_hp, hp + gain)
+        caller.msg(
+            "你收摄心神，缓缓调匀体内紊乱气机，胸腹间的闷痛也散去了不少。\n"
+            f"|g气血恢复|n: +{caller.db.hp - hp}，当前气血 {caller.db.hp}/{max_hp}"
+        )
+
+
 class CmdTrain(Command):
     """
     练习拳脚
@@ -322,6 +356,8 @@ class CmdAttack(Command):
 
         stamina = caller.db.stamina if caller.db.stamina is not None else 50
         max_stamina = caller.db.max_stamina if caller.db.max_stamina is not None else 50
+        hp = caller.db.hp if caller.db.hp is not None else 100
+        max_hp = caller.db.max_hp if caller.db.max_hp is not None else 100
         exp = caller.db.exp if caller.db.exp is not None else 0
         old_realm = caller.db.realm or get_realm_from_exp(exp)
         target_hp = target.db.hp if target.db.hp is not None else 30
@@ -330,6 +366,7 @@ class CmdAttack(Command):
         cost = 8
         damage = 12
         gain = 12
+        counter = 6
 
         if stamina < cost:
             caller.msg(f"你提气欲上，却发现体力不足。至少需要 |w{cost}|n 点体力才能出手。")
@@ -363,10 +400,22 @@ class CmdAttack(Command):
             return
 
         target.db.hp = target_hp
+        hp = max(0, hp - counter)
+        caller.db.hp = hp
         caller.msg(
             f"你朝 {target.key} 猛然出手，打得桩身一震。\n"
-            f"|g当前效果|n: {target.key} 气血 {target_hp}/{target_max_hp}，你的体力 {caller.db.stamina}/{max_stamina}"
+            f"{target.key} 随即回震而来，撞得你胸口微微发闷。\n"
+            f"|g当前效果|n: {target.key} 气血 {target_hp}/{target_max_hp}，你的体力 {caller.db.stamina}/{max_stamina}，你的气血 {hp}/{max_hp}"
         )
+
+        if hp <= 0:
+            caller.db.hp = max_hp
+            caller.db.stamina = max_stamina
+            if caller.location and caller.location.key != "青云渡":
+                home = caller.search("青云渡", global_search=True, quiet=True)
+                if home:
+                    caller.move_to(home[0], quiet=True)
+            caller.msg("|r你被反震得眼前发黑，只得狼狈退回青云渡重新调息。|n")
 
 
 class CmdInventory(Command):
