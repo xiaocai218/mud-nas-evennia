@@ -218,6 +218,7 @@ docker compose up -d
 
 - [maintenance.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\maintenance.md)
 - [architecture.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\architecture.md)
+- [area_design.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\area_design.md)
 - [progress_2026-03-22.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\progress_2026-03-22.md)
 
 常见操作：
@@ -237,7 +238,7 @@ docker compose up -d
 
 下一阶段最适合继续做的是：
 
-- 更通用的任务模板
-- 更正式的敌人参数体系
+- `area` / `room` 分层
+- 区域出口与区域迁移
+- 新手村基础设施与最小商店
 - 更多区域与 NPC 内容
-- 门派、功法、成长线雏形
