@@ -17,6 +17,8 @@ class Character(ObjectParent, DefaultCharacter):
     Project default character typeclass.
     """
 
+    cmdset_character = "commands.default_cmdsets.CharacterCmdSet"
+
     def at_object_creation(self):
         super().at_object_creation()
         self.db.character_profile = self.db.character_profile or get_default_profile_key()
