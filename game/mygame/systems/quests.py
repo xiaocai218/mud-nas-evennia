@@ -14,9 +14,6 @@ STAGE_THREE_READY = "stage_three_ready"
 STAGE_THREE = "stage_three_started"
 COMPLETED = "completed"
 
-SIDE_HERB = "side_herb_started"
-SIDE_HERB_DONE = "side_herb_completed"
-
 NOT_STARTED = "not_started"
 QUEST_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "quests.json"
 
@@ -53,11 +50,43 @@ def get_stage_data(state):
 
 
 def get_side_quest_state(caller):
-    return caller.db.side_herb_quest or NOT_STARTED
+    for quest in SIDE_QUEST_DATA.values():
+        state_attr = quest.get("state_attr")
+        if state_attr:
+            state = getattr(caller.db, state_attr, None)
+            if state and state != NOT_STARTED:
+                return state
+    return NOT_STARTED
 
 
 def get_side_quest_data(quest_key):
     return SIDE_QUEST_DATA.get(quest_key)
+
+
+def get_side_quest_state_attr(quest_key):
+    quest = get_side_quest_data(quest_key)
+    return quest.get("state_attr") if quest else None
+
+
+def get_side_quest_start_state(quest_key):
+    quest = get_side_quest_data(quest_key)
+    return quest.get("start_state") if quest else None
+
+
+def get_side_quest_completed_state(quest_key):
+    quest = get_side_quest_data(quest_key)
+    return quest.get("completed_state") if quest else None
+
+
+def get_active_side_quest_key(caller):
+    for quest_key, quest in SIDE_QUEST_DATA.items():
+        state_attr = quest.get("state_attr")
+        if not state_attr:
+            continue
+        state = getattr(caller.db, state_attr, None)
+        if state and state != NOT_STARTED:
+            return quest_key
+    return None
 
 
 def get_quest_status_text(caller):
@@ -87,13 +116,13 @@ def get_main_quest_status_text(caller):
 
 
 def get_side_quest_status_text(caller):
-    state = get_side_quest_state(caller)
-    if state == NOT_STARTED:
+    quest_key = get_active_side_quest_key(caller)
+    if not quest_key:
         return None
-    if state == SIDE_HERB_DONE:
-        return SIDE_QUEST_DATA["herb_delivery"]["completed_text"]
-
-    quest = SIDE_QUEST_DATA["herb_delivery"]
+    quest = SIDE_QUEST_DATA[quest_key]
+    state = getattr(caller.db, quest.get("state_attr"), NOT_STARTED)
+    if state == quest.get("completed_state"):
+        return quest["completed_text"]
     has_item = "已获得" if bool(find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))) else "未获得"
     return (
         "|g当前支线|n\n"
@@ -154,39 +183,40 @@ def start_third_stage(caller):
     set_main_quest_state(caller, STAGE_THREE)
 
 
-def start_side_herb_quest(caller):
-    caller.db.side_herb_quest = SIDE_HERB
-
-
 def start_side_quest(caller, quest_key):
-    if quest_key == "herb_delivery":
-        start_side_herb_quest(caller)
+    quest = get_side_quest_data(quest_key)
+    if not quest:
+        return
+    state_attr = quest.get("state_attr")
+    start_state = quest.get("start_state")
+    if state_attr and start_state:
+        setattr(caller.db, state_attr, start_state)
 
 
-def can_complete_side_herb_quest(caller):
-    quest = SIDE_QUEST_DATA["herb_delivery"]
-    return get_side_quest_state(caller) == SIDE_HERB and bool(
+def can_complete_side_quest(caller, quest_key):
+    quest = get_side_quest_data(quest_key)
+    if not quest:
+        return False
+    state_attr = quest.get("state_attr")
+    start_state = quest.get("start_state")
+    if state_attr and getattr(caller.db, state_attr, NOT_STARTED) != start_state:
+        return False
+    return bool(
         find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))
     )
 
 
-def can_complete_side_quest(caller, quest_key):
-    if quest_key == "herb_delivery":
-        return can_complete_side_herb_quest(caller)
-    return False
-
-
-def complete_side_herb_quest(caller):
-    quest = SIDE_QUEST_DATA["herb_delivery"]
+def complete_side_quest(caller, quest_key):
+    quest = get_side_quest_data(quest_key)
+    if not quest:
+        return
     item = find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))
     if item:
         item.delete()
-    caller.db.side_herb_quest = SIDE_HERB_DONE
-
-
-def complete_side_quest(caller, quest_key):
-    if quest_key == "herb_delivery":
-        complete_side_herb_quest(caller)
+    state_attr = quest.get("state_attr")
+    completed_state = quest.get("completed_state")
+    if state_attr and completed_state:
+        setattr(caller.db, state_attr, completed_state)
 
 
 def mark_combat_kill(caller, target):

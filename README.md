@@ -76,6 +76,7 @@
   - 阶段流转
   - 奖励配置
   - 旧存档兼容映射
+  - 支线已开始支持 `state_attr / start_state / completed_state`
 - `items.json`
   - 物品模板
   - 炼化与使用效果

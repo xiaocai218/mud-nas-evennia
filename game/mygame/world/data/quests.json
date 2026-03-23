@@ -104,6 +104,9 @@
   "side_quests": {
     "herb_delivery": {
       "id": "quest_side_herb_delivery",
+      "state_attr": "side_herb_quest",
+      "start_state": "side_herb_started",
+      "completed_state": "side_herb_completed",
       "title": "雾露代药",
       "giver": "药庐学徒",
       "giver_npc_id": "npc_herb_apprentice",

@@ -160,6 +160,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前 NPC 交谈处理器路由、触发条件和处理步骤已开始独立到 `world/data/npc_routes.json`
 - 当前 `systems/npc_routes.py` 已改成动作处理器注册表结构，后续新增 NPC 动作优先补 handler 映射
 - 当前主线阶段的完成流转、兼容映射与开始时进度重置已独立到 `world/data/quests.json`
+- 当前支线任务状态也已开始走 `quests.json` 的 `state_attr / start_state / completed_state` 配置
 - 当前 `commands/inventory.py` 主要做命令入口，实际效果执行在 `systems/items.py`
 - 当前 `commands/social.py` 主要做交谈入口校验，实际任务分支分发已下沉到 `systems/npc_routes.py`
 - 当前怪物摆放房间也已并入 `world/data/enemies.json`，`world/start_area.py` 不再手写敌人房间映射
