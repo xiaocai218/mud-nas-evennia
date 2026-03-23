@@ -90,7 +90,8 @@
   - NPC 与常驻对象定义
 - `objects.json`
   - 房间内交互对象模板
-  - 当前已支持 `object_type`，可区分训练对象、可读对象等
+  - 当前已支持 `object_type`
+  - 可通过 `read_config`、`gather_config`、`trigger_effect`、`trigger_requirements` 配置对象交互
 - `dialogues.json`
   - NPC 对话文案
 - `npc_routes.json`

@@ -39,6 +39,7 @@
 - `world_objects.py`
   - 处理房间交互对象的基础能力
   - 当前支持可读对象、任务碑、可采集对象、传送对象、增益点和带解锁条件的入口
+  - 对象行为开始统一由配置驱动，优先读取 `read_config`、`gather_config`、`trigger_effect`、`trigger_requirements`
 - `quests.py`
   - 从 `world/data/quests.json` 读取任务定义
   - 任务状态兼容、阶段推进与奖励发放
@@ -71,7 +72,8 @@
   - NPC 定义
 - `data/objects.json`
   - 房间内交互对象模板与对象类型
-  - 当前可配置公告牌、任务碑、采集点、传送点、增益点、门派入口等对象
+  - 当前可配置公告牌、任务碑、采集点、传送点、增益点、恢复点、门派入口等对象
+  - 触发型对象可直接配置效果类型和解锁条件，减少新增对象时的 Python 分支
 - `data/dialogues.json`
   - NPC 对话文案与通用交互提示
 - `data/npc_routes.json`

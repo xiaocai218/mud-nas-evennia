@@ -10,12 +10,10 @@ from systems.player_stats import get_active_effect_text, get_stats
 from systems.world_objects import (
     gather_from_object,
     get_readable_text,
-    is_blessable,
     is_gatherable,
     is_readable,
-    is_teleportable,
-    receive_object_blessing,
-    teleport_via_object,
+    is_triggerable,
+    trigger_object,
 )
 
 
@@ -43,6 +41,7 @@ class CmdNewbie(Command):
             "  |w采集 松纹草丛|n  在古松林采集基础草药\n"
             "  |w触发 回渡石|n  从溪谷栈道快速返回青云渡\n"
             "  |w触发 凝神蒲团|n  获取短时修炼加持\n"
+            "  |w触发 洗尘泉眼|n  在渡口快速恢复气血与体力\n"
             "  |w触发 青云山门|n  试着进入外门前坪\n"
             "  |w任务|n        查看当前新手任务\n"
             "  |w修炼|n        消耗体力获取修为\n"
@@ -143,22 +142,26 @@ class CmdTrigger(Command):
         if not target:
             caller.msg("你没有在附近看到这个目标。")
             return
-        if not is_teleportable(target):
-            if not is_blessable(target):
-                caller.msg(f"{target.key} 看起来并不会回应你的触碰。")
-                return
-            result = receive_object_blessing(caller, target)
-            if not result["ok"]:
-                caller.msg("这处灵息暂时没有回应你。")
-                return
+        if not is_triggerable(target):
+            caller.msg(f"{target.key} 看起来并不会回应你的触碰。")
+            return
+        result = trigger_object(caller, target)
+        if not result["ok"]:
+            caller.msg(result["text"])
+            return
+        if result.get("effect"):
             remaining = max(0, int(result["effect"]["expires_at"] - time.time()))
             caller.msg(
                 f"{result['text']}\n"
                 f"|g当前加持|n: {result['effect']['label']}，持续约 {remaining} 秒"
             )
             return
-        result = teleport_via_object(caller, target)
-        if not result["ok"]:
-            caller.msg(result["text"])
+        if "hp_gain" in result or "stamina_gain" in result:
+            caller.msg(
+                f"{result['text']}\n"
+                f"|g恢复结果|n: 气血 +{result.get('hp_gain', 0)}，体力 +{result.get('stamina_gain', 0)}\n"
+                f"|g当前状态|n: 气血 {result.get('hp_now', 0)}/{result.get('max_hp', 0)}，"
+                f"体力 {result.get('stamina_now', 0)}/{result.get('max_stamina', 0)}"
+            )
             return
         caller.msg(result["text"])

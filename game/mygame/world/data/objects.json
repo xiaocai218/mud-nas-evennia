@@ -17,7 +17,10 @@
       "object_type": "noticeboard",
       "desc": "一块钉在旧木架上的告示牌立在渡口边，木纹里还沾着些潮气。上面贴着几张新旧不一的纸笺，像是专给新来的修行者看的。",
       "attrs": {
-        "readable_text": "|g渡口告示|n\n\n1. 初入九州者，可先以 |w交谈 守渡老人|n 领取入门试炼。\n2. 体力不足时可用 |w休息|n，气血受损时可用 |w调息|n。\n3. 古松林有 |w木人桩|n 可供练拳，问道石阶与溪谷栈道则有更进一步的试炼目标。\n4. 若得灵材，可用 |w炼化 物品名|n 转为修为；若得药物，可用 |w使用 物品名|n 直接恢复。\n\n落款：青云渡值守"
+        "read_config": {
+          "type": "static",
+          "text": "|g渡口告示|n\n\n1. 初入九州者，可先以 |w交谈 守渡老人|n 领取入门试炼。\n2. 体力不足时可用 |w休息|n，气血受损时可用 |w调息|n。\n3. 古松林有 |w木人桩|n 可供练拳，问道石阶与溪谷栈道则有更进一步的试炼目标。\n4. 若得灵材，可用 |w炼化 物品名|n 转为修为；若得药物，可用 |w使用 物品名|n 直接恢复。\n\n落款：青云渡值守"
+        }
       }
     },
     {
@@ -27,10 +30,12 @@
       "object_type": "gather_node",
       "desc": "一丛贴着林间石根生长的细草在风里轻轻摇晃，叶面带着淡淡油亮光泽，看起来像是可以采来应急疗伤的草药。",
       "attrs": {
-        "gather_item_id": "item_songwen_grass",
-        "gather_cost": 4,
-        "gather_text": "你俯身拨开松针，小心从草丛里摘下几束完整的松纹草。",
-        "gather_fail_text": "你刚蹲下身，便觉得四肢发沉，至少需要 |w{cost}|n 点体力才能细细采药。"
+        "gather_config": {
+          "gather_item_id": "item_songwen_grass",
+          "gather_cost": 4,
+          "gather_text": "你俯身拨开松针，小心从草丛里摘下几束完整的松纹草。",
+          "gather_fail_text": "你刚蹲下身，便觉得四肢发沉，至少需要 |w{cost}|n 点体力才能细细采药。"
+        }
       }
     },
     {
@@ -40,8 +45,11 @@
       "object_type": "teleport_anchor",
       "desc": "一块半人高的青灰石柱立在栈道转角，表面刻着极浅的回纹，摸上去带着一点潮凉灵意，像是与渡口方向隐约呼应。",
       "attrs": {
-        "teleport_room_id": "room_qingyundu",
-        "teleport_text": "你将手按在回渡石上，石纹微微一亮，脚下景物一阵恍惚，下一瞬已回到熟悉的渡口雾气之间。"
+        "trigger_effect": {
+          "type": "teleport",
+          "room_id": "room_qingyundu",
+          "text": "你将手按在回渡石上，石纹微微一亮，脚下景物一阵恍惚，下一瞬已回到熟悉的渡口雾气之间。"
+        }
       }
     },
     {
@@ -51,8 +59,11 @@
       "object_type": "quest_marker",
       "desc": "一块窄长青碑立在石阶旁，碑面被风雨磨得发暗，只有几道浅刻纹路依稀可辨。靠近时，总让人不自觉想起自己此行到底要去做什么。",
       "attrs": {
-        "quest_hint_title": "|g问道路碑|n",
-        "quest_hint_intro": "碑面上浮起淡淡灵光，将你此刻最该处理的事情映照出来："
+        "read_config": {
+          "type": "quest_status",
+          "title": "|g问道路碑|n",
+          "intro": "碑面上浮起淡淡灵光，将你此刻最该处理的事情映照出来："
+        }
       }
     },
     {
@@ -62,11 +73,30 @@
       "object_type": "blessing_spot",
       "desc": "一个旧蒲团安静摆在青碑旁，团面虽有些磨损，却仍残留着温和灵息。若在此收摄心神片刻，似乎能让接下来的吐纳更顺一些。",
       "attrs": {
-        "buff_key": "cultivation_bonus",
-        "buff_bonus": 5,
-        "buff_duration": 600,
-        "buff_label": "凝神加持",
-        "buff_text": "你在蒲团上短暂敛神，耳边钟声与雾气都像慢了下来，一缕澄明灵息悄然沉入经脉。"
+        "trigger_effect": {
+          "type": "buff",
+          "buff_key": "cultivation_bonus",
+          "buff_bonus": 5,
+          "buff_duration": 600,
+          "buff_label": "凝神加持",
+          "text": "你在蒲团上短暂敛神，耳边钟声与雾气都像慢了下来，一缕澄明灵息悄然沉入经脉。"
+        }
+      }
+    },
+    {
+      "id": "obj_cleansing_spring_01",
+      "room_id": "qingyundu",
+      "key": "洗尘泉眼",
+      "object_type": "healing_spot",
+      "desc": "一眼细泉从渡口边的青石缝里缓缓涌出，泉水清澈得几乎映不住影子，只在水面深处浮着一点淡淡灵辉。若以手触之，似乎能稍稍洗去奔波后的疲惫。",
+      "attrs": {
+        "trigger_effect": {
+          "type": "restore",
+          "hp": 18,
+          "stamina": 12,
+          "text": "你俯身掬起一捧泉水，清凉灵意顺着喉间与经脉缓缓散开，胸口与四肢都松快了许多。",
+          "full_text": "你在泉眼前静静站了片刻，发现自己此刻气血与体力都还稳当，用不着再借它调养。"
+        }
       }
     },
     {
@@ -76,10 +106,15 @@
       "object_type": "sect_gate",
       "desc": "一道半掩的青石山门立在栈道尽头，门楣上覆着淡淡云纹，像是把山下与真正的宗门内界轻轻分隔开来。门后隐约可见更高处的石坪与檐影。",
       "attrs": {
-        "teleport_room_id": "room_qingyun_outer_court",
-        "required_main_state": "completed",
-        "teleport_text": "你伸手触向山门，门上云纹一层层亮起，原本凝滞的灵压忽然散开，随后你被一道柔和气机引入门后石坪。",
-        "locked_text": "你刚靠近山门，门上云纹便生出一层微凉阻力，像是在提醒你：先完成眼前这段入门试炼，再谈更高处的去路。"
+        "trigger_requirements": {
+          "main_state_is": "completed",
+          "fail_text": "你刚靠近山门，门上云纹便生出一层微凉阻力，像是在提醒你：先完成眼前这段入门试炼，再谈更高处的去路。"
+        },
+        "trigger_effect": {
+          "type": "teleport",
+          "room_id": "room_qingyun_outer_court",
+          "text": "你伸手触向山门，门上云纹一层层亮起，原本凝滞的灵压忽然散开，随后你被一道柔和气机引入门后石坪。"
+        }
       }
     }
   ]

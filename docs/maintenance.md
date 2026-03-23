@@ -146,7 +146,9 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前已增加最小可采集对象类型，`采集 <目标>` 可用于采药点一类对象
 - 当前已增加最小传送对象类型，`触发 <目标>` 可用于回渡石一类对象
 - 当前已增加最小增益点对象类型，`触发 凝神蒲团` 可获得短时修炼加持
+- 当前已增加最小恢复点对象类型，`触发 洗尘泉眼` 可直接恢复部分气血与体力
 - 当前已增加带解锁条件的山门入口对象，`触发 青云山门` 会按主线完成状态决定是否放行
+- 当前对象交互配置开始统一收口到 `read_config`、`gather_config`、`trigger_effect`、`trigger_requirements`
 - 当前内容层已开始补充稳定 `id/content_id`，后续系统内部引用应逐步从中文名切到这些稳定标识
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 NPC 交谈处理器路由、触发条件和处理步骤已开始独立到 `world/data/npc_routes.json`
