@@ -6,7 +6,7 @@ from evennia.settings_default import *
 
 SERVERNAME = "九州群修"
 
-# Explicitly pin project paths so future maintenance is easier.
+# Keep the login chain on official cmdsets; only the in-game character cmdset is project-defined.
 CMDSET_CHARACTER = "commands.default_cmdsets.CharacterCmdSet"
 CMDSET_ACCOUNT = "evennia.commands.default.cmdset_account.AccountCmdSet"
 CMDSET_UNLOGGEDIN = "evennia.commands.default.cmdset_unloggedin.UnloggedinCmdSet"

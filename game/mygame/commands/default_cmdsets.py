@@ -2,7 +2,7 @@
 Command sets
 """
 
-from evennia import default_cmds
+from evennia.commands.default.cmdset_character import CharacterCmdSet as EvenniaCharacterCmdSet
 
 from .combat import CmdAttack, CmdTrain
 from .core import CmdGather, CmdNewbie, CmdRead, CmdStatus, CmdTrigger
@@ -12,7 +12,7 @@ from .inventory import CmdInventory, CmdRefine, CmdUseItem
 from .social import CmdQuest, CmdTalk
 
 
-class CharacterCmdSet(default_cmds.CharacterCmdSet):
+class CharacterCmdSet(EvenniaCharacterCmdSet):
     key = "DefaultCharacter"
 
     def at_cmdset_creation(self):
@@ -33,24 +33,3 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdUseItem())
         self.add(CmdQuest())
         self.add(CmdContent())
-
-
-class AccountCmdSet(default_cmds.AccountCmdSet):
-    key = "DefaultAccount"
-
-    def at_cmdset_creation(self):
-        super().at_cmdset_creation()
-
-
-class UnloggedinCmdSet(default_cmds.UnloggedinCmdSet):
-    key = "DefaultUnloggedin"
-
-    def at_cmdset_creation(self):
-        super().at_cmdset_creation()
-
-
-class SessionCmdSet(default_cmds.SessionCmdSet):
-    key = "DefaultSession"
-
-    def at_cmdset_creation(self):
-        super().at_cmdset_creation()
