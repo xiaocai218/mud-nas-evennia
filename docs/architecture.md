@@ -72,6 +72,9 @@
   - 结合 `world/data/enemies.json` 处理怪物模板与掉落
 - `dialogues.py`
   - 从 `world/data/dialogues.json` 读取 NPC 对话文案
+- `areas.py`
+  - 从 `world/data/areas.json` 与 `world/data/area_exits.json` 读取区域信息
+  - 提供当前房间所属区域与区域出口摘要
 - `npc_routes.py`
   - 从 `world/data/npc_routes.json` 读取 NPC 交谈路由与触发条件
   - 按配置执行对话、任务接取、任务交付和奖励提示
@@ -89,7 +92,7 @@
 - `data/enemies.json`
   - 怪物模板、基础属性、掉落、任务标记、房间摆放
 - `data/rooms.json`
-  - 房间定义与出口关系
+  - 房间定义、出口关系与所属区域
 - `data/areas.json`
   - 后续用于定义地域 / 区域元数据
   - 例如新手村、外门、坊市、山路试炼区
@@ -184,7 +187,7 @@
 
 - `青云渡新手村`
 
-后续建议将其作为一个正式 `area`，并逐步补齐：
+当前已经先落地为正式 `area` 配置，后续将继续补齐：
 
 - 小药铺
 - 铁匠铺

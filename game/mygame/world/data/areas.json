@@ -1,0 +1,41 @@
+{
+  "qingyundu_village": {
+    "id": "area_qingyundu_village",
+    "key": "青云渡新手村",
+    "region_type": "starter_village",
+    "recommended_realm": "炼气一层",
+    "desc": "这里是初入青云一脉前的山下新手地域，渡口、石阶与古松林彼此相连，适合新人熟悉移动、修炼、采集与最基础的战斗节奏。",
+    "rooms": [
+      "qingyundu",
+      "stair",
+      "pine"
+    ],
+    "facilities": [
+      "渡口公告",
+      "基础采集点",
+      "木人桩",
+      "新手引导",
+      "未来药铺",
+      "未来铁匠铺",
+      "未来杂货摊"
+    ]
+  },
+  "qingyun_outer_gate": {
+    "id": "area_qingyun_outer_gate",
+    "key": "青云外门",
+    "region_type": "outer_gate",
+    "recommended_realm": "炼气三层",
+    "desc": "这里是穿过山门后的外门前段区域，已经脱离山下新手村，开始承担更明确的宗门过渡与外门生活功能。",
+    "rooms": [
+      "valley",
+      "outer_court",
+      "herb_garden"
+    ],
+    "facilities": [
+      "山门入口",
+      "巡查任务",
+      "药圃采集",
+      "外门执事"
+    ]
+  }
+}

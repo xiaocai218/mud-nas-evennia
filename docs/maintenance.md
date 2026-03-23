@@ -97,6 +97,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/systems/world_objects.py`: 房间交互对象的基础能力
 - `game/mygame/systems/effect_executor.py`: 统一处理恢复、buff 等效果执行
 - `game/mygame/systems/content_loader.py`: 统一加载 `world/data/*.json`
+- `game/mygame/systems/areas.py`: 区域与区域出口读取
 - `game/mygame/commands/devtools.py`: 管理员内容维护命令
 - `game/mygame/commands/cultivation.py`: 修炼、休息、调息
 - `game/mygame/commands/combat.py`: 练拳、攻击
@@ -107,6 +108,8 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/world/data/items.json`: 物品定义、炼化值、使用效果
 - `game/mygame/world/data/enemies.json`: 怪物模板、掉落、任务标记
 - `game/mygame/world/data/rooms.json`: 房间定义与出口关系
+- `game/mygame/world/data/areas.json`: 区域定义
+- `game/mygame/world/data/area_exits.json`: 区域到区域的迁移关系
 - `game/mygame/world/data/npcs.json`: NPC 定义
 - `game/mygame/world/data/objects.json`: 房间内交互对象模板与对象类型
 - `game/mygame/world/data/realms.json`: 境界阈值与默认境界配置
@@ -174,6 +177,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前主线阶段的完成流转、兼容映射与开始时进度重置已独立到 `world/data/quests.json`
 - 当前支线任务状态也已开始走 `quests.json` 的 `state_attr / start_state / completed_state` 配置
 - 当前支线任务状态已支持多条支线并存，不再默认只跟踪第一条支线
+- 当前房间也已开始补 `area_id`，区域结构建议优先维护在 `areas.json + rooms.json + area_exits.json`
 - 当前 `commands/inventory.py` 主要做命令入口，实际效果执行在 `systems/items.py`
 - 当前 `commands/social.py` 主要做交谈入口校验，实际任务分支分发已下沉到 `systems/npc_routes.py`
 - 当前怪物摆放房间也已并入 `world/data/enemies.json`，`world/start_area.py` 不再手写敌人房间映射

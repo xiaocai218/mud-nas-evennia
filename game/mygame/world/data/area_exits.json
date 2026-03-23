@@ -1,0 +1,13 @@
+{
+  "qingyundu_to_outer_gate": {
+    "id": "area_exit_qingyundu_to_outer_gate",
+    "from_area": "qingyundu_village",
+    "to_area": "qingyun_outer_gate",
+    "trigger_room": "valley",
+    "trigger_object_id": "obj_qingyun_gate_01",
+    "requirement": {
+      "main_state_is": "completed"
+    },
+    "text": "穿过青云山门后，你便算真正离开了山下新手地域，开始踏入外门范围。"
+  }
+}

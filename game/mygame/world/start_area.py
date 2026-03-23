@@ -95,6 +95,8 @@ def build_rooms(room_defs):
             room = get_room_by_id(room_data["id"], room_data["key"], room_data["desc"], content_id=room_data.get("content_id", room_id))
         else:
             room = get_or_create_room(room_data["key"], room_data["desc"], content_id=room_data.get("content_id", room_id))
+        if room_data.get("area_id"):
+            room.db.area_id = room_data["area_id"]
         rooms[room_id] = room
     return rooms
 

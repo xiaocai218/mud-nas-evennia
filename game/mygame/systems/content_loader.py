@@ -9,6 +9,8 @@ _CONTENT_CACHE = {}
 CONTENT_SPECS = {
     "items": {"source": "items", "container": None, "kind": "dict", "key_field": "key", "id_field": "id"},
     "enemies": {"source": "enemies", "container": None, "kind": "dict", "key_field": "enemy_key", "id_field": "id"},
+    "areas": {"source": "areas", "container": None, "kind": "dict", "key_field": "area_key", "id_field": "id"},
+    "area_exits": {"source": "area_exits", "container": None, "kind": "dict", "key_field": "area_exit_key", "id_field": "id"},
     "rooms": {"source": "rooms", "container": "rooms", "kind": "dict", "key_field": "room_key", "id_field": "content_id"},
     "npcs": {"source": "npcs", "container": "npcs", "kind": "list", "key_field": "key", "id_field": "id"},
     "objects": {"source": "objects", "container": "objects", "kind": "list", "key_field": "key", "id_field": "id"},
@@ -87,10 +89,19 @@ def get_content_summary():
 def validate_content():
     issues = []
 
-    room_keys = set(load_content("rooms").get("rooms", {}).keys())
+    rooms_data = load_content("rooms").get("rooms", {})
+    areas_data = load_content("areas")
+    area_exit_data = load_content("area_exits")
+    room_keys = set(rooms_data.keys())
+    area_keys = set(areas_data.keys())
+    object_ids = {
+        obj.get("id")
+        for obj in load_content("objects").get("objects", [])
+        if obj.get("id")
+    }
     room_content_ids = {
         room.get("content_id")
-        for room in load_content("rooms").get("rooms", {}).values()
+        for room in rooms_data.values()
         if room.get("content_id")
     }
     item_ids = {
@@ -107,6 +118,28 @@ def validate_content():
     main_stage_states = set(load_content("quests").get("main_stages", {}).keys())
     side_quest_keys = set(load_content("quests").get("side_quests", {}).keys())
     dialogue_sections = load_content("dialogues")
+
+    for room_key, room in rooms_data.items():
+        area_id = room.get("area_id")
+        if area_id and area_id not in area_keys:
+            issues.append(f"rooms.{room_key}: area_id '{area_id}' 不存在")
+        if area_id and room_key in room_keys and room_key not in areas_data.get(area_id, {}).get("rooms", []):
+            issues.append(f"rooms.{room_key}: area_id '{area_id}' 未在 areas.{area_id}.rooms 中声明")
+
+    for area_key, area in areas_data.items():
+        for room_key in area.get("rooms", []):
+            if room_key not in room_keys:
+                issues.append(f"areas.{area_key}: room '{room_key}' 不存在")
+
+    for exit_key, exit_data in area_exit_data.items():
+        if exit_data.get("from_area") not in area_keys:
+            issues.append(f"area_exits.{exit_key}: from_area '{exit_data.get('from_area')}' 不存在")
+        if exit_data.get("to_area") not in area_keys:
+            issues.append(f"area_exits.{exit_key}: to_area '{exit_data.get('to_area')}' 不存在")
+        if exit_data.get("trigger_room") and exit_data["trigger_room"] not in room_keys:
+            issues.append(f"area_exits.{exit_key}: trigger_room '{exit_data['trigger_room']}' 不存在")
+        if exit_data.get("trigger_object_id") and exit_data["trigger_object_id"] not in object_ids:
+            issues.append(f"area_exits.{exit_key}: trigger_object_id '{exit_data['trigger_object_id']}' 不存在")
 
     for enemy_key, enemy in load_content("enemies").items():
         room_id = enemy.get("room_id")

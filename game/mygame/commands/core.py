@@ -5,6 +5,7 @@ import time
 from evennia.utils import evtable
 
 from .command import Command
+from systems.areas import get_area_for_room
 from systems.effect_executor import format_effect_result
 from systems.help_content import get_newbie_content
 from systems.items import get_inventory_items
@@ -57,6 +58,7 @@ class CmdStatus(Command):
         caller = self.caller
         stats = get_stats(caller)
         location = caller.location.key if caller.location else "未知"
+        area = get_area_for_room(caller.location)
         item_count = len(get_inventory_items(caller))
 
         table = evtable.EvTable(border="cells", pad_width=1)
@@ -65,6 +67,7 @@ class CmdStatus(Command):
         table.add_row("气血", f"{stats['hp']}/{stats['max_hp']}")
         table.add_row("体力", f"{stats['stamina']}/{stats['max_stamina']}")
         table.add_row("修为", str(stats["exp"]))
+        table.add_row("区域", area["key"] if area else "未划分")
         table.add_row("位置", location)
         table.add_row("效果", get_active_effect_text(caller))
         table.add_row("背包", f"{item_count} 件")

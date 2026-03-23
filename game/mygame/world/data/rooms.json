@@ -2,32 +2,38 @@
   "rooms": {
     "qingyundu": {
       "content_id": "room_qingyundu",
+      "area_id": "qingyundu_village",
       "id": 2,
       "key": "青云渡",
       "desc": "晨雾沿着石阶缓缓流下，古渡口边立着一块半旧的青碑，上书'青云渡'三字。\n这里是初入九州的修行者暂歇之地，向前可问道，向后可回望凡尘。\n你隐约听见远处钟声回荡，像是在提醒你，一段新的旅程已经开始。"
     },
     "stair": {
       "content_id": "room_wendao_stair",
+      "area_id": "qingyundu_village",
       "key": "问道石阶",
       "desc": "青石长阶沿山势缓缓向上，石缝间生着些许青苔。两侧风声清冷，远处偶尔传来诵经与钟鸣，令人不由自主收敛心神。"
     },
     "pine": {
       "content_id": "room_old_pine_forest",
+      "area_id": "qingyundu_village",
       "key": "古松林",
       "desc": "几株古松盘根错节，枝叶高高探向天幕。林间有碎石小径通行，空气里带着松脂与湿土的清气，适合新人暂作停留。"
     },
     "valley": {
       "content_id": "room_valley_walk",
+      "area_id": "qingyun_outer_gate",
       "key": "溪谷栈道",
       "desc": "栈道贴着山壁向前探出，脚下隐约能听见溪流撞击乱石的空响。山雾时聚时散，将前方的木栏和藤蔓都笼上一层湿润的冷意。"
     },
     "outer_court": {
       "content_id": "room_qingyun_outer_court",
+      "area_id": "qingyun_outer_gate",
       "key": "青云外门前坪",
       "desc": "一片被晨风吹得格外清明的石坪在山门前展开，两侧古松肃立，尽头是层层石阶与白墙青瓦。这里像是真正踏入宗门之前的第一道门槛，连空气都比山下更清冷几分。"
     },
     "herb_garden": {
       "content_id": "room_tingquan_herb_garden",
+      "area_id": "qingyun_outer_gate",
       "key": "听泉药圃",
       "desc": "几畦药草沿着石渠与矮篱整整齐齐铺开，细泉从山壁间引下，在圃边叮咚作响。空气里浮着潮润草木香，连呼吸都像被洗得清亮了一层。"
     }
