@@ -3,6 +3,7 @@
 from evennia.utils import evtable
 
 from .command import Command
+from systems.effect_executor import format_effect_result
 from systems.items import find_item, get_inventory_items, refine_item, use_item
 
 
@@ -82,23 +83,4 @@ class CmdUseItem(Command):
             caller.msg(f"{item.key} 现在还不能直接使用。")
             return
 
-        if result["effect_type"] == "restore_hp":
-            caller.msg(
-                f"{result['text']}\n"
-                f"|g使用效果|n: 气血 +{result['hp_gain']}，当前气血 {result['hp_now']}/{result['max_hp']}"
-            )
-            return
-
-        if result["effect_type"] == "restore_stamina":
-            caller.msg(
-                f"{result['text']}\n"
-                f"|g使用效果|n: 体力 +{result['stamina_gain']}，当前体力 {result['stamina_now']}/{result['max_stamina']}"
-            )
-            return
-
-        if result["effect_type"] == "restore_both":
-            caller.msg(
-                f"{result['text']}\n"
-                f"|g使用效果|n: 气血 +{result['hp_gain']}，体力 +{result['stamina_gain']}"
-            )
-            return
+        caller.msg(format_effect_result(result, "使用效果"))

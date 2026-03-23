@@ -5,6 +5,7 @@ import time
 from evennia.utils import evtable
 
 from .command import Command
+from systems.effect_executor import format_effect_result
 from systems.items import get_inventory_items
 from systems.player_stats import get_active_effect_text, get_stats
 from systems.world_objects import (
@@ -153,15 +154,10 @@ class CmdTrigger(Command):
             remaining = max(0, int(result["effect"]["expires_at"] - time.time()))
             caller.msg(
                 f"{result['text']}\n"
-                f"|g当前加持|n: {result['effect']['label']}，持续约 {remaining} 秒"
+                f"|g当前效果|n: {result['effect']['label']}，持续约 {remaining} 秒"
             )
             return
         if "hp_gain" in result or "stamina_gain" in result:
-            caller.msg(
-                f"{result['text']}\n"
-                f"|g恢复结果|n: 气血 +{result.get('hp_gain', 0)}，体力 +{result.get('stamina_gain', 0)}\n"
-                f"|g当前状态|n: 气血 {result.get('hp_now', 0)}/{result.get('max_hp', 0)}，"
-                f"体力 {result.get('stamina_now', 0)}/{result.get('max_stamina', 0)}"
-            )
+            caller.msg(format_effect_result(result, "恢复结果"))
             return
         caller.msg(result["text"])

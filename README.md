@@ -65,7 +65,7 @@
 - `game/mygame/commands/`
   - 命令入口层，只负责接收玩家输入
 - `game/mygame/systems/`
-  - 系统规则层，负责任务、物品、战斗、对话路由等逻辑
+  - 系统规则层，负责任务、物品、战斗、效果执行、对话路由等逻辑
 - `game/mygame/world/data/`
   - 内容配置层，负责静态模板
 
@@ -101,6 +101,12 @@
   - NPC 对话文案
 - `npc_routes.json`
   - NPC 交谈触发条件与路由步骤
+
+当前效果执行已开始统一收口：
+
+- `systems/effect_executor.py`
+  - 统一处理恢复、buff 等效果
+  - 物品和对象开始共用这一层
 
 ## 内容 ID 规范
 

@@ -5,7 +5,8 @@ from pathlib import Path
 
 from evennia.utils.create import create_object
 
-from .player_stats import apply_exp, get_stats
+from .effect_executor import execute_effect
+from .player_stats import apply_exp
 
 
 ITEM_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "items.json"
@@ -104,55 +105,7 @@ def use_item(caller, item):
     if not use_effect:
         return {"ok": False, "reason": "not_usable"}
 
-    stats = get_stats(caller)
-    effect_type = use_effect["type"]
-
-    if effect_type == "restore_hp":
-        if stats["hp"] >= stats["max_hp"]:
-            return {"ok": False, "reason": "hp_full"}
-        gain = use_effect["hp"]
-        caller.db.hp = min(stats["max_hp"], stats["hp"] + gain)
-        recovered = caller.db.hp - stats["hp"]
+    result = execute_effect(caller, use_effect)
+    if result["ok"]:
         item.delete()
-        return {
-            "ok": True,
-            "effect_type": effect_type,
-            "text": use_effect["full_text"],
-            "hp_gain": recovered,
-            "hp_now": caller.db.hp,
-            "max_hp": stats["max_hp"],
-        }
-
-    if effect_type == "restore_stamina":
-        if stats["stamina"] >= stats["max_stamina"]:
-            return {"ok": False, "reason": "stamina_full"}
-        gain = use_effect["stamina"]
-        caller.db.stamina = min(stats["max_stamina"], stats["stamina"] + gain)
-        recovered = caller.db.stamina - stats["stamina"]
-        item.delete()
-        return {
-            "ok": True,
-            "effect_type": effect_type,
-            "text": use_effect["full_text"],
-            "stamina_gain": recovered,
-            "stamina_now": caller.db.stamina,
-            "max_stamina": stats["max_stamina"],
-        }
-
-    if effect_type == "restore_both":
-        if stats["hp"] >= stats["max_hp"] and stats["stamina"] >= stats["max_stamina"]:
-            return {"ok": False, "reason": "all_full"}
-        hp_gain = min(stats["max_hp"], stats["hp"] + use_effect["hp"]) - stats["hp"]
-        stamina_gain = min(stats["max_stamina"], stats["stamina"] + use_effect["stamina"]) - stats["stamina"]
-        caller.db.hp = stats["hp"] + hp_gain
-        caller.db.stamina = stats["stamina"] + stamina_gain
-        item.delete()
-        return {
-            "ok": True,
-            "effect_type": effect_type,
-            "text": use_effect["full_text"],
-            "hp_gain": hp_gain,
-            "stamina_gain": stamina_gain,
-        }
-
-    return {"ok": False, "reason": "unknown_effect"}
+    return result

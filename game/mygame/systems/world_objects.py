@@ -2,8 +2,9 @@
 
 from evennia.objects.models import ObjectDB
 
+from systems.effect_executor import execute_effect
 from systems.items import create_loot
-from systems.player_stats import add_temporary_effect, get_stats
+from systems.player_stats import get_stats
 from systems.quests import get_quest_state, get_quest_status_text
 
 
@@ -160,20 +161,7 @@ def receive_object_blessing(caller, target):
     buff_key = (trigger_config or {}).get("buff_key")
     if not buff_key:
         return {"ok": False, "reason": "not_blessable"}
-
-    effect = add_temporary_effect(
-        caller,
-        buff_key,
-        int((trigger_config or {}).get("buff_bonus", 0) or 0),
-        int((trigger_config or {}).get("buff_duration", 0) or 0),
-        (trigger_config or {}).get("buff_label", "灵息加持"),
-    )
-    text = (trigger_config or {}).get("text") or (trigger_config or {}).get("buff_text") or f"{target.key} 上的灵息短暂落在你身上。"
-    return {
-        "ok": True,
-        "text": text,
-        "effect": effect,
-    }
+    return execute_effect(caller, trigger_config)
 
 
 def trigger_object(caller, target):
@@ -183,27 +171,7 @@ def trigger_object(caller, target):
 
     effect_type = trigger_config.get("type")
     if effect_type == "restore":
-        stats = get_stats(caller)
-        hp_gain = min(stats["max_hp"], stats["hp"] + int(trigger_config.get("hp", 0) or 0)) - stats["hp"]
-        stamina_gain = min(stats["max_stamina"], stats["stamina"] + int(trigger_config.get("stamina", 0) or 0)) - stats["stamina"]
-        if hp_gain <= 0 and stamina_gain <= 0:
-            return {
-                "ok": False,
-                "reason": "all_full",
-                "text": trigger_config.get("full_text") or "你此刻气息平稳、筋骨充盈，暂时用不上这里的灵息。",
-            }
-        caller.db.hp = stats["hp"] + hp_gain
-        caller.db.stamina = stats["stamina"] + stamina_gain
-        return {
-            "ok": True,
-            "text": trigger_config.get("text") or f"{target.key} 中的灵息温和地洗过你的经脉。",
-            "hp_gain": hp_gain,
-            "stamina_gain": stamina_gain,
-            "hp_now": caller.db.hp,
-            "max_hp": stats["max_hp"],
-            "stamina_now": caller.db.stamina,
-            "max_stamina": stats["max_stamina"],
-        }
+        return execute_effect(caller, trigger_config)
     if effect_type == "buff" or (not effect_type and is_blessable(target)):
         return receive_object_blessing(caller, target)
     if effect_type == "teleport" or not effect_type:
