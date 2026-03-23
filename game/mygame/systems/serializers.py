@@ -95,6 +95,29 @@ def serialize_character(caller):
     }
 
 
+def serialize_character_summary(character):
+    stats = get_stats(character)
+    return {
+        "id": getattr(character, "pk", None),
+        "key": character.key,
+        "realm": stats["realm"],
+        "hp": stats["hp"],
+        "max_hp": stats["max_hp"],
+        "stamina": stats["stamina"],
+        "max_stamina": stats["max_stamina"],
+        "area": serialize_world_position(character.location)["area"] if getattr(character, "location", None) else None,
+        "room": serialize_room(character.location) if getattr(character, "location", None) else None,
+    }
+
+
+def serialize_account(account):
+    return {
+        "id": getattr(account, "pk", None),
+        "username": getattr(account, "username", None),
+        "is_authenticated": bool(getattr(account, "is_authenticated", False)),
+    }
+
+
 def serialize_room(room):
     if not room:
         return None

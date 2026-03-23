@@ -28,6 +28,8 @@ class FakeCharacter:
     def __init__(self, key="tester", pk=7):
         self.key = key
         self.pk = pk
+        self.location = None
+        self.db = SimpleNamespace()
 
 
 class FakeAccount:
@@ -35,6 +37,9 @@ class FakeAccount:
         self.is_authenticated = authenticated
         self.characters = characters or []
         self.db = SimpleNamespace(_last_puppet=last_puppet)
+        self.id = 1
+        self.pk = 1
+        self.username = "tester"
 
 
 class H5HttpRouteTests(unittest.TestCase):
@@ -53,6 +58,56 @@ class H5HttpRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(payload["ok"])
         self.assertIn("attack", payload["payload"]["actions"])
+        self.assertIn("login", payload["payload"]["routes"])
+
+    def test_login_view_invalid_credentials(self):
+        request = self.factory.post(
+            "/api/h5/auth/login/",
+            data=json.dumps({"username": "bad", "password": "bad"}),
+            content_type="application/json",
+        )
+        request.session = {}
+        request.user = SimpleNamespace(is_authenticated=False)
+        with patch("web.api.views.authenticate", return_value=None):
+            response = views.login_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(payload["error"]["code"], "invalid_credentials")
+
+    def test_login_view_success(self):
+        request = self.factory.post(
+            "/api/h5/auth/login/",
+            data=json.dumps({"username": "tester", "password": "pw"}),
+            content_type="application/json",
+        )
+        request.session = {}
+        request.user = SimpleNamespace(is_authenticated=False)
+        account = FakeAccount(characters=[self.character], authenticated=True)
+        account.id = 12
+        account.pk = 12
+        account.username = "tester"
+        with (
+            patch("web.api.views.authenticate", return_value=account),
+            patch("web.api.views.login"),
+            patch("web.api.views.serialize_character_summary", return_value={"id": 7, "key": "tester", "realm": "炼气一层"}),
+            patch("web.api.views.serialize_account", return_value={"id": 12, "username": "tester", "is_authenticated": True}),
+            patch("web.api.views._get_active_character", return_value=(self.character, None)),
+        ):
+            response = views.login_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["payload"]["active_character_id"], 7)
+
+    def test_logout_view(self):
+        request = self.factory.post("/api/h5/auth/logout/")
+        request.session = {"puppet": 7, "website_authenticated_uid": 1, "webclient_authenticated_uid": 1}
+        request.user = self.account
+        with patch("web.api.views.logout"):
+            response = views.logout_view(request)
+        payload = self._decode(response)
+        self.assertTrue(payload["payload"]["logged_out"])
+        self.assertIsNone(request.session["puppet"])
 
     def test_bootstrap_view_requires_authentication(self):
         request = self.factory.get("/api/h5/bootstrap/")
@@ -74,6 +129,34 @@ class H5HttpRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["payload"]["character"]["name"], "tester")
+
+    def test_character_list_view(self):
+        request = self.factory.get("/api/h5/account/characters/")
+        request.user = self.account
+        request.session = {}
+        with (
+            patch("web.api.views.serialize_account", return_value={"id": 1, "username": "tester", "is_authenticated": True}),
+            patch("web.api.views.serialize_character_summary", return_value={"id": 7, "key": "tester", "realm": "炼气一层"}),
+        ):
+            response = views.character_list_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["payload"]["characters"][0]["id"], 7)
+
+    def test_character_select_view(self):
+        request = self.factory.post(
+            "/api/h5/account/characters/select/",
+            data=json.dumps({"character_id": 7}),
+            content_type="application/json",
+        )
+        request.user = self.account
+        request.session = {}
+        with patch("web.api.views.build_bootstrap_payload", return_value={"character": {"name": "tester"}}):
+            response = views.character_select_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["payload"]["active_character_id"], 7)
+        self.assertEqual(request.session["puppet"], 7)
 
     def test_quest_log_view_returns_structured_log(self):
         request = self.factory.get("/api/h5/quests/")

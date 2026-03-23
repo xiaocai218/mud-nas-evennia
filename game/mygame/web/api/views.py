@@ -3,12 +3,19 @@
 import json
 
 from django.conf import settings
+from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 
 from systems.action_router import dispatch_action
 from systems.client_protocol import ACTION_SPECS, build_response, validate_action_message
-from systems.serializers import build_bootstrap_payload, serialize_quest_log, serialize_shop_by_id
+from systems.serializers import (
+    build_bootstrap_payload,
+    serialize_account,
+    serialize_character_summary,
+    serialize_quest_log,
+    serialize_shop_by_id,
+)
 
 
 def _json_response(payload, status=200):
@@ -28,6 +35,16 @@ def _iter_characters(account):
         return list(characters.all())
     except AttributeError:
         return list(characters)
+
+
+def _load_json_body(request):
+    try:
+        return json.loads(request.body.decode("utf-8") or "{}"), None
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None, _json_response(
+            build_response(False, error={"code": "invalid_json", "message": "请求体不是合法 JSON"}),
+            status=400,
+        )
 
 
 def _get_active_character(request):
@@ -64,6 +81,130 @@ def _get_active_character(request):
     )
 
 
+@require_POST
+def login_view(request):
+    payload, error_response = _load_json_body(request)
+    if error_response:
+        return error_response
+
+    username = (payload or {}).get("username", "")
+    password = (payload or {}).get("password", "")
+    if not username or not password:
+        return _json_response(
+            build_response(False, error={"code": "missing_credentials", "message": "缺少账号或密码"}),
+            status=400,
+        )
+
+    account = authenticate(request, username=username, password=password)
+    if not account:
+        return _json_response(
+            build_response(False, error={"code": "invalid_credentials", "message": "账号或密码错误"}),
+            status=401,
+        )
+
+    login(request, account)
+    request.session["website_authenticated_uid"] = account.id
+    request.session["webclient_authenticated_uid"] = account.id
+
+    characters = _iter_characters(account)
+    if len(characters) == 1:
+        request.session["puppet"] = int(characters[0].pk)
+        account.db._last_puppet = characters[0]
+
+    active_character, _ = _get_active_character(request)
+    return _json_response(
+        build_response(
+            True,
+            {
+                "account": serialize_account(account),
+                "characters": [serialize_character_summary(character) for character in characters],
+                "active_character_id": getattr(active_character, "pk", None),
+            },
+        )
+    )
+
+
+@require_POST
+def logout_view(request):
+    if getattr(request, "session", None):
+        request.session["puppet"] = None
+        request.session["website_authenticated_uid"] = None
+        request.session["webclient_authenticated_uid"] = None
+    logout(request)
+    return _json_response(build_response(True, {"logged_out": True}))
+
+
+@require_GET
+def character_list_view(request):
+    account = _get_account(request)
+    if not account:
+        return _json_response(
+            build_response(False, error={"code": "not_authenticated", "message": "需要先登录账号"}),
+            status=401,
+        )
+
+    active_character, _ = _get_active_character(request)
+    return _json_response(
+        build_response(
+            True,
+            {
+                "account": serialize_account(account),
+                "characters": [serialize_character_summary(character) for character in _iter_characters(account)],
+                "active_character_id": getattr(active_character, "pk", None),
+            },
+        )
+    )
+
+
+@require_POST
+def character_select_view(request):
+    account = _get_account(request)
+    if not account:
+        return _json_response(
+            build_response(False, error={"code": "not_authenticated", "message": "需要先登录账号"}),
+            status=401,
+        )
+
+    payload, error_response = _load_json_body(request)
+    if error_response:
+        return error_response
+
+    character_id = (payload or {}).get("character_id")
+    if character_id is None:
+        return _json_response(
+            build_response(False, error={"code": "missing_character_id", "message": "缺少角色 ID"}),
+            status=400,
+        )
+
+    try:
+        character_id = int(character_id)
+    except (TypeError, ValueError):
+        return _json_response(
+            build_response(False, error={"code": "invalid_character_id", "message": "角色 ID 格式错误"}),
+            status=400,
+        )
+
+    target = next((character for character in _iter_characters(account) if getattr(character, "pk", None) == character_id), None)
+    if not target:
+        return _json_response(
+            build_response(False, error={"code": "character_not_found", "message": "角色不存在或不属于当前账号"}),
+            status=404,
+        )
+
+    request.session["puppet"] = int(target.pk)
+    account.db._last_puppet = target
+
+    return _json_response(
+        build_response(
+            True,
+            {
+                "active_character_id": target.pk,
+                "bootstrap": build_bootstrap_payload(target),
+            },
+        )
+    )
+
+
 @require_GET
 def protocol_overview_view(request):
     payload = {
@@ -71,6 +212,10 @@ def protocol_overview_view(request):
         "http_base": "/api/h5/",
         "actions": sorted(ACTION_SPECS.keys()),
         "routes": {
+            "login": "/api/h5/auth/login/",
+            "logout": "/api/h5/auth/logout/",
+            "character_list": "/api/h5/account/characters/",
+            "character_select": "/api/h5/account/characters/select/",
             "bootstrap": "/api/h5/bootstrap/",
             "quests": "/api/h5/quests/",
             "action": "/api/h5/action/",
@@ -142,13 +287,9 @@ def action_view(request):
     if error_response:
         return error_response
 
-    try:
-        message = json.loads(request.body.decode("utf-8") or "{}")
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return _json_response(
-            build_response(False, error={"code": "invalid_json", "message": "请求体不是合法 JSON"}),
-            status=400,
-        )
+    message, error_response = _load_json_body(request)
+    if error_response:
+        return error_response
 
     ok, error_code = validate_action_message(message)
     if not ok:

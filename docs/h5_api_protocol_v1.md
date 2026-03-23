@@ -38,6 +38,10 @@
 当前已落地的路由：
 
 - `GET /api/h5/`
+- `POST /api/h5/auth/login/`
+- `POST /api/h5/auth/logout/`
+- `GET /api/h5/account/characters/`
+- `POST /api/h5/account/characters/select/`
 - `GET /api/h5/bootstrap/`
 - `GET /api/h5/quests/`
 - `GET /api/h5/shops/<shop_id>/`
@@ -55,7 +59,7 @@
 
 ## HTTP 草案
 
-### `POST /api/auth/login`
+### `POST /api/h5/auth/login/`
 
 请求：
 
@@ -78,7 +82,7 @@
 }
 ```
 
-### `GET /api/account/characters`
+### `POST /api/h5/auth/logout/`
 
 响应：
 
@@ -86,24 +90,42 @@
 {
   "ok": true,
   "payload": {
-    "characters": [
-      {
-        "id": "char_test",
-        "key": "test",
-        "realm": "炼气一层"
-      }
-    ]
+    "logged_out": true
   }
 }
 ```
 
-### `POST /api/account/characters`
+### `GET /api/h5/account/characters/`
+
+响应：
+
+```json
+{
+  "ok": true,
+  "payload": {
+    "account": {
+      "id": 1,
+      "username": "test"
+    },
+    "characters": [
+      {
+        "id": 1,
+        "key": "test",
+        "realm": "炼气一层"
+      }
+    ],
+    "active_character_id": 1
+  }
+}
+```
+
+### `POST /api/h5/account/characters/select/`
 
 请求：
 
 ```json
 {
-  "name": "test"
+  "character_id": 1
 }
 ```
 
@@ -113,7 +135,8 @@
 {
   "ok": true,
   "payload": {
-    "character": {}
+    "active_character_id": 1,
+    "bootstrap": {}
   }
 }
 ```

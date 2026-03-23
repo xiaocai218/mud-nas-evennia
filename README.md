@@ -192,6 +192,10 @@ H5 视觉和布局参考也已经留档：
 当前 H5 HTTP 骨架也已落地：
 
 - `GET /api/h5/`
+- `POST /api/h5/auth/login/`
+- `POST /api/h5/auth/logout/`
+- `GET /api/h5/account/characters/`
+- `POST /api/h5/account/characters/select/`
 - `GET /api/h5/bootstrap/`
 - `GET /api/h5/quests/`
 - `GET /api/h5/shops/<shop_id>/`

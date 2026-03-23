@@ -320,3 +320,10 @@ H5 接入后不应继续把这些中文命令字符串作为主协议。
 - 已完成本地依赖安装
 - 已完成 `npm run build` 验证
 - 下一阶段再逐步接 `/api/h5/*`
+
+当前后端已可开始联调的账号链路：
+
+- `POST /api/h5/auth/login/`
+- `POST /api/h5/auth/logout/`
+- `GET /api/h5/account/characters/`
+- `POST /api/h5/account/characters/select/`
