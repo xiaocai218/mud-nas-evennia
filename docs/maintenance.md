@@ -93,12 +93,18 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/server/conf/connection_screens.py`: 登录前欢迎页
 - `game/mygame/server/conf/at_initial_setup.py`: 首次世界初始化钩子
 - `game/mygame/server/conf/settings.py`: 项目命令集、帮助模块、类型类绑定
-- `game/mygame/commands/newbie.py`: `新手`、`状态`、`修炼` 等原型命令
+- `game/mygame/commands/core.py`: 基础查看类命令
+- `game/mygame/commands/cultivation.py`: 修炼、休息、调息
+- `game/mygame/commands/combat.py`: 练拳、攻击
+- `game/mygame/commands/social.py`: 交谈、任务
+- `game/mygame/commands/inventory.py`: 背包、炼化
 - `game/mygame/world/help_entries.py`: 中文帮助条目
 - `game/mygame/world/start_area.py`: 可重复执行的新手区域建图脚本
+- `game/mygame/systems/`: 可复用的规则逻辑
 - `game/mygame/typeclasses/items.py`: 最小物品类型
 - `game/mygame/typeclasses/characters.py`: 角色默认属性骨架
 - `game/mygame/typeclasses/rooms.py`: 房间默认行为
+- `docs/architecture.md`: 结构分层说明
 
 ## 修改代码后的推荐流程
 
