@@ -4,6 +4,7 @@ from .command import Command
 from systems.items import create_reward_item
 from systems.player_stats import apply_exp
 from systems.quests import (
+    NOT_STARTED,
     STAGE_ONE,
     STAGE_ONE_DONE,
     STAGE_TWO,
@@ -16,6 +17,7 @@ from systems.quests import (
     complete_stage_two,
     complete_stage_three,
     get_quest_state,
+    get_quest_status_text,
     start_third_stage,
     start_guide_quest,
     unlock_second_stage,
@@ -82,7 +84,7 @@ class CmdTalk(Command):
             caller.msg(f"{target.key} 朝你点了点头，却没有多说什么。")
             return
 
-        if quest_state == "not_started":
+        if quest_state == NOT_STARTED:
             start_guide_quest(caller)
             caller.msg(
                 "守渡老人抬眼看了你一会儿，慢声说道：\n"
@@ -159,26 +161,4 @@ class CmdQuest(Command):
 
     def func(self):
         caller = self.caller
-        state = get_quest_state(caller)
-        if state == "not_started":
-            caller.msg("你暂时还没有接到任务。可以试试 |w交谈 守渡老人|n。")
-            return
-        if state == STAGE_ONE:
-            done = "已完成" if caller.db.guide_quest_dummy_kill else "未完成"
-            caller.msg("|g当前任务|n\n任务名: 渡口试手\n目标: 击败一次青木傀儡 [%s]\n交付人: 守渡老人" % done)
-            return
-        if state == STAGE_ONE_DONE:
-            caller.msg("|g当前任务|n\n任务名: 渡口试手\n状态: 已完成，等待后续指引\n交付人: 守渡老人")
-            return
-        if state == STAGE_TWO:
-            done = "已完成" if caller.db.guide_quest_stone_kill else "未完成"
-            caller.msg("|g当前任务|n\n任务名: 石阶试锋\n目标: 击败一次山石傀儡 [%s]\n交付人: 守渡老人" % done)
-            return
-        if state == STAGE_THREE_READY:
-            caller.msg("|g当前任务|n\n任务名: 溪谷巡查\n状态: 待接取\n提示: 前往溪谷栈道，交谈 巡山弟子")
-            return
-        if state == STAGE_THREE:
-            done = "已完成" if caller.db.guide_quest_mist_kill else "未完成"
-            caller.msg("|g当前任务|n\n任务名: 溪谷巡查\n目标: 击败一次雾行山魈 [%s]\n交付人: 巡山弟子" % done)
-            return
-        caller.msg("|g当前任务|n\n任务名: 入门试炼\n状态: 已全部完成\n守渡老人已经认可你完成了两段基础试炼。")
+        caller.msg(get_quest_status_text(caller))
