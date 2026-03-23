@@ -97,10 +97,18 @@ def main():
         "空气里带着松脂与湿土的清气，适合新人暂作停留。",
     )
 
+    valley = get_or_create_room(
+        "溪谷栈道",
+        "栈道贴着山壁向前探出，脚下隐约能听见溪流撞击乱石的空响。"
+        "山雾时聚时散，将前方的木栏和藤蔓都笼上一层湿润的冷意。",
+    )
+
     ensure_exit(qingyundu, stair, "北", ["north", "n"])
     ensure_exit(stair, qingyundu, "南", ["south", "s"])
     ensure_exit(qingyundu, pine, "东", ["east", "e"])
     ensure_exit(pine, qingyundu, "西", ["west", "w"])
+    ensure_exit(stair, valley, "北", ["north", "n"])
+    ensure_exit(valley, stair, "南", ["south", "s"])
 
     ensure_object(
         qingyundu,
@@ -152,8 +160,33 @@ def main():
         },
     )
 
+    ensure_object(
+        valley,
+        "巡山弟子",
+        "一名束发利落的青年弟子立在栈道旁，腰间挂着木牌与短哨，目光总不时扫向雾气深处。"
+        "看起来是负责这一带巡查的外门弟子。",
+        {"npc_role": "scout"},
+    )
+
+    ensure_object(
+        valley,
+        "雾行山魈",
+        "一只灰黑长臂的山魈伏在栏影与雾气之间，獠牙半露，动作却异常灵巧。"
+        "它不像傀儡那样呆板，更像是在试探你什么时候会露出破绽。",
+        {
+            "combat_target": True,
+            "hp": 36,
+            "max_hp": 36,
+            "reward_exp": 24,
+            "counter_damage": 10,
+            "drop_key": "雾露果",
+            "drop_desc": "一枚沾着薄雾水气的青白果子，闻起来带着淡淡甘凉气息。",
+            "quest_flag": "mist_kill",
+        },
+    )
+
     print("starter area ready")
-    for room in (qingyundu, stair, pine):
+    for room in (qingyundu, stair, pine, valley):
         print(room.id, room.key)
 
 

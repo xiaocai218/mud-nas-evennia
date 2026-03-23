@@ -102,4 +102,20 @@ class CmdUseItem(Command):
             )
             return
 
+        if item.key == "雾露果":
+            stats = get_stats(caller)
+            if stats["hp"] >= stats["max_hp"] and stats["stamina"] >= stats["max_stamina"]:
+                caller.msg("你现在状态正好，暂时不必服下雾露果。")
+                return
+            hp_gain = min(stats["max_hp"], stats["hp"] + 18) - stats["hp"]
+            stamina_gain = min(stats["max_stamina"], stats["stamina"] + 12) - stats["stamina"]
+            caller.db.hp = stats["hp"] + hp_gain
+            caller.db.stamina = stats["stamina"] + stamina_gain
+            item.delete()
+            caller.msg(
+                "你将雾露果咬开，清凉果汁顺着喉间滑下，胸腹与四肢都轻快了几分。\n"
+                f"|g使用效果|n: 气血 +{hp_gain}，体力 +{stamina_gain}"
+            )
+            return
+
         caller.msg(f"{item.key} 现在还不能直接使用。")
