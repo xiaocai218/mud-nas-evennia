@@ -47,6 +47,7 @@
 - `GET /api/h5/shops/<shop_id>/`
 - `POST /api/h5/action/`
 - `GET /api/h5/ws-meta/`
+- `GET /api/h5/events/poll/`
 
 当前行为约束：
 
@@ -232,7 +233,42 @@
   "ok": true,
   "payload": {
     "implemented": false,
-    "endpoint": "ws://host/api/h5/ws/"
+    "endpoint": "ws://host/api/h5/ws/",
+    "poll_endpoint": "/api/h5/events/poll/",
+    "transports": {
+      "websocket": {
+        "available": false,
+        "implemented": false
+      },
+      "poll": {
+        "available": true,
+        "interval_ms": 3000,
+        "cursor_type": "opaque_string"
+      }
+    }
+  }
+}
+```
+
+### `GET /api/h5/events/poll/`
+
+说明：
+
+- 当前作为实时链路的 fallback transport
+- 先固定批量事件格式
+- 后续即便接入真正 WebSocket，这个批格式也不变
+
+响应：
+
+```json
+{
+  "ok": true,
+  "payload": {
+    "events": [],
+    "cursor": "1710000000000",
+    "transport": "poll",
+    "has_more": false,
+    "active_character_id": 1
   }
 }
 ```
@@ -514,4 +550,9 @@
 - 固定 action 名
 - 固定 DTO 轮廓
 
-当前 HTTP 路由骨架已落地，WebSocket 仍是下一阶段。
+当前状态更新为：
+
+- HTTP 路由骨架已落地
+- `ws-meta` 已能返回实时通道元信息
+- `events/poll` 已作为 WebSocket 之前的 fallback transport 落地
+- 真正的 WebSocket bridge 仍是下一阶段

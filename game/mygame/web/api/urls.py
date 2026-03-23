@@ -18,4 +18,5 @@ urlpatterns = [
     path("shops/<str:shop_id>/", views.shop_detail_view, name="shop-detail"),
     path("action/", views.action_view, name="action"),
     path("ws-meta/", views.ws_meta_view, name="ws-meta"),
+    path("events/poll/", views.event_poll_view, name="event-poll"),
 ]

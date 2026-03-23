@@ -59,6 +59,38 @@ class H5HttpRouteTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertIn("attack", payload["payload"]["actions"])
         self.assertIn("login", payload["payload"]["routes"])
+        self.assertIn("event_poll", payload["payload"]["routes"])
+
+    def test_ws_meta_view_returns_poll_fallback(self):
+        request = self.factory.get("/api/h5/ws-meta/")
+        request.user = self.account
+        request.session = {}
+        response = views.ws_meta_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(payload["payload"]["transports"]["poll"]["available"])
+        self.assertEqual(payload["payload"]["poll_endpoint"], "/api/h5/events/poll/")
+
+    def test_event_poll_view_requires_active_character(self):
+        request = self.factory.get("/api/h5/events/poll/")
+        request.user = SimpleNamespace(is_authenticated=False)
+        request.session = {}
+        response = views.event_poll_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(payload["error"]["code"], "not_authenticated")
+
+    def test_event_poll_view_returns_empty_batch(self):
+        request = self.factory.get("/api/h5/events/poll/?cursor=abc")
+        request.user = self.account
+        request.session = {}
+        response = views.event_poll_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["payload"]["transport"], "poll")
+        self.assertEqual(payload["payload"]["cursor"], "abc")
+        self.assertEqual(payload["payload"]["events"], [])
+        self.assertEqual(payload["payload"]["active_character_id"], 7)
 
     def test_login_view_invalid_credentials(self):
         request = self.factory.post(

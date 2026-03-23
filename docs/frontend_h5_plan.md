@@ -340,6 +340,23 @@ H5 接入后不应继续把这些中文命令字符串作为主协议。
 - bootstrap 拉取
 - 接口失败时自动回退 mock 视觉骨架
 
+## 当前实时链路基线
+
+当前实时接入策略已经明确为两层：
+
+- 第一层：`ws-meta`
+  - 返回当前实时传输能力
+  - 告诉前端优先使用什么 transport
+- 第二层：`events/poll`
+  - 在真正 WebSocket bridge 落地前，作为 fallback transport
+
+当前目标不是伪造实时玩法，而是先固定：
+
+- 实时事件批格式
+- cursor 机制
+- 前端 realtime client 接入点
+- 后续 WebSocket 和 polling 共用的事件信封
+
 ## PC 端参考补充结论
 
 用户已补充 PC 端参考图，当前设计结论更新为：

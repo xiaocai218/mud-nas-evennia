@@ -84,3 +84,53 @@ export type CharacterListResponse = H5Envelope<{
   characters: CharacterSummary[];
   active_character_id: number | null;
 }>;
+
+export type RealtimeEvent = {
+  type: "event";
+  event: string;
+  scope?: string;
+  target_id?: number | string | null;
+  ts?: number;
+  payload: Record<string, unknown>;
+};
+
+export type PollBatch = {
+  events: RealtimeEvent[];
+  cursor: string;
+  transport: "poll" | "ws";
+  has_more: boolean;
+  active_character_id?: number | null;
+};
+
+export type WsMetaPayload = {
+  implemented: boolean;
+  version: string;
+  endpoint: string;
+  poll_endpoint: string;
+  transports: {
+    websocket: {
+      available: boolean;
+      implemented: boolean;
+      note?: string;
+    };
+    poll: {
+      available: boolean;
+      interval_ms: number;
+      cursor_type: string;
+    };
+  };
+  session: {
+    authenticated: boolean;
+    active_character_id: number | null;
+  };
+  events: {
+    supported: string[];
+  };
+  note?: string;
+  actions: string[];
+  webclient_ws_port: number;
+};
+
+export type WsMetaResponse = H5Envelope<WsMetaPayload>;
+
+export type PollBatchResponse = H5Envelope<PollBatch>;

@@ -35,3 +35,14 @@ def system_notice(message, level="info", code=None):
     if code:
         payload["code"] = code
     return emit_event("system.notice", payload, scope="system")
+
+
+def build_event_batch(events=None, cursor=None, transport="poll"):
+    events = list(events or [])
+    resolved_cursor = cursor if cursor is not None else int(time.time() * 1000)
+    return {
+        "events": events,
+        "cursor": str(resolved_cursor),
+        "transport": transport,
+        "has_more": False,
+    }

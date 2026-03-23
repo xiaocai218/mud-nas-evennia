@@ -9,6 +9,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from systems.action_router import dispatch_action
 from systems.client_protocol import ACTION_SPECS, build_response, validate_action_message
+from systems.event_bus import build_event_batch
 from systems.serializers import (
     build_bootstrap_payload,
     serialize_account,
@@ -221,6 +222,7 @@ def protocol_overview_view(request):
             "action": "/api/h5/action/",
             "shop_detail": "/api/h5/shops/<shop_id>/",
             "ws_meta": "/api/h5/ws-meta/",
+            "event_poll": "/api/h5/events/poll/",
         },
     }
     return _json_response(build_response(True, payload))
@@ -230,16 +232,55 @@ def protocol_overview_view(request):
 def ws_meta_view(request):
     scheme = "wss" if request.is_secure() else "ws"
     host = request.get_host()
+    caller, _ = _get_active_character(request)
     payload = {
         "implemented": False,
         "version": "v1",
         "endpoint": f"{scheme}://{host}/api/h5/ws/",
-        "note": "WebSocket transport is not implemented yet. Use HTTP endpoints for now.",
+        "poll_endpoint": "/api/h5/events/poll/",
+        "transports": {
+            "websocket": {
+                "available": False,
+                "implemented": False,
+                "note": "WebSocket bridge is not implemented yet.",
+            },
+            "poll": {
+                "available": True,
+                "interval_ms": 3000,
+                "cursor_type": "opaque_string",
+            },
+        },
+        "session": {
+            "authenticated": bool(_get_account(request)),
+            "active_character_id": getattr(caller, "pk", None) if caller else None,
+        },
+        "events": {
+            "supported": [
+                "room.updated",
+                "stats.updated",
+                "inventory.updated",
+                "quest.updated",
+                "system.notice",
+            ],
+        },
+        "note": "WebSocket is reserved for a future bridge. Polling is the current fallback transport.",
         "actions": sorted(ACTION_SPECS.keys()),
         "webclient_ws_port": int(
             getattr(settings, "WEBSOCKET_CLIENT_PROXY_PORT", settings.WEBSOCKET_CLIENT_PORT)
         ),
     }
+    return _json_response(build_response(True, payload))
+
+
+@require_GET
+def event_poll_view(request):
+    caller, error_response = _get_active_character(request)
+    if error_response:
+        return error_response
+
+    cursor = request.GET.get("cursor")
+    payload = build_event_batch(events=[], cursor=cursor, transport="poll")
+    payload["active_character_id"] = getattr(caller, "pk", None)
     return _json_response(build_response(True, payload))
 
 

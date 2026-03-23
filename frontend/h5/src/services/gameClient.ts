@@ -1,6 +1,12 @@
 import { api } from "./api";
 
-import type { CharacterListResponse, H5Envelope, LoginResponse } from "@/types";
+import type {
+  CharacterListResponse,
+  H5Envelope,
+  LoginResponse,
+  PollBatchResponse,
+  WsMetaResponse,
+} from "@/types";
 
 export async function login(username: string, password: string) {
   return api.post<LoginResponse>("/api/h5/auth/login/", { username, password });
@@ -23,4 +29,13 @@ export async function selectCharacter(characterId: number) {
 
 export async function bootstrap() {
   return api.get<H5Envelope<unknown>>("/api/h5/bootstrap/");
+}
+
+export async function getRealtimeMeta() {
+  return api.get<WsMetaResponse>("/api/h5/ws-meta/");
+}
+
+export async function pollEvents(cursor?: string) {
+  const search = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+  return api.get<PollBatchResponse>(`/api/h5/events/poll/${search}`);
 }
