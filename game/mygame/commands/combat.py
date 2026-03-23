@@ -3,7 +3,6 @@
 from .command import Command
 from systems.combat import attack_training_target
 from systems.player_stats import apply_exp, get_stats
-from systems.quests import get_quest_state
 
 
 def get_target(caller, target_name):
@@ -63,19 +62,20 @@ class CmdAttack(Command):
             caller.msg(f"你提气欲上，却发现体力不足。至少需要 |w{result['cost']}|n 点体力才能出手。")
             return
         if result["result"] == "kill":
+            drop_text = f"你拾起了 |w{result['drop'].key}|n。\n" if result["drop"] else ""
             caller.msg(
-                f"你一掌击中 {target.key} 的胸口，木屑四散，傀儡轰然倒退。\n"
+                f"你一掌击中 {result['target_name']} 的胸口，碎屑四散，对方轰然倒退。\n"
                 f"|g战斗收获|n: 修为 +{result['reward_exp']}，体力 -{result['cost']}\n"
-                f"你拾起了 |w{result['drop'].key}|n。\n"
-                f"{target.key} 很快被重新扶正，似乎又能继续陪练了。"
+                f"{drop_text}"
+                f"{result['target_name']} 很快被重新扶正，似乎又能继续陪练了。"
             )
             if result["new_realm"] != result["old_realm"]:
                 caller.msg(f"|y在实战磨砺之下，你的境界提升至 {result['new_realm']}。|n")
             return
         caller.msg(
-            f"你朝 {target.key} 猛然出手，打得桩身一震。\n"
-            f"{target.key} 随即回震而来，撞得你胸口微微发闷。\n"
-            f"|g当前效果|n: {target.key} 气血 {result['target_hp']}/{result['target_max_hp']}，你的体力 {result['stamina_after']}/{result['max_stamina']}，你的气血 {result['hp_after']}/{result['max_hp']}"
+            f"你朝 {result['target_name']} 猛然出手，打得它身形一震。\n"
+            f"{result['target_name']} 随即回震而来，撞得你胸口微微发闷。\n"
+            f"|g当前效果|n: {result['target_name']} 气血 {result['target_hp']}/{result['target_max_hp']}，你的体力 {result['stamina_after']}/{result['max_stamina']}，你的气血 {result['hp_after']}/{result['max_hp']}"
         )
         if result["hp_after"] <= 0:
             stats = get_stats(caller)

@@ -123,7 +123,33 @@ def main():
         "青木傀儡",
         "一尊以青木和旧铁片拼接成的傀儡半蹲在林间，关节处仍能听见细碎摩擦声。"
         "它像是专门留给新人试手的陪练目标。",
-        {"combat_target": True, "hp": 30, "max_hp": 30},
+        {
+            "combat_target": True,
+            "hp": 30,
+            "max_hp": 30,
+            "reward_exp": 12,
+            "counter_damage": 6,
+            "drop_key": "青木碎片",
+            "drop_desc": "一块从青木傀儡身上掉下来的木质碎片，边缘仍留着浅浅灵纹。",
+            "quest_flag": "dummy_kill",
+        },
+    )
+
+    ensure_object(
+        stair,
+        "山石傀儡",
+        "一尊由山石碎块与旧铜环拼起来的傀儡守在石阶转角，动作沉稳得近乎迟缓。"
+        "可一旦它真正扑上来，那股力道又像落石般结实。",
+        {
+            "combat_target": True,
+            "hp": 42,
+            "max_hp": 42,
+            "reward_exp": 18,
+            "counter_damage": 9,
+            "drop_key": "山纹石屑",
+            "drop_desc": "几片带着浅灰纹路的石屑，摸上去仍残留着微弱的土行灵意。",
+            "quest_flag": "stone_kill",
+        },
     )
 
     print("starter area ready")

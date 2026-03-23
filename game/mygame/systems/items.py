@@ -15,3 +15,9 @@ def create_loot(caller, key, desc):
     item = create_object("typeclasses.items.Item", key=key, location=caller)
     item.db.desc = desc
     return item
+
+
+def create_reward_item(caller, key, desc):
+    item = create_object("typeclasses.items.Item", key=key, location=caller)
+    item.db.desc = desc
+    return item

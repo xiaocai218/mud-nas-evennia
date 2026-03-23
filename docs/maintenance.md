@@ -125,5 +125,5 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 远端文件属主可能是 `admin`，普通用户直写会失败，必要时要用 `sudo tee`
 - `world/start_area.py` 可以重复执行，用于修正或补建新手区
 - 当前新手区内的交互对象 `木人桩` 也是由 `world/start_area.py` 负责维护
-- 当前新手区内的 `守渡老人` 与 `青木傀儡` 也由 `world/start_area.py` 负责维护
-- 当前 `青木碎片` 的处理逻辑在 `commands/newbie.py` 的 `炼化` 命令中
+- 当前新手区内的 `守渡老人`、`青木傀儡` 与 `山石傀儡` 都由 `world/start_area.py` 负责维护
+- 当前 `青木碎片`、`山纹石屑` 与奖励物处理逻辑分别在 `commands/inventory.py` 和 `systems/items.py`

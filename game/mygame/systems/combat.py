@@ -2,7 +2,7 @@
 
 from .items import create_loot
 from .player_stats import apply_exp, get_stats
-from .quests import mark_dummy_kill
+from .quests import mark_combat_kill
 
 
 def attack_training_target(caller, target):
@@ -11,9 +11,11 @@ def attack_training_target(caller, target):
     target_max_hp = target.db.max_hp if target.db.max_hp is not None else 30
 
     cost = 8
-    damage = 12
-    reward_exp = 12
-    counter = 6
+    damage = target.db.damage_taken if target.db.damage_taken is not None else 12
+    reward_exp = target.db.reward_exp if target.db.reward_exp is not None else 12
+    counter = target.db.counter_damage if target.db.counter_damage is not None else 6
+    drop_key = target.db.drop_key
+    drop_desc = target.db.drop_desc
 
     if stats["stamina"] < cost:
         return {"ok": False, "reason": "stamina", "cost": cost, "stats": stats}
@@ -24,12 +26,10 @@ def attack_training_target(caller, target):
     if target_hp <= 0:
         old_realm, new_realm, exp = apply_exp(caller, reward_exp)
         target.db.hp = target_max_hp
-        mark_dummy_kill(caller)
-        drop = create_loot(
-            caller,
-            "青木碎片",
-            "一块从青木傀儡身上掉下来的木质碎片，边缘仍留着浅浅灵纹。",
-        )
+        mark_combat_kill(caller, target)
+        drop = None
+        if drop_key and drop_desc:
+            drop = create_loot(caller, drop_key, drop_desc)
         return {
             "ok": True,
             "result": "kill",
@@ -39,6 +39,7 @@ def attack_training_target(caller, target):
             "new_realm": new_realm,
             "exp": exp,
             "drop": drop,
+            "target_name": target.key,
         }
 
     target.db.hp = target_hp
@@ -55,4 +56,5 @@ def attack_training_target(caller, target):
         "max_hp": stats["max_hp"],
         "stamina_after": caller.db.stamina,
         "max_stamina": stats["max_stamina"],
+        "target_name": target.key,
     }
