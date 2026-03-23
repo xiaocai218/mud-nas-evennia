@@ -51,6 +51,18 @@ $env:PYTHONPATH='C:\Users\CZH\Documents\Playground\evennia-local-env'
 py -3.14 some_script.py
 ```
 
+### 4. 运行当前 H5 协议层本地测试
+
+```powershell
+. C:\Users\CZH\Documents\Playground\run-h5-local-tests.ps1
+```
+
+当前测试覆盖：
+
+- `systems/client_protocol.py`
+- `systems/serializers.py`
+- `systems/action_router.py`
+
 ## 为什么不直接用 venv
 
 本机当前 `Python 3.14` 的 `ensurepip` 会在系统临时目录阶段报权限错误，导致：
