@@ -163,6 +163,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前帮助文案与 `新手` 指引也已开始独立到 `world/data/help_content.json`
 - 当前多个系统的数据读取也已开始统一收口到 `systems/content_loader.py`
 - 当前管理员已可用 `内容` 命令查看内容索引、重载缓存、按 `id/key` 查询配置
+- 当前管理员也已可用 `内容 校验` 做内容配置一致性检查
 - 当前内容层已开始补充稳定 `id/content_id`，后续系统内部引用应逐步从中文名切到这些稳定标识
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 NPC 交谈处理器路由、触发条件和处理步骤已开始独立到 `world/data/npc_routes.json`

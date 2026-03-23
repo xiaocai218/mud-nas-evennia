@@ -31,7 +31,7 @@
   - `炼化`
 - `devtools.py`
   - `内容`
-  - 面向管理员的内容索引与重载入口
+  - 面向管理员的内容索引、重载与校验入口
 
 ### `systems/`
 
@@ -50,7 +50,7 @@
 - `content_loader.py`
   - 统一加载 `world/data/*.json`
   - 当前 realms、items、quests、dialogues、npc_routes、help_content 等已开始共用这一层
-  - 开始提供统一内容摘要、按 `id/key` 查询与缓存重载入口
+  - 开始提供统一内容摘要、按 `id/key` 查询、缓存重载与一致性校验入口
 - `help_content.py`
   - 从 `world/data/help_content.json` 读取帮助文案与新手指引
   - `help_entries.py` 与 `新手` 命令开始共用这一层

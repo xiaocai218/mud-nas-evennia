@@ -8,6 +8,7 @@ from systems.content_loader import (
     get_content_summary,
     list_content_names,
     reload_content,
+    validate_content,
 )
 
 
@@ -30,6 +31,7 @@ class CmdContent(Command):
                 "  |w内容 重载|n\n"
                 "  |w内容 重载 <内容集>|n\n"
                 "  |w内容 查看 <内容集> <id或key>|n\n"
+                "  |w内容 校验|n\n"
                 "可用内容集: %s"
                 % (table, "、".join(list_content_names()))
             )
@@ -74,4 +76,12 @@ class CmdContent(Command):
             caller.msg("|g内容详情|n\n" + "\n".join(lines))
             return
 
-        caller.msg("可用子命令：|w重载|n、|w查看|n")
+        if action == "校验":
+            issues = validate_content()
+            if not issues:
+                caller.msg("|g内容校验|n: 未发现配置引用错误。")
+                return
+            caller.msg("|r内容校验发现以下问题|n\n" + "\n".join(f"- {issue}" for issue in issues))
+            return
+
+        caller.msg("可用子命令：|w重载|n、|w查看|n、|w校验|n")
