@@ -53,13 +53,17 @@
 ### `world/`
 
 - `start_area.py`
-  - 新手区房间、出口、NPC、训练目标铺设
+  - 读取配置并铺设新手区房间、出口、NPC、训练目标
 - `data/quests.json`
   - 主线/支线任务定义
 - `data/items.json`
   - 物品模板、炼化值、使用效果
 - `data/enemies.json`
   - 怪物模板、基础属性、掉落、任务标记
+- `data/rooms.json`
+  - 房间定义与出口关系
+- `data/npcs.json`
+  - NPC 与常驻对象定义
 - `help_entries.py`
   - 文件型帮助条目
 
@@ -93,6 +97,7 @@
 5. 新任务优先补充阶段数据，而不是直接扩写命令分支。
 6. 任务定义优先写进 `world/data/quests.json`，代码只做流程控制。
 7. 怪物和物品模板也优先写进 `world/data/*.json`，命令层尽量不再硬编码数值。
+8. 房间、出口、NPC 的基础定义也优先写进 `world/data/*.json`。
 
 ## 下一步建议
 

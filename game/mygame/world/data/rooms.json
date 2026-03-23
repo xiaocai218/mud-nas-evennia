@@ -1,0 +1,59 @@
+{
+  "rooms": {
+    "qingyundu": {
+      "id": 2,
+      "key": "青云渡",
+      "desc": "晨雾沿着石阶缓缓流下，古渡口边立着一块半旧的青碑，上书'青云渡'三字。\n这里是初入九州的修行者暂歇之地，向前可问道，向后可回望凡尘。\n你隐约听见远处钟声回荡，像是在提醒你，一段新的旅程已经开始。"
+    },
+    "stair": {
+      "key": "问道石阶",
+      "desc": "青石长阶沿山势缓缓向上，石缝间生着些许青苔。两侧风声清冷，远处偶尔传来诵经与钟鸣，令人不由自主收敛心神。"
+    },
+    "pine": {
+      "key": "古松林",
+      "desc": "几株古松盘根错节，枝叶高高探向天幕。林间有碎石小径通行，空气里带着松脂与湿土的清气，适合新人暂作停留。"
+    },
+    "valley": {
+      "key": "溪谷栈道",
+      "desc": "栈道贴着山壁向前探出，脚下隐约能听见溪流撞击乱石的空响。山雾时聚时散，将前方的木栏和藤蔓都笼上一层湿润的冷意。"
+    }
+  },
+  "exits": [
+    {
+      "from": "qingyundu",
+      "to": "stair",
+      "key": "北",
+      "aliases": ["north", "n"]
+    },
+    {
+      "from": "stair",
+      "to": "qingyundu",
+      "key": "南",
+      "aliases": ["south", "s"]
+    },
+    {
+      "from": "qingyundu",
+      "to": "pine",
+      "key": "东",
+      "aliases": ["east", "e"]
+    },
+    {
+      "from": "pine",
+      "to": "qingyundu",
+      "key": "西",
+      "aliases": ["west", "w"]
+    },
+    {
+      "from": "stair",
+      "to": "valley",
+      "key": "北",
+      "aliases": ["north", "n"]
+    },
+    {
+      "from": "valley",
+      "to": "stair",
+      "key": "南",
+      "aliases": ["south", "s"]
+    }
+  ]
+}
