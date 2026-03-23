@@ -127,3 +127,4 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前新手区内的交互对象 `木人桩` 也是由 `world/start_area.py` 负责维护
 - 当前新手区内的 `守渡老人`、`青木傀儡` 与 `山石傀儡` 都由 `world/start_area.py` 负责维护
 - 当前 `青木碎片`、`山纹石屑` 与奖励物处理逻辑分别在 `commands/inventory.py` 和 `systems/items.py`
+- 旧版单阶段任务角色如果 `guide_quest=completed` 但没有第二阶段奖励标记，系统会自动按“第一阶段已完成、第二阶段未开始”兼容处理

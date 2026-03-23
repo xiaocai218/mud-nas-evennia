@@ -8,7 +8,10 @@ COMPLETED = "completed"
 
 
 def get_quest_state(caller):
-    return caller.db.guide_quest or "not_started"
+    state = caller.db.guide_quest or "not_started"
+    if state == COMPLETED and not bool(caller.db.guide_quest_stage_two_rewarded):
+        return STAGE_ONE_DONE
+    return state
 
 
 def start_guide_quest(caller):
@@ -45,3 +48,4 @@ def complete_stage_one(caller):
 
 def complete_stage_two(caller):
     caller.db.guide_quest = COMPLETED
+    caller.db.guide_quest_stage_two_rewarded = True
