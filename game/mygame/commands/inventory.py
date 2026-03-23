@@ -118,4 +118,19 @@ class CmdUseItem(Command):
             )
             return
 
+        if item.key == "回春散":
+            stats = get_stats(caller)
+            if stats["hp"] >= stats["max_hp"]:
+                caller.msg("你现在气血平稳，没必要急着服用回春散。")
+                return
+            gain = 50
+            caller.db.hp = min(stats["max_hp"], stats["hp"] + gain)
+            recovered = caller.db.hp - stats["hp"]
+            item.delete()
+            caller.msg(
+                "你拆开回春散，苦涩药气入口后迅速化开，胸腹之间的闷痛像被一点点抚平。\n"
+                f"|g使用效果|n: 气血 +{recovered}，当前气血 {caller.db.hp}/{stats['max_hp']}"
+            )
+            return
+
         caller.msg(f"{item.key} 现在还不能直接使用。")

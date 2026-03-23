@@ -1,8 +1,6 @@
 """NPC interaction and quest commands."""
 
 from .command import Command
-from systems.items import create_reward_item
-from systems.player_stats import apply_exp
 from systems.quests import (
     NOT_STARTED,
     STAGE_ONE,
@@ -13,11 +11,17 @@ from systems.quests import (
     can_complete_stage_one,
     can_complete_stage_two,
     can_complete_stage_three,
+    can_complete_side_herb_quest,
     complete_stage_one,
     complete_stage_two,
     complete_stage_three,
+    complete_side_herb_quest,
     get_quest_state,
     get_quest_status_text,
+    get_side_quest_state,
+    grant_side_quest_rewards,
+    grant_stage_rewards,
+    start_side_herb_quest,
     start_third_stage,
     start_guide_quest,
     unlock_second_stage,
@@ -48,6 +52,7 @@ class CmdTalk(Command):
             caller.msg(f"{target.key} 看起来并不打算和你搭话。")
             return
         quest_state = get_quest_state(caller)
+        side_quest_state = get_side_quest_state(caller)
         if target.key == "巡山弟子":
             if quest_state == STAGE_THREE_READY:
                 start_third_stage(caller)
@@ -60,25 +65,46 @@ class CmdTalk(Command):
                 return
             if can_complete_stage_three(caller):
                 complete_stage_three(caller)
-                old_realm, new_realm, exp = apply_exp(caller, 36)
-                reward = create_reward_item(
-                    caller,
-                    "巡山木牌",
-                    "一块刻着巡山纹记的木牌，边角被磨得光滑，象征你已通过这段入门试炼。",
-                )
+                rewards = grant_stage_rewards(caller, STAGE_THREE)
+                reward = rewards["reward"]
                 caller.msg(
                     "巡山弟子掂了掂你带回的气息，神色终于缓了几分：\n"
                     "“不错，至少说明你遇事不会只顾着后退。这块木牌你收着，以后过外岗也方便些。”\n"
-                    f"|g任务完成|n: 修为 +36，获得 |w{reward.key}|n。"
+                    f"|g任务完成|n: 修为 +{rewards['reward_exp']}，获得 |w{reward.key}|n。"
                 )
-                if new_realm != old_realm:
-                    caller.msg(f"|y这一路实战积累下来，你的境界提升至 {new_realm}。|n")
+                if rewards["new_realm"] != rewards["old_realm"]:
+                    caller.msg(f"|y这一路实战积累下来，你的境界提升至 {rewards['new_realm']}。|n")
                 return
             if quest_state == STAGE_THREE:
                 caller.msg("巡山弟子抱臂看着你，语气不高不低：\n“先去把雾行山魈压回溪谷里，再回来见我。”")
                 return
             caller.msg("巡山弟子朝你略一点头：\n“我这里暂时没有新的差事，你先把手上的事办妥。”")
             return
+
+        if target.key == "药庐学徒":
+            if side_quest_state == NOT_STARTED:
+                start_side_herb_quest(caller)
+                caller.msg(
+                    "药庐学徒抱着竹筛，闻了闻你身上的山雾气息，小声说道：\n"
+                    "“溪谷那边偶尔能采到|w雾露果|n，我正缺一枚入药。若你手头有，就带回来给我。”\n"
+                    "|g支线已接取|n: 交付一个雾露果。"
+                )
+                return
+            if can_complete_side_herb_quest(caller):
+                complete_side_herb_quest(caller)
+                rewards = grant_side_quest_rewards(caller, "herb_delivery")
+                reward = rewards["reward"]
+                caller.msg(
+                    "药庐学徒接过雾露果，立刻小心收进药囊里，神色明显轻松了不少：\n"
+                    f"“太好了，这样今日的药就不耽误了。这包|w{reward.key}|n你拿着，算是谢礼。”\n"
+                    f"|g支线完成|n: 修为 +{rewards['reward_exp']}，获得 |w{reward.key}|n。"
+                )
+                if rewards["new_realm"] != rewards["old_realm"]:
+                    caller.msg(f"|y在药气与灵息交汇之间，你的境界提升至 {rewards['new_realm']}。|n")
+                return
+            if side_quest_state != NOT_STARTED:
+                caller.msg("药庐学徒把竹筛抱得更紧了些：\n“若你带回了雾露果，就直接交给我。我今日只缺这一味。”")
+                return
 
         if target.key != "守渡老人":
             caller.msg(f"{target.key} 朝你点了点头，却没有多说什么。")
@@ -95,19 +121,15 @@ class CmdTalk(Command):
             return
         if can_complete_stage_one(caller):
             complete_stage_one(caller)
-            old_realm, new_realm, exp = apply_exp(caller, 20)
-            reward = create_reward_item(
-                caller,
-                "渡口药包",
-                "守渡老人交给你的简陋药包，带着些草木辛气，也许日后会派上用场。",
-            )
+            rewards = grant_stage_rewards(caller, STAGE_ONE)
+            reward = rewards["reward"]
             caller.msg(
                 "守渡老人看你气息沉稳了几分，微微点头：\n"
                 "“不错，至少不是站都站不稳的新雏了。这点东西你先拿着。”\n"
-                f"|g任务完成|n: 修为 +20，获得 |w{reward.key}|n。"
+                f"|g任务完成|n: 修为 +{rewards['reward_exp']}，获得 |w{reward.key}|n。"
             )
-            if new_realm != old_realm:
-                caller.msg(f"|y在这一番历练之后，你的境界提升至 {new_realm}。|n")
+            if rewards["new_realm"] != rewards["old_realm"]:
+                caller.msg(f"|y在这一番历练之后，你的境界提升至 {rewards['new_realm']}。|n")
             return
         if quest_state == STAGE_ONE:
             caller.msg("守渡老人拄着旧杖，朝东边古松林扬了扬下巴：\n“先去把青木傀儡打倒一次，再回来见我。”")
@@ -123,19 +145,15 @@ class CmdTalk(Command):
             return
         if can_complete_stage_two(caller):
             complete_stage_two(caller)
-            old_realm, new_realm, exp = apply_exp(caller, 30)
-            reward = create_reward_item(
-                caller,
-                "石阶护符",
-                "一枚刻着浅淡山纹的护符，触手微凉，像是能让人稍稍安定心神。",
-            )
+            rewards = grant_stage_rewards(caller, STAGE_TWO)
+            reward = rewards["reward"]
             caller.msg(
                 "守渡老人看着你带回的尘土气息，终于露出一点笑意：\n"
                 "“能在石阶上站稳脚跟，才算真正迈出第一步。”\n"
-                f"|g任务完成|n: 修为 +30，获得 |w{reward.key}|n。"
+                f"|g任务完成|n: 修为 +{rewards['reward_exp']}，获得 |w{reward.key}|n。"
             )
-            if new_realm != old_realm:
-                caller.msg(f"|y历练之后，你的境界提升至 {new_realm}。|n")
+            if rewards["new_realm"] != rewards["old_realm"]:
+                caller.msg(f"|y历练之后，你的境界提升至 {rewards['new_realm']}。|n")
             return
         if quest_state == STAGE_TWO:
             caller.msg("守渡老人敲了敲地面，提醒道：\n“去问道石阶，把山石傀儡击倒一次，再回来见我。”")
