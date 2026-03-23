@@ -137,6 +137,78 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 
 5. 执行一次专门的数据更新脚本
 
+## 故障记录
+
+### 2026-03-23: 自定义命令显示在面板里，但实际无法执行
+
+现象：
+
+- 登录和移动正常
+- `状态`、`新手`、`任务`、`攻击`、`背包` 等项目命令在命令面板里能看到
+- 但实际输入后提示 `Command 'xxx' is not available`
+
+根因：
+
+- NAS 容器里运行中的 live 文件没有真正被更新
+- 本地仓库已经改成了项目自己的 `CharacterCmdSet`
+- 但容器里实际加载的还是旧版：
+  - `server/conf/settings.py` 仍指向默认 `evennia.commands.default.cmdset_character.CharacterCmdSet`
+  - `commands/command.py` 仍是旧的基础 `Command`
+  - `typeclasses/characters.py` 没显式绑定项目 `CharacterCmdSet`
+- 表面上 `evennia reload` 成功了，但 reload 的仍然是旧文件
+
+容易误判的点：
+
+- `docker exec ... evennia reload` 返回正常，不代表 live 文件已经被替换
+- 本地代码正确，不代表容器里运行的代码正确
+- `pscp` 或普通远程写入成功到 NAS 某个目录，不代表容器实际用到的 live 文件已经覆盖
+
+排查顺序：
+
+1. 先看运行时配置是否还是旧值
+
+```sh
+sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-mud python -c 'import os; os.environ.setdefault("DJANGO_SETTINGS_MODULE","server.conf.settings"); import django; django.setup(); from django.conf import settings; print(settings.CMDSET_CHARACTER); print(settings.BASE_CHARACTER_TYPECLASS)'
+```
+
+2. 直接查看容器里的 live 文件内容，而不是只看本地文件
+
+```sh
+sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-mud sh -lc 'sed -n "1,20p" /usr/src/game/server/conf/settings.py'
+sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-mud sh -lc 'sed -n "1,20p" /usr/src/game/commands/command.py'
+sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-mud sh -lc 'sed -n "1,30p" /usr/src/game/typeclasses/characters.py'
+```
+
+3. 如果文件还是旧版，不要只重复 reload，要先覆盖 live 文件
+
+本次验证有效的方式：
+
+- 先把更新文件传到 NAS 项目目录下可写位置，比如 `docs/`
+- 再使用 `docker cp` 复制到容器 live 路径
+- 再执行 `evennia reload`
+
+示例：
+
+```sh
+sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker cp /share/CACHEDEV1_DATA/Container/mud-nas-evennia/docs/tmp_core.py jiuzhou-like-mud:/usr/src/game/commands/core.py
+sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-mud evennia reload
+```
+
+本次最终修复点：
+
+- `server/conf/settings.py`
+  - `CMDSET_CHARACTER = "commands.default_cmdsets.CharacterCmdSet"`
+- `commands/command.py`
+  - 改为继承 `MuxCommand`
+- `typeclasses/characters.py`
+  - 显式声明 `cmdset_character = "commands.default_cmdsets.CharacterCmdSet"`
+
+结论：
+
+- 后续只要出现“命令面板里有，但命令不可执行”的情况
+- 优先先查容器 live 文件和运行时 `settings`
+- 不要先假设是命令代码本身逻辑有问题
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次
