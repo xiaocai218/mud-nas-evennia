@@ -152,6 +152,14 @@
   - 按 `id/key` 查询单条配置
   - 校验配置引用关系
 
+当前 WebClient 也已开始项目内覆盖：
+
+- `game/mygame/web/templates/webclient/base.html`
+  - 覆盖 Evennia 默认 webclient 模板
+- `game/mygame/web/static/webclient/vendor/`
+  - 本地托管 jQuery、Bootstrap、Popper、Golden Layout、Favico
+  - 避免公网访问首开时依赖外部 CDN
+
 最新一轮内容扩展示例：
 
 - `青云外门前坪` 新增 NPC `药圃执事`

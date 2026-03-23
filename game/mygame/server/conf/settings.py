@@ -3,6 +3,7 @@ Evennia settings file.
 """
 
 from evennia.settings_default import *
+from pathlib import Path
 
 SERVERNAME = "九州群修"
 
@@ -16,6 +17,12 @@ BASE_CHARACTER_TYPECLASS = "typeclasses.characters.Character"
 BASE_ROOM_TYPECLASS = "typeclasses.rooms.Room"
 
 FILE_HELP_ENTRY_MODULES = ["world.help_entries"]
+
+GAME_DIR = Path(__file__).resolve().parents[2]
+WEB_DIR = GAME_DIR / "web"
+
+TEMPLATES[0]["DIRS"] = [str(WEB_DIR / "templates"), *TEMPLATES[0]["DIRS"]]
+STATICFILES_DIRS = [str(WEB_DIR / "static"), *STATICFILES_DIRS]
 
 try:
     from server.conf.secret_settings import *

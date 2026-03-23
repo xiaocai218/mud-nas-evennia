@@ -209,6 +209,44 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 - 优先先查容器 live 文件和运行时 `settings`
 - 不要先假设是命令代码本身逻辑有问题
 
+### 2026-03-23: 公网首次打开 WebClient 偶发红字 `Favico.js library not found`
+
+现象：
+
+- 内网访问 `http://192.168.2.222:4001/` 正常
+- 公网通过端口映射访问 `http://nas.xiaocai218.top:4001/` 时，首次打开偶发红字
+- 刷新一次后，经常又能正常进入
+
+根因：
+
+- Evennia 默认 `webclient/base.html` 依赖多个公网 CDN：
+  - `code.jquery.com`
+  - `maxcdn.bootstrapcdn.com`
+  - `cdnjs.cloudflare.com`
+  - `golden-layout.com`
+  - `cdn.rawgit.com/ejci/favico.js`
+- NAS 上的 `4001` 服务本身是正常的，问题不在端口映射
+- 外网用户首开时，只要任一 CDN 资源超时或被运营商链路影响，就会先出现前端依赖缺失提示
+
+排查结论：
+
+- `http://nas.xiaocai218.top:4001/` 外部探测返回 `200 OK`
+- `4001` 不存在服务端 `502`
+- 红字问题属于前端资源外链依赖，不属于 MUD 进程异常
+
+本次修复：
+
+- 在项目里新增 `game/mygame/web/templates/webclient/base.html` 覆盖 Evennia 默认模板
+- 新增 `game/mygame/web/static/webclient/vendor/` 本地静态资源目录
+- 将 jQuery、Bootstrap、Popper、Golden Layout、Favico 改为本地静态文件加载
+- 在 `server/conf/settings.py` 显式追加项目 `web/templates` 与 `web/static` 目录
+
+后续建议：
+
+- 再遇到“公网首开正常率低，但刷新可恢复”的问题
+- 优先先查页面是否依赖外部 CDN
+- 不要先假设是 DDNS、网关映射或 NAS 端口异常
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次
