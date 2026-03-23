@@ -68,38 +68,54 @@ def _send_reward_messages(caller, action, rewards):
 
 
 def _perform_action(caller, action):
-    action_type = action["type"]
-    if action_type == "dialogue":
-        caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
-        return True
+    handler = ACTION_HANDLERS.get(action["type"])
+    if not handler:
+        return False
+    return handler(caller, action)
 
-    if action_type == "start_main_stage":
-        set_main_quest_state(caller, action["stage"])
-        caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
-        return True
 
-    if action_type == "complete_main_stage":
-        complete_main_stage(caller, action["stage"])
-        rewards = grant_stage_rewards(caller, action["stage"])
-        reward = rewards["reward"]
-        caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
-        _send_reward_messages(caller, action, rewards)
-        return True
+def _handle_dialogue(caller, action):
+    caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+    return True
 
-    if action_type == "start_side_quest":
-        start_side_quest(caller, action["quest"])
-        caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
-        return True
 
-    if action_type == "complete_side_quest":
-        complete_side_quest(caller, action["quest"])
-        rewards = grant_side_quest_rewards(caller, action["quest"])
-        reward = rewards["reward"]
-        caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
-        _send_reward_messages(caller, action, rewards)
-        return True
+def _handle_start_main_stage(caller, action):
+    set_main_quest_state(caller, action["stage"])
+    caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+    return True
 
-    return False
+
+def _handle_complete_main_stage(caller, action):
+    complete_main_stage(caller, action["stage"])
+    rewards = grant_stage_rewards(caller, action["stage"])
+    reward = rewards["reward"]
+    caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
+    _send_reward_messages(caller, action, rewards)
+    return True
+
+
+def _handle_start_side_quest(caller, action):
+    start_side_quest(caller, action["quest"])
+    caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+    return True
+
+
+def _handle_complete_side_quest(caller, action):
+    complete_side_quest(caller, action["quest"])
+    rewards = grant_side_quest_rewards(caller, action["quest"])
+    reward = rewards["reward"]
+    caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
+    _send_reward_messages(caller, action, rewards)
+    return True
+
+
+ACTION_HANDLERS = {
+    "dialogue": _handle_dialogue,
+    "start_main_stage": _handle_start_main_stage,
+    "complete_main_stage": _handle_complete_main_stage,
+    "start_side_quest": _handle_start_side_quest,
+    "complete_side_quest": _handle_complete_side_quest,
+}
 
 
 def run_npc_route(caller, route_key):
