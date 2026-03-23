@@ -1,22 +1,13 @@
 """Helpers for reading and updating player stats."""
 
-import json
 import time
-from pathlib import Path
 
 from .character_profiles import get_character_profile
+from .content_loader import load_content
 from .realms import get_default_realm, get_realm_from_exp
 
 
-EFFECT_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "effects.json"
-
-
-def _load_effect_data():
-    with EFFECT_DATA_PATH.open("r", encoding="utf-8") as file_obj:
-        return json.load(file_obj)
-
-
-EFFECT_DEFINITIONS = _load_effect_data()
+EFFECT_DEFINITIONS = load_content("effects")
 
 
 def get_stats(caller):

@@ -96,6 +96,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/commands/core.py`: 基础查看类命令
 - `game/mygame/systems/world_objects.py`: 房间交互对象的基础能力
 - `game/mygame/systems/effect_executor.py`: 统一处理恢复、buff 等效果执行
+- `game/mygame/systems/content_loader.py`: 统一加载 `world/data/*.json`
 - `game/mygame/commands/cultivation.py`: 修炼、休息、调息
 - `game/mygame/commands/combat.py`: 练拳、攻击
 - `game/mygame/commands/social.py`: 交谈、任务
@@ -159,6 +160,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前物品与对象的恢复/增益效果已开始共用 `systems/effect_executor.py`
 - 当前玩家初始属性也已开始独立到 `world/data/character_defaults.json`
 - 当前帮助文案与 `新手` 指引也已开始独立到 `world/data/help_content.json`
+- 当前多个系统的数据读取也已开始统一收口到 `systems/content_loader.py`
 - 当前内容层已开始补充稳定 `id/content_id`，后续系统内部引用应逐步从中文名切到这些稳定标识
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 NPC 交谈处理器路由、触发条件和处理步骤已开始独立到 `world/data/npc_routes.json`

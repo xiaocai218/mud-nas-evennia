@@ -1,20 +1,10 @@
 """Character default profile helpers."""
 
-import json
-from pathlib import Path
-
+from .content_loader import load_content
 from .realms import get_default_realm
 
 
-CHARACTER_DEFAULTS_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "character_defaults.json"
-
-
-def _load_character_defaults():
-    with CHARACTER_DEFAULTS_PATH.open("r", encoding="utf-8") as file_obj:
-        return json.load(file_obj)
-
-
-CHARACTER_DEFAULTS = _load_character_defaults()
+CHARACTER_DEFAULTS = load_content("character_defaults")
 
 
 def get_default_profile_key():

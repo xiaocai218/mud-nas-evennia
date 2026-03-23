@@ -1,8 +1,6 @@
 """Quest metadata and state helpers for the starter quest chain."""
 
-import json
-from pathlib import Path
-
+from systems.content_loader import load_content
 from systems.items import create_reward_item, find_item
 from systems.player_stats import apply_exp
 
@@ -15,15 +13,9 @@ STAGE_THREE = "stage_three_started"
 COMPLETED = "completed"
 
 NOT_STARTED = "not_started"
-QUEST_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "quests.json"
 
 
-def _load_quest_data():
-    with QUEST_DATA_PATH.open("r", encoding="utf-8") as file_obj:
-        return json.load(file_obj)
-
-
-QUEST_DATA = _load_quest_data()
+QUEST_DATA = load_content("quests")
 MAIN_FLOW = QUEST_DATA["main_flow"]
 QUEST_STAGE_DATA = QUEST_DATA["main_stages"]
 SIDE_QUEST_DATA = QUEST_DATA["side_quests"]

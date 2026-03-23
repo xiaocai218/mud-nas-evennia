@@ -1,18 +1,9 @@
 """Help and newbie content loaders."""
 
-import json
-from pathlib import Path
+from .content_loader import load_content
 
 
-HELP_CONTENT_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "help_content.json"
-
-
-def _load_help_content():
-    with HELP_CONTENT_PATH.open("r", encoding="utf-8") as file_obj:
-        return json.load(file_obj)
-
-
-HELP_CONTENT = _load_help_content()
+HELP_CONTENT = load_content("help_content")
 
 
 def get_newbie_content():

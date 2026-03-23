@@ -44,6 +44,9 @@
 - `effect_executor.py`
   - 统一处理恢复、buff 等效果执行
   - 物品和对象开始共用这一层，减少重复逻辑
+- `content_loader.py`
+  - 统一加载 `world/data/*.json`
+  - 当前 realms、items、quests、dialogues、npc_routes、help_content 等已开始共用这一层
 - `help_content.py`
   - 从 `world/data/help_content.json` 读取帮助文案与新手指引
   - `help_entries.py` 与 `新手` 命令开始共用这一层
@@ -141,6 +144,7 @@
 13. 支线任务优先补配置字段，不再为单条支线写专用执行函数。
 14. 玩家初始属性优先写进角色模板配置，不再散落在类型类和状态系统里。
 15. 帮助文案和新手引导优先维护在帮助内容配置里，减少功能变更后文案失配。
+16. JSON 内容加载优先走统一加载器，后续热更新和内容索引也应从这一层扩展。
 
 ## 内容 ID
 

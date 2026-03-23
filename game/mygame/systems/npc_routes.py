@@ -1,8 +1,6 @@
 """NPC talk route configuration helpers."""
 
-import json
-from pathlib import Path
-
+from systems.content_loader import load_content
 from systems.dialogues import get_dialogue
 from systems.quests import (
     can_complete_main_stage,
@@ -18,15 +16,7 @@ from systems.quests import (
 )
 
 
-NPC_ROUTE_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "npc_routes.json"
-
-
-def _load_npc_routes():
-    with NPC_ROUTE_DATA_PATH.open("r", encoding="utf-8") as file_obj:
-        return json.load(file_obj)
-
-
-NPC_ROUTES = _load_npc_routes()
+NPC_ROUTES = load_content("npc_routes")
 
 
 def get_npc_route(route_key):

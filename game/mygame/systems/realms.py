@@ -1,18 +1,9 @@
 """Realm and cultivation progression helpers."""
 
-import json
-from pathlib import Path
+from .content_loader import load_content
 
 
-REALM_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "realms.json"
-
-
-def _load_realm_data():
-    with REALM_DATA_PATH.open("r", encoding="utf-8") as file_obj:
-        return json.load(file_obj)
-
-
-REALM_DATA = _load_realm_data()
+REALM_DATA = load_content("realms")
 DEFAULT_REALM = REALM_DATA["default_realm"]
 REALM_ORDER = sorted(REALM_DATA["realms"], key=lambda realm: realm["exp_threshold"])
 

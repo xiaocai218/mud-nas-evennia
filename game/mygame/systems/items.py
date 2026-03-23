@@ -1,23 +1,13 @@
 """Item definitions and inventory helpers."""
 
-import json
-from pathlib import Path
-
 from evennia.utils.create import create_object
 
+from .content_loader import load_content
 from .effect_executor import execute_effect
 from .player_stats import apply_exp
 
 
-ITEM_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "items.json"
-
-
-def _load_item_data():
-    with ITEM_DATA_PATH.open("r", encoding="utf-8") as file_obj:
-        return json.load(file_obj)
-
-
-ITEM_DEFINITIONS = _load_item_data()
+ITEM_DEFINITIONS = load_content("items")
 ITEM_DEFINITIONS_BY_ID = {
     item_data["id"]: {"key": item_key, **item_data}
     for item_key, item_data in ITEM_DEFINITIONS.items()

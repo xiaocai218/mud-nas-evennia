@@ -1,18 +1,9 @@
 """NPC dialogue configuration helpers."""
 
-import json
-from pathlib import Path
+from .content_loader import load_content
 
 
-DIALOGUE_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "dialogues.json"
-
-
-def _load_dialogue_data():
-    with DIALOGUE_DATA_PATH.open("r", encoding="utf-8") as file_obj:
-        return json.load(file_obj)
-
-
-DIALOGUE_DATA = _load_dialogue_data()
+DIALOGUE_DATA = load_content("dialogues")
 
 
 def get_dialogue(section, key, **kwargs):
