@@ -1,13 +1,26 @@
 """Helpers for reading and updating player stats."""
 
+import json
 import time
+from pathlib import Path
 
-from .realms import get_realm_from_exp
+from .realms import get_default_realm, get_realm_from_exp
+
+
+EFFECT_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "effects.json"
+
+
+def _load_effect_data():
+    with EFFECT_DATA_PATH.open("r", encoding="utf-8") as file_obj:
+        return json.load(file_obj)
+
+
+EFFECT_DEFINITIONS = _load_effect_data()
 
 
 def get_stats(caller):
     return {
-        "realm": caller.db.realm or "炼气一层",
+        "realm": caller.db.realm or get_default_realm(),
         "hp": 100 if caller.db.hp is None else caller.db.hp,
         "max_hp": 100 if caller.db.max_hp is None else caller.db.max_hp,
         "stamina": 50 if caller.db.stamina is None else caller.db.stamina,
@@ -57,10 +70,13 @@ def prune_expired_effects(caller):
 
 def add_temporary_effect(caller, effect_key, bonus, duration, label):
     effects = prune_expired_effects(caller)
+    effect_def = EFFECT_DEFINITIONS.get(effect_key, {})
     effects[effect_key] = {
+        "effect_type": effect_def.get("effect_type", "buff"),
+        "label": label or effect_def.get("label", "临时效果"),
+        "modifiers": effect_def.get("modifiers", {"bonus": bonus}),
         "bonus": bonus,
         "expires_at": time.time() + duration,
-        "label": label,
     }
     _set_temp_effects(caller, effects)
     return effects[effect_key]
@@ -70,11 +86,17 @@ def get_temporary_effect(caller, effect_key):
     return prune_expired_effects(caller).get(effect_key)
 
 
+def get_effect_modifier(caller, modifier_key):
+    effects = prune_expired_effects(caller)
+    total = 0
+    for effect in effects.values():
+        modifiers = effect.get("modifiers", {})
+        total += int(modifiers.get(modifier_key, 0) or 0)
+    return total
+
+
 def get_cultivation_bonus(caller):
-    effect = get_temporary_effect(caller, "cultivation_bonus")
-    if not effect:
-        return 0
-    return int(effect.get("bonus", 0) or 0)
+    return get_effect_modifier(caller, "cultivation_gain")
 
 
 def get_active_effect_text(caller):
@@ -87,5 +109,15 @@ def get_active_effect_text(caller):
         remaining = max(0, int(effect["expires_at"] - now))
         minutes, seconds = divmod(remaining, 60)
         label = effect.get("label", "临时效果")
-        parts.append(f"{label}({minutes}分{seconds}秒)")
+        effect_type = effect.get("effect_type", "buff")
+        modifiers = effect.get("modifiers", {})
+        modifier_parts = []
+        for key, value in modifiers.items():
+            if key == "cultivation_gain":
+                modifier_parts.append(f"修炼{'+' if value >= 0 else ''}{value}")
+            else:
+                modifier_parts.append(f"{key}={'+' if value >= 0 else ''}{value}")
+        modifier_text = f" [{'，'.join(modifier_parts)}]" if modifier_parts else ""
+        prefix = "增益" if effect_type == "buff" else "减益"
+        parts.append(f"{prefix}:{label}{modifier_text}({minutes}分{seconds}秒)")
     return "，".join(parts)

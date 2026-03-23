@@ -79,6 +79,11 @@
 - `items.json`
   - 物品模板
   - 炼化与使用效果
+- `realms.json`
+  - 境界阈值与默认境界配置
+- `effects.json`
+  - 临时效果定义
+  - 当前可承载 buff / debuff 与属性修正
 - `enemies.json`
   - 怪物模板
   - 掉落

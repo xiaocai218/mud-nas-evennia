@@ -33,7 +33,11 @@
 ### `systems/`
 
 - `realms.py`
-  - 境界阈值与修为到境界的映射
+  - 从 `world/data/realms.json` 读取境界阈值与默认境界
+- `player_stats.py`
+  - 玩家气血、体力、修为与临时效果
+  - 从 `world/data/effects.json` 读取效果定义
+  - 当前已支持按 modifiers 结构汇总 buff / debuff
 - `player_stats.py`
   - 玩家气血、体力、修为等辅助读写
 - `world_objects.py`
@@ -78,6 +82,10 @@
   - NPC 对话文案与通用交互提示
 - `data/npc_routes.json`
   - NPC 交谈路由、触发条件与处理步骤配置
+- `data/realms.json`
+  - 境界阈值与默认境界配置
+- `data/effects.json`
+  - buff / debuff 模板与属性修正配置
 - `help_entries.py`
   - 文件型帮助条目
 

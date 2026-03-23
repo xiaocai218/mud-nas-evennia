@@ -72,7 +72,7 @@ class CmdStatus(Command):
         table.add_row("体力", f"{stats['stamina']}/{stats['max_stamina']}")
         table.add_row("修为", str(stats["exp"]))
         table.add_row("位置", location)
-        table.add_row("加持", get_active_effect_text(caller))
+        table.add_row("效果", get_active_effect_text(caller))
         table.add_row("背包", f"{item_count} 件")
         self.caller.msg("|g角色状态|n\n%s" % table)
 

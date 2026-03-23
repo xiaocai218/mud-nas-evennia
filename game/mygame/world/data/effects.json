@@ -1,0 +1,18 @@
+{
+  "cultivation_bonus": {
+    "id": "effect_cultivation_bonus",
+    "label": "凝神加持",
+    "effect_type": "buff",
+    "modifiers": {
+      "cultivation_gain": 5
+    }
+  },
+  "weakened": {
+    "id": "effect_weakened",
+    "label": "气虚受滞",
+    "effect_type": "debuff",
+    "modifiers": {
+      "cultivation_gain": -3
+    }
+  }
+}

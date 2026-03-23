@@ -1,0 +1,25 @@
+{
+  "default_realm": "炼气一层",
+  "realms": [
+    {
+      "id": "realm_qi_1",
+      "name": "炼气一层",
+      "exp_threshold": 0
+    },
+    {
+      "id": "realm_qi_2",
+      "name": "炼气二层",
+      "exp_threshold": 30
+    },
+    {
+      "id": "realm_qi_3",
+      "name": "炼气三层",
+      "exp_threshold": 80
+    },
+    {
+      "id": "realm_qi_4",
+      "name": "炼气四层",
+      "exp_threshold": 150
+    }
+  ]
+}
