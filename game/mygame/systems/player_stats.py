@@ -1,5 +1,7 @@
 """Helpers for reading and updating player stats."""
 
+import time
+
 from .realms import get_realm_from_exp
 
 
@@ -34,3 +36,56 @@ def clamp_stamina(caller):
     stats = get_stats(caller)
     caller.db.stamina = max(0, min(stats["stamina"], stats["max_stamina"]))
     return caller.db.stamina, stats["max_stamina"]
+
+
+def _get_temp_effects(caller):
+    return dict(caller.db.temp_effects or {})
+
+
+def _set_temp_effects(caller, effects):
+    caller.db.temp_effects = effects
+
+
+def prune_expired_effects(caller):
+    effects = _get_temp_effects(caller)
+    now = time.time()
+    active = {key: value for key, value in effects.items() if value.get("expires_at", 0) > now}
+    if active != effects:
+        _set_temp_effects(caller, active)
+    return active
+
+
+def add_temporary_effect(caller, effect_key, bonus, duration, label):
+    effects = prune_expired_effects(caller)
+    effects[effect_key] = {
+        "bonus": bonus,
+        "expires_at": time.time() + duration,
+        "label": label,
+    }
+    _set_temp_effects(caller, effects)
+    return effects[effect_key]
+
+
+def get_temporary_effect(caller, effect_key):
+    return prune_expired_effects(caller).get(effect_key)
+
+
+def get_cultivation_bonus(caller):
+    effect = get_temporary_effect(caller, "cultivation_bonus")
+    if not effect:
+        return 0
+    return int(effect.get("bonus", 0) or 0)
+
+
+def get_active_effect_text(caller):
+    effects = prune_expired_effects(caller)
+    if not effects:
+        return "无"
+    now = time.time()
+    parts = []
+    for effect in effects.values():
+        remaining = max(0, int(effect["expires_at"] - now))
+        minutes, seconds = divmod(remaining, 60)
+        label = effect.get("label", "临时效果")
+        parts.append(f"{label}({minutes}分{seconds}秒)")
+    return "，".join(parts)

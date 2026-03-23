@@ -1,16 +1,20 @@
 """Core player-facing commands."""
 
+import time
+
 from evennia.utils import evtable
 
 from .command import Command
 from systems.items import get_inventory_items
-from systems.player_stats import get_stats
+from systems.player_stats import get_active_effect_text, get_stats
 from systems.world_objects import (
     gather_from_object,
     get_readable_text,
+    is_blessable,
     is_gatherable,
     is_readable,
     is_teleportable,
+    receive_object_blessing,
     teleport_via_object,
 )
 
@@ -35,8 +39,10 @@ class CmdNewbie(Command):
             "  |whelp 新手|n   查看新手帮助条目\n"
             "  |w状态|n        查看当前角色状态\n"
             "  |w阅读 渡口告示牌|n  查看当前渡口公告\n"
+            "  |w阅读 问道路碑|n  查看当前任务引导\n"
             "  |w采集 松纹草丛|n  在古松林采集基础草药\n"
             "  |w触发 回渡石|n  从溪谷栈道快速返回青云渡\n"
+            "  |w触发 凝神蒲团|n  获取短时修炼加持\n"
             "  |w任务|n        查看当前新手任务\n"
             "  |w修炼|n        消耗体力获取修为\n"
             "  |w休息|n        恢复体力\n"
@@ -66,6 +72,7 @@ class CmdStatus(Command):
         table.add_row("体力", f"{stats['stamina']}/{stats['max_stamina']}")
         table.add_row("修为", str(stats["exp"]))
         table.add_row("位置", location)
+        table.add_row("加持", get_active_effect_text(caller))
         table.add_row("背包", f"{item_count} 件")
         self.caller.msg("|g角色状态|n\n%s" % table)
 
@@ -136,7 +143,18 @@ class CmdTrigger(Command):
             caller.msg("你没有在附近看到这个目标。")
             return
         if not is_teleportable(target):
-            caller.msg(f"{target.key} 看起来并不会回应你的触碰。")
+            if not is_blessable(target):
+                caller.msg(f"{target.key} 看起来并不会回应你的触碰。")
+                return
+            result = receive_object_blessing(caller, target)
+            if not result["ok"]:
+                caller.msg("这处灵息暂时没有回应你。")
+                return
+            remaining = max(0, int(result["effect"]["expires_at"] - time.time()))
+            caller.msg(
+                f"{result['text']}\n"
+                f"|g当前加持|n: {result['effect']['label']}，持续约 {remaining} 秒"
+            )
             return
         result = teleport_via_object(caller, target)
         if not result["ok"]:

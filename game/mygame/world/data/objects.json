@@ -49,6 +49,19 @@
         "quest_hint_title": "|g问道路碑|n",
         "quest_hint_intro": "碑面上浮起淡淡灵光，将你此刻最该处理的事情映照出来："
       }
+    },
+    {
+      "room": "qingyundu",
+      "key": "凝神蒲团",
+      "object_type": "blessing_spot",
+      "desc": "一个旧蒲团安静摆在青碑旁，团面虽有些磨损，却仍残留着温和灵息。若在此收摄心神片刻，似乎能让接下来的吐纳更顺一些。",
+      "attrs": {
+        "buff_key": "cultivation_bonus",
+        "buff_bonus": 5,
+        "buff_duration": 600,
+        "buff_label": "凝神加持",
+        "buff_text": "你在蒲团上短暂敛神，耳边钟声与雾气都像慢了下来，一缕澄明灵息悄然沉入经脉。"
+      }
     }
   ]
 }

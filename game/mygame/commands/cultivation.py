@@ -1,7 +1,7 @@
 """Cultivation and recovery commands."""
 
 from .command import Command
-from systems.player_stats import apply_exp, get_stats
+from systems.player_stats import apply_exp, get_cultivation_bonus, get_stats
 
 
 class CmdCultivate(Command):
@@ -14,15 +14,21 @@ class CmdCultivate(Command):
         caller = self.caller
         stats = get_stats(caller)
         cost = 10
-        gain = 15
+        base_gain = 15
+        bonus_gain = get_cultivation_bonus(caller)
+        gain = base_gain + bonus_gain
         if stats["stamina"] < cost:
             caller.msg(f"你尝试凝神运气，却觉得体力不济。当前体力仅有 |w{stats['stamina']}|n 点，至少需要 |w{cost}|n 点才能修炼。")
             return
         caller.db.stamina = max(0, stats["stamina"] - cost)
         old_realm, new_realm, exp = apply_exp(caller, gain)
+        gain_text = f"|g本次修炼收获|n: 修为 +{gain}"
+        if bonus_gain:
+            gain_text += f"(|w基础 {base_gain} + 加持 {bonus_gain}|n)"
+        gain_text += f"，体力 -{cost}"
         caller.msg(
             "你盘膝而坐，吐纳周天，缓缓引导四周稀薄灵气汇入经脉。\n"
-            f"|g本次修炼收获|n: 修为 +{gain}，体力 -{cost}\n"
+            f"{gain_text}\n"
             f"|g当前状态|n: {new_realm}，修为 {exp}，体力 {caller.db.stamina}/{stats['max_stamina']}"
         )
         if new_realm != old_realm:

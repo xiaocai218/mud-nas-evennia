@@ -3,7 +3,7 @@
 from evennia.objects.models import ObjectDB
 
 from systems.items import create_loot
-from systems.player_stats import get_stats
+from systems.player_stats import add_temporary_effect, get_stats
 from systems.quests import get_quest_status_text
 
 
@@ -68,3 +68,27 @@ def teleport_via_object(caller, target):
     caller.move_to(destination, quiet=True)
     text = getattr(target.db, "teleport_text", None) or f"你借 {target.key} 的灵力回到了 {destination.key}。"
     return {"ok": True, "text": text, "destination": destination}
+
+
+def is_blessable(target):
+    return bool(getattr(target.db, "buff_key", None))
+
+
+def receive_object_blessing(caller, target):
+    buff_key = getattr(target.db, "buff_key", None)
+    if not buff_key:
+        return {"ok": False, "reason": "not_blessable"}
+
+    effect = add_temporary_effect(
+        caller,
+        buff_key,
+        int(getattr(target.db, "buff_bonus", 0) or 0),
+        int(getattr(target.db, "buff_duration", 0) or 0),
+        getattr(target.db, "buff_label", "灵息加持"),
+    )
+    text = getattr(target.db, "buff_text", None) or f"{target.key} 上的灵息短暂落在你身上。"
+    return {
+        "ok": True,
+        "text": text,
+        "effect": effect,
+    }
