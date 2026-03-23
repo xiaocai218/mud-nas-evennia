@@ -109,6 +109,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/world/data/objects.json`: 房间内交互对象模板与对象类型
 - `game/mygame/world/data/realms.json`: 境界阈值与默认境界配置
 - `game/mygame/world/data/effects.json`: buff / debuff 模板与属性修正配置
+- `game/mygame/world/data/character_defaults.json`: 角色默认模板与基础属性配置
 - `game/mygame/world/data/dialogues.json`: NPC 对话文案与通用交互提示
 - `game/mygame/world/data/npc_routes.json`: NPC 交谈路由配置
 - `game/mygame/world/start_area.py`: 可重复执行的新手区域建图脚本
@@ -155,6 +156,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前境界配置已独立到 `world/data/realms.json`
 - 当前临时效果配置已开始独立到 `world/data/effects.json`，后续 buff / debuff 建议都先走这里
 - 当前物品与对象的恢复/增益效果已开始共用 `systems/effect_executor.py`
+- 当前玩家初始属性也已开始独立到 `world/data/character_defaults.json`
 - 当前内容层已开始补充稳定 `id/content_id`，后续系统内部引用应逐步从中文名切到这些稳定标识
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 NPC 交谈处理器路由、触发条件和处理步骤已开始独立到 `world/data/npc_routes.json`

@@ -34,6 +34,9 @@
 
 - `realms.py`
   - 从 `world/data/realms.json` 读取境界阈值与默认境界
+- `character_profiles.py`
+  - 从 `world/data/character_defaults.json` 读取角色默认模板
+  - 当前负责初始境界、气血、体力、修为等基础值
 - `player_stats.py`
   - 玩家气血、体力、修为与临时效果
   - 从 `world/data/effects.json` 读取效果定义
@@ -90,6 +93,8 @@
   - 境界阈值与默认境界配置
 - `data/effects.json`
   - buff / debuff 模板与属性修正配置
+- `data/character_defaults.json`
+  - 角色默认模板与基础属性配置
 - `help_entries.py`
   - 文件型帮助条目
 
@@ -129,6 +134,7 @@
 11. 同类效果优先收口到统一执行器，不再分别散落在物品和对象系统里。
 12. NPC 路由动作优先走处理器注册表，不再继续扩大 if/else 分发。
 13. 支线任务优先补配置字段，不再为单条支线写专用执行函数。
+14. 玩家初始属性优先写进角色模板配置，不再散落在类型类和状态系统里。
 
 ## 内容 ID
 

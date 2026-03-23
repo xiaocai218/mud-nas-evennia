@@ -85,6 +85,9 @@
 - `effects.json`
   - 临时效果定义
   - 当前可承载 buff / debuff 与属性修正
+- `character_defaults.json`
+  - 角色默认模板
+  - 当前用于初始境界、气血、体力、修为等基础值
 - `enemies.json`
   - 怪物模板
   - 掉落

@@ -4,6 +4,7 @@ import json
 import time
 from pathlib import Path
 
+from .character_profiles import get_character_profile
 from .realms import get_default_realm, get_realm_from_exp
 
 
@@ -19,13 +20,14 @@ EFFECT_DEFINITIONS = _load_effect_data()
 
 
 def get_stats(caller):
+    profile = get_character_profile(getattr(caller.db, "character_profile", None))
     return {
-        "realm": caller.db.realm or get_default_realm(),
-        "hp": 100 if caller.db.hp is None else caller.db.hp,
-        "max_hp": 100 if caller.db.max_hp is None else caller.db.max_hp,
-        "stamina": 50 if caller.db.stamina is None else caller.db.stamina,
-        "max_stamina": 50 if caller.db.max_stamina is None else caller.db.max_stamina,
-        "exp": 0 if caller.db.exp is None else caller.db.exp,
+        "realm": caller.db.realm or profile["realm"] or get_default_realm(),
+        "hp": profile["hp"] if caller.db.hp is None else caller.db.hp,
+        "max_hp": profile["max_hp"] if caller.db.max_hp is None else caller.db.max_hp,
+        "stamina": profile["stamina"] if caller.db.stamina is None else caller.db.stamina,
+        "max_stamina": profile["max_stamina"] if caller.db.max_stamina is None else caller.db.max_stamina,
+        "exp": profile["exp"] if caller.db.exp is None else caller.db.exp,
     }
 
 
