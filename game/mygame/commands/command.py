@@ -4,10 +4,10 @@ Commands
 Commands describe the input the account can do to the game.
 """
 
-from evennia.commands.command import Command as BaseCommand
+from evennia.commands.default.muxcommand import MuxCommand
 
 
-class Command(BaseCommand):
+class Command(MuxCommand):
     """
     Base command for project-specific commands.
     """
