@@ -3,6 +3,20 @@
 import json
 from pathlib import Path
 
+from systems.dialogues import get_dialogue
+from systems.quests import (
+    can_complete_main_stage,
+    can_complete_side_quest,
+    complete_main_stage,
+    complete_side_quest,
+    get_quest_state,
+    get_side_quest_state,
+    grant_side_quest_rewards,
+    grant_stage_rewards,
+    start_side_quest,
+    set_main_quest_state,
+)
+
 
 NPC_ROUTE_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "npc_routes.json"
 
@@ -17,3 +31,88 @@ NPC_ROUTES = _load_npc_routes()
 
 def get_npc_route(route_key):
     return NPC_ROUTES.get(route_key)
+
+
+def _match_condition(caller, condition):
+    if "main_state_is" in condition and get_quest_state(caller) != condition["main_state_is"]:
+        return False
+    if "main_stage_completable" in condition and not can_complete_main_stage(caller, condition["main_stage_completable"]):
+        return False
+    if "side_state_is" in condition and get_side_quest_state(caller) != condition["side_state_is"]:
+        return False
+    if "side_quest_completable" in condition and not can_complete_side_quest(caller, condition["side_quest_completable"]):
+        return False
+    return True
+
+
+def _build_dialogue_kwargs(action, reward):
+    kwargs = {}
+    for key, value in action.get("dialogue_kwargs", {}).items():
+        if value == "{reward_key}" and reward:
+            kwargs[key] = reward.key
+        else:
+            kwargs[key] = value
+    return kwargs
+
+
+def _send_reward_messages(caller, action, rewards):
+    reward = rewards["reward"]
+    summary = f"|g{action['reward_label']}|n: 修为 +{rewards['reward_exp']}"
+    if reward:
+        summary += f"，获得 |w{reward.key}|n。"
+    else:
+        summary += "。"
+    caller.msg(summary)
+    if rewards["new_realm"] != rewards["old_realm"] and action.get("realm_up_text"):
+        caller.msg(f"|y{action['realm_up_text'].format(new_realm=rewards['new_realm'])}|n")
+
+
+def _perform_action(caller, action):
+    action_type = action["type"]
+    if action_type == "dialogue":
+        caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+        return True
+
+    if action_type == "start_main_stage":
+        set_main_quest_state(caller, action["stage"])
+        caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+        return True
+
+    if action_type == "complete_main_stage":
+        complete_main_stage(caller, action["stage"])
+        rewards = grant_stage_rewards(caller, action["stage"])
+        reward = rewards["reward"]
+        caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
+        _send_reward_messages(caller, action, rewards)
+        return True
+
+    if action_type == "start_side_quest":
+        start_side_quest(caller, action["quest"])
+        caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+        return True
+
+    if action_type == "complete_side_quest":
+        complete_side_quest(caller, action["quest"])
+        rewards = grant_side_quest_rewards(caller, action["quest"])
+        reward = rewards["reward"]
+        caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
+        _send_reward_messages(caller, action, rewards)
+        return True
+
+    return False
+
+
+def run_npc_route(caller, route_key):
+    route = get_npc_route(route_key)
+    if not route:
+        return False
+
+    for step in route.get("steps", []):
+        if _match_condition(caller, step["condition"]):
+            return _perform_action(caller, step["action"])
+
+    fallback = route.get("fallback_dialogue")
+    if fallback:
+        caller.msg(get_dialogue(*fallback.split(".", 1)))
+        return True
+    return False

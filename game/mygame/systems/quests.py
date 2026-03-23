@@ -56,6 +56,10 @@ def get_side_quest_state(caller):
     return caller.db.side_herb_quest or NOT_STARTED
 
 
+def get_side_quest_data(quest_key):
+    return SIDE_QUEST_DATA.get(quest_key)
+
+
 def get_quest_status_text(caller):
     lines = [get_main_quest_status_text(caller)]
     side_text = get_side_quest_status_text(caller)
@@ -153,9 +157,20 @@ def start_side_herb_quest(caller):
     caller.db.side_herb_quest = SIDE_HERB
 
 
+def start_side_quest(caller, quest_key):
+    if quest_key == "herb_delivery":
+        start_side_herb_quest(caller)
+
+
 def can_complete_side_herb_quest(caller):
     quest = SIDE_QUEST_DATA["herb_delivery"]
     return get_side_quest_state(caller) == SIDE_HERB and bool(find_item(caller, quest["required_item"]))
+
+
+def can_complete_side_quest(caller, quest_key):
+    if quest_key == "herb_delivery":
+        return can_complete_side_herb_quest(caller)
+    return False
 
 
 def complete_side_herb_quest(caller):
@@ -163,6 +178,11 @@ def complete_side_herb_quest(caller):
     if item:
         item.delete()
     caller.db.side_herb_quest = SIDE_HERB_DONE
+
+
+def complete_side_quest(caller, quest_key):
+    if quest_key == "herb_delivery":
+        complete_side_herb_quest(caller)
 
 
 def mark_combat_kill(caller, target):

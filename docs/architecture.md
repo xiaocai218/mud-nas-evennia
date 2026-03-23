@@ -49,7 +49,8 @@
 - `dialogues.py`
   - 从 `world/data/dialogues.json` 读取 NPC 对话文案
 - `npc_routes.py`
-  - 从 `world/data/npc_routes.json` 读取 NPC 交谈路由
+  - 从 `world/data/npc_routes.json` 读取 NPC 交谈路由与触发条件
+  - 按配置执行对话、任务接取、任务交付和奖励提示
 
 ### `world/`
 
@@ -68,7 +69,7 @@
 - `data/dialogues.json`
   - NPC 对话文案与通用交互提示
 - `data/npc_routes.json`
-  - NPC 交谈路由配置
+  - NPC 交谈路由、触发条件与处理步骤配置
 - `help_entries.py`
   - 文件型帮助条目
 
@@ -104,6 +105,7 @@
 7. 怪物和物品模板也优先写进 `world/data/*.json`，命令层尽量不再硬编码数值。
 8. 房间、出口、NPC 的基础定义也优先写进 `world/data/*.json`。
 9. 运行时状态保留在 Evennia 数据库，静态模板优先放到 `world/data/*.json`。
+10. 命令层尽量只做入口校验，任务和 NPC 分支优先走配置驱动路由。
 
 ## 下一步建议
 

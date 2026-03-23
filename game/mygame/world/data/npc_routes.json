@@ -1,11 +1,153 @@
 {
   "guide_main": {
-    "handler": "guide_main"
+    "fallback_dialogue": "guide.done",
+    "steps": [
+      {
+        "condition": {
+          "main_state_is": "not_started"
+        },
+        "action": {
+          "type": "start_main_stage",
+          "stage": "stage_one_started",
+          "dialogue": "guide.start"
+        }
+      },
+      {
+        "condition": {
+          "main_stage_completable": "stage_one_started"
+        },
+        "action": {
+          "type": "complete_main_stage",
+          "stage": "stage_one_started",
+          "dialogue": "guide.stage_one_complete",
+          "reward_label": "任务完成",
+          "realm_up_text": "在这一番历练之后，你的境界提升至 {new_realm}。"
+        }
+      },
+      {
+        "condition": {
+          "main_state_is": "stage_one_started"
+        },
+        "action": {
+          "type": "dialogue",
+          "dialogue": "guide.stage_one_remind"
+        }
+      },
+      {
+        "condition": {
+          "main_state_is": "stage_one_done"
+        },
+        "action": {
+          "type": "start_main_stage",
+          "stage": "stage_two_started",
+          "dialogue": "guide.stage_two_unlock"
+        }
+      },
+      {
+        "condition": {
+          "main_stage_completable": "stage_two_started"
+        },
+        "action": {
+          "type": "complete_main_stage",
+          "stage": "stage_two_started",
+          "dialogue": "guide.stage_two_complete",
+          "reward_label": "任务完成",
+          "realm_up_text": "历练之后，你的境界提升至 {new_realm}。"
+        }
+      },
+      {
+        "condition": {
+          "main_state_is": "stage_two_started"
+        },
+        "action": {
+          "type": "dialogue",
+          "dialogue": "guide.stage_two_remind"
+        }
+      },
+      {
+        "condition": {
+          "main_state_is": "stage_three_ready"
+        },
+        "action": {
+          "type": "dialogue",
+          "dialogue": "guide.stage_three_ready"
+        }
+      },
+      {
+        "condition": {
+          "main_state_is": "stage_three_started"
+        },
+        "action": {
+          "type": "dialogue",
+          "dialogue": "guide.stage_three_remind"
+        }
+      }
+    ]
   },
   "scout_trial": {
-    "handler": "scout_trial"
+    "fallback_dialogue": "scout.idle",
+    "steps": [
+      {
+        "condition": {
+          "main_state_is": "stage_three_ready"
+        },
+        "action": {
+          "type": "start_main_stage",
+          "stage": "stage_three_started",
+          "dialogue": "scout.stage_three_start"
+        }
+      },
+      {
+        "condition": {
+          "main_stage_completable": "stage_three_started"
+        },
+        "action": {
+          "type": "complete_main_stage",
+          "stage": "stage_three_started",
+          "dialogue": "scout.stage_three_complete",
+          "reward_label": "任务完成",
+          "realm_up_text": "这一路实战积累下来，你的境界提升至 {new_realm}。"
+        }
+      },
+      {
+        "condition": {
+          "main_state_is": "stage_three_started"
+        },
+        "action": {
+          "type": "dialogue",
+          "dialogue": "scout.stage_three_remind"
+        }
+      }
+    ]
   },
   "herb_delivery": {
-    "handler": "herb_delivery"
+    "fallback_dialogue": "herbalist.side_remind",
+    "steps": [
+      {
+        "condition": {
+          "side_state_is": "not_started"
+        },
+        "action": {
+          "type": "start_side_quest",
+          "quest": "herb_delivery",
+          "dialogue": "herbalist.side_start"
+        }
+      },
+      {
+        "condition": {
+          "side_quest_completable": "herb_delivery"
+        },
+        "action": {
+          "type": "complete_side_quest",
+          "quest": "herb_delivery",
+          "dialogue": "herbalist.side_complete",
+          "dialogue_kwargs": {
+            "reward_key": "{reward_key}"
+          },
+          "reward_label": "支线完成",
+          "realm_up_text": "在药气与灵息交汇之间，你的境界提升至 {new_realm}。"
+        }
+      }
+    ]
   }
 }
