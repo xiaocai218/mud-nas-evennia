@@ -4,7 +4,7 @@ from evennia.objects.models import ObjectDB
 
 from systems.items import create_loot
 from systems.player_stats import add_temporary_effect, get_stats
-from systems.quests import get_quest_status_text
+from systems.quests import get_quest_state, get_quest_status_text
 
 
 def is_readable(target):
@@ -60,6 +60,14 @@ def teleport_via_object(caller, target):
     room_key = getattr(target.db, "teleport_room_key", None)
     if not room_key:
         return {"ok": False, "reason": "not_teleportable"}
+
+    required_main_state = getattr(target.db, "required_main_state", None)
+    if required_main_state and get_quest_state(caller) != required_main_state:
+        return {
+            "ok": False,
+            "reason": "locked",
+            "text": getattr(target.db, "locked_text", None) or "这处入口暂时还不会向你开启。",
+        }
 
     destination = ObjectDB.objects.filter(db_key=room_key).first()
     if not destination:
