@@ -28,6 +28,7 @@ OBJECT_TYPECLASS = "typeclasses.objects.Object"
 DATA_DIR = Path(__file__).resolve().parent / "data"
 ROOM_DATA_PATH = DATA_DIR / "rooms.json"
 NPC_DATA_PATH = DATA_DIR / "npcs.json"
+OBJECT_DATA_PATH = DATA_DIR / "objects.json"
 ENEMY_DATA_PATH = DATA_DIR / "enemies.json"
 
 
@@ -104,9 +105,9 @@ def build_exits(rooms, exit_defs):
         )
 
 
-def build_npcs(rooms, npc_defs):
-    for npc in npc_defs:
-        ensure_object(rooms[npc["room"]], npc["key"], npc["desc"], npc.get("attrs"))
+def build_objects(rooms, object_defs):
+    for obj in object_defs:
+        ensure_object(rooms[obj["room"]], obj["key"], obj["desc"], obj.get("attrs"))
 
 
 def build_enemies(rooms, enemy_defs):
@@ -133,12 +134,13 @@ def build_enemies(rooms, enemy_defs):
 def main():
     room_data = load_json(ROOM_DATA_PATH)
     npc_data = load_json(NPC_DATA_PATH)
+    object_data = load_json(OBJECT_DATA_PATH)
     enemy_data = load_json(ENEMY_DATA_PATH)
 
     rooms = build_rooms(room_data["rooms"])
     build_exits(rooms, room_data["exits"])
-    build_npcs(rooms, npc_data["npcs"])
-    build_npcs(rooms, npc_data["objects"])
+    build_objects(rooms, npc_data["npcs"])
+    build_objects(rooms, object_data["objects"])
     build_enemies(rooms, enemy_data)
 
     print("starter area ready")

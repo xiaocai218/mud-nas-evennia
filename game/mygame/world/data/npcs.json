@@ -27,15 +27,5 @@
         "talk_route": "scout_trial"
       }
     }
-  ],
-  "objects": [
-    {
-      "room": "pine",
-      "key": "木人桩",
-      "desc": "一具被反复击打得有些发亮的木人桩安静立在林间，桩身上留着新旧不一的拳印。看起来很适合新人练手。",
-      "attrs": {
-        "training_target": true
-      }
-    }
   ]
 }

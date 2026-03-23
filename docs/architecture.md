@@ -55,7 +55,7 @@
 ### `world/`
 
 - `start_area.py`
-  - 读取配置并铺设新手区房间、出口、NPC、训练目标
+  - 读取配置并铺设新手区房间、出口、NPC、交互对象、训练目标
 - `data/quests.json`
   - 主线/支线任务定义
 - `data/items.json`
@@ -65,7 +65,9 @@
 - `data/rooms.json`
   - 房间定义与出口关系
 - `data/npcs.json`
-  - NPC 与常驻对象定义
+  - NPC 定义
+- `data/objects.json`
+  - 房间内交互对象模板
 - `data/dialogues.json`
   - NPC 对话文案与通用交互提示
 - `data/npc_routes.json`

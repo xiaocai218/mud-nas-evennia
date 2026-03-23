@@ -84,6 +84,8 @@
   - 房间和出口
 - `npcs.json`
   - NPC 与常驻对象定义
+- `objects.json`
+  - 房间内交互对象模板
 - `dialogues.json`
   - NPC 对话文案
 - `npc_routes.json`
