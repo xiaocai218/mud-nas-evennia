@@ -180,6 +180,17 @@ H5 前端接入的第一版评估也已经留档：
 - `game/mygame/systems/action_router.py`
 - `game/mygame/systems/event_bus.py`
 - `game/mygame/systems/client_protocol.py`
+- `game/mygame/web/api/views.py`
+- `game/mygame/web/api/urls.py`
+
+当前 H5 HTTP 骨架也已落地：
+
+- `GET /api/h5/`
+- `GET /api/h5/bootstrap/`
+- `GET /api/h5/quests/`
+- `GET /api/h5/shops/<shop_id>/`
+- `POST /api/h5/action/`
+- `GET /api/h5/ws-meta/`
 
 当前目标不是直接上前端框架，而是先把后端整理成可以被 H5 客户端稳定消费的结构。
 

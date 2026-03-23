@@ -33,6 +33,26 @@
 - 任务变化
 - 系统提示
 
+## HTTP 当前骨架
+
+当前已落地的路由：
+
+- `GET /api/h5/`
+- `GET /api/h5/bootstrap/`
+- `GET /api/h5/quests/`
+- `GET /api/h5/shops/<shop_id>/`
+- `POST /api/h5/action/`
+- `GET /api/h5/ws-meta/`
+
+当前行为约束：
+
+- 依赖 Django Session 登录态
+- 依赖 Evennia 当前活跃角色
+- 未登录返回 `401`
+- 未激活角色返回 `409`
+- 请求格式错误返回 `400`
+- 动作语义失败返回结构化 `ok=false`
+
 ## HTTP 草案
 
 ### `POST /api/auth/login`
@@ -98,7 +118,7 @@
 }
 ```
 
-### `GET /api/world/bootstrap`
+### `GET /api/h5/bootstrap/`
 
 响应：
 
@@ -131,7 +151,7 @@
 }
 ```
 
-### `GET /api/world/quests`
+### `GET /api/h5/quests/`
 
 响应：
 
@@ -149,7 +169,7 @@
 
 - `systems.serializers.serialize_quest_log`
 
-### `GET /api/world/shop/<shop_id>`
+### `GET /api/h5/shops/<shop_id>/`
 
 响应：
 
@@ -165,6 +185,34 @@
 当前对应后端基础：
 
 - `systems.serializers.serialize_shop_by_id`
+
+### `POST /api/h5/action/`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "move",
+  "payload": {
+    "direction": "北"
+  }
+}
+```
+
+### `GET /api/h5/ws-meta/`
+
+响应：
+
+```json
+{
+  "ok": true,
+  "payload": {
+    "implemented": false,
+    "endpoint": "ws://host/api/h5/ws/"
+  }
+}
+```
 
 ## WebSocket 草案
 
@@ -443,4 +491,4 @@
 - 固定 action 名
 - 固定 DTO 轮廓
 
-当前还没有正式对外 HTTP / WS 路由，但后端结构已经开始围绕这份协议整理。
+当前 HTTP 路由骨架已落地，WebSocket 仍是下一阶段。

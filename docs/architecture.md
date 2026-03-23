@@ -82,6 +82,12 @@
   - 为未来 H5/WebSocket 客户端统一结构化事件信封
 - `client_protocol.py`
   - 统一 action/response 的消息包装与基础校验
+- `web/api/views.py`
+  - H5 HTTP 入口层
+  - 负责登录态检查、活跃角色解析、请求解包与响应输出
+- `web/api/urls.py`
+  - H5 HTTP 路由定义
+  - 当前已挂载 `bootstrap / quests / shops / action / ws-meta`
 - `combat.py`
   - 训练目标战斗结算
   - 结合 `world/data/enemies.json` 处理怪物模板与掉落
@@ -188,6 +194,7 @@
 15. 帮助文案和新手引导优先维护在帮助内容配置里，减少功能变更后文案失配。
 16. JSON 内容加载优先走统一加载器，后续热更新和内容索引也应从这一层扩展。
 17. 地图扩展优先按 `area -> room -> object/npc/enemy` 的顺序组织，而不是只堆散房间。
+18. H5 HTTP 路由层只负责传输和鉴权，具体动作仍通过 `action_router.py` 分发。
 
 ## World / Area 设计基线
 
