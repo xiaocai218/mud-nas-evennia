@@ -210,8 +210,8 @@ H5 接入后不应继续把这些中文命令字符串作为主协议。
 当前状态：
 
 - 已能输出基础 `Character / Room / Area / Zone / Map / Quest / Inventory` 结构化数据
-- 已能按结构化 action 分发 `bootstrap / look / move / read / gather / trigger_object / use_item / buy_item`
-- `talk / attack` 暂时仍保留为未实现占位，后续接现有玩法系统
+- 已能按结构化 action 分发 `bootstrap / look / move / read / gather / trigger_object / use_item / buy_item / talk / attack`
+- 当前 `talk / attack` 第一版已接入现有玩法系统，但返回结构后续仍建议继续细化
 
 ## 建议的前后端协议方向
 

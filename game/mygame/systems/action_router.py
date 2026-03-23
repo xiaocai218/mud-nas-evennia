@@ -1,7 +1,11 @@
 """Structured action routing layer for future H5/API clients."""
 
 from systems.client_protocol import build_response
+from systems.combat import attack_training_target
 from systems.items import find_item, use_item
+from systems.npc_routes import run_npc_route
+from systems.player_stats import get_stats
+from systems.quests import get_quest_status_text
 from systems.serializers import build_bootstrap_payload, serialize_inventory, serialize_room
 from systems.shops import buy_item
 from systems.world_objects import (
@@ -24,8 +28,8 @@ def dispatch_action(caller, action, payload=None):
         "trigger_object": _handle_trigger_object,
         "use_item": _handle_use_item,
         "buy_item": _handle_buy_item,
-        "talk": _handle_not_implemented,
-        "attack": _handle_not_implemented,
+        "talk": _handle_talk,
+        "attack": _handle_attack,
     }
     handler = handlers.get(action)
     if not handler:
@@ -112,5 +116,66 @@ def _handle_buy_item(caller, payload):
     return build_response(True, {"result": result, "inventory": serialize_inventory(caller)})
 
 
+def _handle_talk(caller, payload):
+    target = caller.search(payload.get("target"), location=caller.location)
+    if not target:
+        return build_response(False, error={"code": "target_not_found"})
+    if not getattr(target.db, "npc_role", None):
+        return build_response(False, error={"code": "target_not_talkable"})
+
+    messages = _capture_messages(caller, lambda: _run_talk_route(caller, target))
+    return build_response(
+        True,
+        {
+            "target": target.key,
+            "messages": messages,
+            "quests_text": get_quest_status_text(caller),
+        },
+    )
+
+
+def _handle_attack(caller, payload):
+    target = caller.search(payload.get("target"), location=caller.location)
+    if not target:
+        return build_response(False, error={"code": "target_not_found"})
+    if not getattr(target.db, "combat_target", False):
+        return build_response(False, error={"code": "target_not_attackable"})
+
+    result = attack_training_target(caller, target)
+    if not result.get("ok"):
+        return build_response(
+            False,
+            error={"code": result.get("reason"), "cost": result.get("cost")},
+        )
+
+    payload = {
+        "result": result,
+        "character_stats": get_stats(caller),
+        "inventory": serialize_inventory(caller),
+    }
+    return build_response(True, payload)
+
+
 def _handle_not_implemented(caller, payload):
     return build_response(False, error={"code": "not_implemented"})
+
+
+def _run_talk_route(caller, target):
+    if run_npc_route(caller, getattr(target.db, "talk_route", None)):
+        return
+    caller.msg(f"{target.key} 暂时没有更多可说的。")
+
+
+def _capture_messages(caller, func):
+    messages = []
+    original_msg = caller.msg
+
+    def _capture(text=None, *args, **kwargs):
+        messages.append("" if text is None else str(text))
+
+    caller.msg = _capture
+    try:
+        func()
+    finally:
+        caller.msg = original_msg
+    return messages

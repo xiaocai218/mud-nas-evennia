@@ -77,7 +77,7 @@
   - 当前已支持角色、房间、区域、世界层级、背包与任务状态序列化
 - `action_router.py`
   - 为未来 H5/API 客户端提供结构化动作分发入口
-  - 当前已支持 `bootstrap / look / move / read / gather / trigger_object / use_item / buy_item`
+  - 当前已支持 `bootstrap / look / move / read / gather / trigger_object / use_item / buy_item / talk / attack`
 - `event_bus.py`
   - 为未来 H5/WebSocket 客户端统一结构化事件信封
 - `client_protocol.py`
@@ -275,7 +275,7 @@
 1. 后端开始为 H5 客户端预留协议层。
 2. 当前默认推荐 H5 第一版前端使用 `Vue 3 + TypeScript`。
 3. 但后端必须继续保持框架中立，不直接绑定 Vue 或 React。
-4. `serializers / action_router / event_bus / client_protocol` 第一版骨架已落地，后续继续向 `talk / attack / quest / shop` 全量动作扩展。
+4. `serializers / action_router / event_bus / client_protocol` 第一版骨架已落地，`talk / attack` 已接入，后续继续向 `quest / shop` 细化动作扩展。
 
 1. 新增 `areas.json`
 2. 给 `rooms.json` 补 `area_id`

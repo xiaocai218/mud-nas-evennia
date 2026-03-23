@@ -45,8 +45,20 @@ class FakeCaller:
     def __init__(self, key="tester", location=None):
         self.key = key
         self.location = location
-        self.db = SimpleNamespace(character_profile="default")
+        self.db = SimpleNamespace(
+            character_profile="default",
+            guide_quest=None,
+            hp=None,
+            max_hp=None,
+            stamina=None,
+            max_stamina=None,
+            exp=None,
+            copper=None,
+            realm=None,
+            temp_effects={},
+        )
         self._search_map = {}
+        self.messages = []
 
     def search(self, query, candidates=None, quiet=False, location=None):
         if candidates is not None:
@@ -58,6 +70,9 @@ class FakeCaller:
 
     def move_to(self, destination, quiet=True):
         self.location = destination
+
+    def msg(self, text=None, *args, **kwargs):
+        self.messages.append("" if text is None else str(text))
 
 
 class ClientProtocolTests(unittest.TestCase):
@@ -149,11 +164,37 @@ class ActionRouterTests(unittest.TestCase):
         self.assertTrue(response["ok"])
         self.assertEqual(response["payload"]["text"], "公告内容")
 
-    def test_not_implemented_action(self):
+    def test_talk_action(self):
         caller = FakeCaller()
-        response = action_router.dispatch_action(caller, "attack", {"target": "青木傀儡"})
+        target = SimpleNamespace(key="守渡老人", db=SimpleNamespace(npc_role="guide", talk_route="guide_main"))
+        caller._search_map["守渡老人"] = target
+        with patch("systems.action_router.run_npc_route", side_effect=lambda c, route: c.msg("任务已接取")):
+            response = action_router.dispatch_action(caller, "talk", {"target": "守渡老人"})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["target"], "守渡老人")
+        self.assertIn("任务已接取", response["payload"]["messages"])
+
+    def test_attack_action(self):
+        caller = FakeCaller()
+        target = SimpleNamespace(key="青木傀儡", db=SimpleNamespace(combat_target=True))
+        caller._search_map["青木傀儡"] = target
+        with (
+            patch("systems.action_router.attack_training_target", return_value={"ok": True, "result": "hit", "target_name": "青木傀儡"}),
+            patch("systems.action_router.get_stats", return_value={"hp": 90, "max_hp": 100, "stamina": 42, "max_stamina": 50, "realm": "炼气一层", "exp": 10, "copper": 0}),
+            patch("systems.action_router.serialize_inventory", return_value=[]),
+        ):
+            response = action_router.dispatch_action(caller, "attack", {"target": "青木傀儡"})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["result"]["target_name"], "青木傀儡")
+        self.assertEqual(response["payload"]["character_stats"]["hp"], 90)
+
+    def test_attack_action_not_attackable(self):
+        caller = FakeCaller()
+        target = SimpleNamespace(key="守渡老人", db=SimpleNamespace(combat_target=False))
+        caller._search_map["守渡老人"] = target
+        response = action_router.dispatch_action(caller, "attack", {"target": "守渡老人"})
         self.assertFalse(response["ok"])
-        self.assertEqual(response["error"]["code"], "not_implemented")
+        self.assertEqual(response["error"]["code"], "target_not_attackable")
 
 
 if __name__ == "__main__":
