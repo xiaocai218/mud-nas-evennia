@@ -7,6 +7,8 @@ in place and creates any missing ones.
 
 import os
 import sys
+import json
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -23,6 +25,12 @@ from evennia.utils.create import create_object
 ROOM_TYPECLASS = "typeclasses.rooms.Room"
 EXIT_TYPECLASS = "typeclasses.exits.Exit"
 OBJECT_TYPECLASS = "typeclasses.objects.Object"
+ENEMY_DATA_PATH = Path(__file__).resolve().parent / "data" / "enemies.json"
+
+
+def load_enemy_data():
+    with ENEMY_DATA_PATH.open("r", encoding="utf-8") as file_obj:
+        return json.load(file_obj)
 
 
 def get_room(room_id, key, desc):
@@ -77,6 +85,7 @@ def ensure_object(location, key, desc, attrs=None):
 
 
 def main():
+    enemies = load_enemy_data()
     qingyundu = get_room(
         2,
         "青云渡",
@@ -136,35 +145,35 @@ def main():
 
     ensure_object(
         pine,
-        "青木傀儡",
-        "一尊以青木和旧铁片拼接成的傀儡半蹲在林间，关节处仍能听见细碎摩擦声。"
-        "它像是专门留给新人试手的陪练目标。",
+        enemies["qingmu_dummy"]["key"],
+        enemies["qingmu_dummy"]["desc"],
         {
             "combat_target": True,
-            "hp": 30,
-            "max_hp": 30,
-            "reward_exp": 12,
-            "counter_damage": 6,
-            "drop_key": "青木碎片",
-            "drop_desc": "一块从青木傀儡身上掉下来的木质碎片，边缘仍留着浅浅灵纹。",
-            "quest_flag": "dummy_kill",
+            "enemy_id": "qingmu_dummy",
+            "hp": enemies["qingmu_dummy"]["hp"],
+            "max_hp": enemies["qingmu_dummy"]["max_hp"],
+            "reward_exp": enemies["qingmu_dummy"]["reward_exp"],
+            "counter_damage": enemies["qingmu_dummy"]["counter_damage"],
+            "damage_taken": enemies["qingmu_dummy"]["damage_taken"],
+            "drop_key": enemies["qingmu_dummy"]["drop_key"],
+            "quest_flag": enemies["qingmu_dummy"]["quest_flag"],
         },
     )
 
     ensure_object(
         stair,
-        "山石傀儡",
-        "一尊由山石碎块与旧铜环拼起来的傀儡守在石阶转角，动作沉稳得近乎迟缓。"
-        "可一旦它真正扑上来，那股力道又像落石般结实。",
+        enemies["stone_dummy"]["key"],
+        enemies["stone_dummy"]["desc"],
         {
             "combat_target": True,
-            "hp": 42,
-            "max_hp": 42,
-            "reward_exp": 18,
-            "counter_damage": 9,
-            "drop_key": "山纹石屑",
-            "drop_desc": "几片带着浅灰纹路的石屑，摸上去仍残留着微弱的土行灵意。",
-            "quest_flag": "stone_kill",
+            "enemy_id": "stone_dummy",
+            "hp": enemies["stone_dummy"]["hp"],
+            "max_hp": enemies["stone_dummy"]["max_hp"],
+            "reward_exp": enemies["stone_dummy"]["reward_exp"],
+            "counter_damage": enemies["stone_dummy"]["counter_damage"],
+            "damage_taken": enemies["stone_dummy"]["damage_taken"],
+            "drop_key": enemies["stone_dummy"]["drop_key"],
+            "quest_flag": enemies["stone_dummy"]["quest_flag"],
         },
     )
 
@@ -178,18 +187,18 @@ def main():
 
     ensure_object(
         valley,
-        "雾行山魈",
-        "一只灰黑长臂的山魈伏在栏影与雾气之间，獠牙半露，动作却异常灵巧。"
-        "它不像傀儡那样呆板，更像是在试探你什么时候会露出破绽。",
+        enemies["mist_ape"]["key"],
+        enemies["mist_ape"]["desc"],
         {
             "combat_target": True,
-            "hp": 36,
-            "max_hp": 36,
-            "reward_exp": 24,
-            "counter_damage": 10,
-            "drop_key": "雾露果",
-            "drop_desc": "一枚沾着薄雾水气的青白果子，闻起来带着淡淡甘凉气息。",
-            "quest_flag": "mist_kill",
+            "enemy_id": "mist_ape",
+            "hp": enemies["mist_ape"]["hp"],
+            "max_hp": enemies["mist_ape"]["max_hp"],
+            "reward_exp": enemies["mist_ape"]["reward_exp"],
+            "counter_damage": enemies["mist_ape"]["counter_damage"],
+            "damage_taken": enemies["mist_ape"]["damage_taken"],
+            "drop_key": enemies["mist_ape"]["drop_key"],
+            "quest_flag": enemies["mist_ape"]["quest_flag"],
         },
     )
 

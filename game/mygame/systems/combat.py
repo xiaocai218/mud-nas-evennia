@@ -1,8 +1,26 @@
 """Starter combat helpers."""
 
-from .items import create_loot
+import json
+from pathlib import Path
+
+from .items import create_loot, get_item_definition
 from .player_stats import apply_exp, get_stats
 from .quests import mark_combat_kill
+
+
+ENEMY_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "enemies.json"
+
+
+def _load_enemy_data():
+    with ENEMY_DATA_PATH.open("r", encoding="utf-8") as file_obj:
+        return json.load(file_obj)
+
+
+ENEMY_DEFINITIONS = _load_enemy_data()
+
+
+def get_enemy_definition(enemy_id):
+    return ENEMY_DEFINITIONS.get(enemy_id)
 
 
 def attack_training_target(caller, target):
@@ -15,7 +33,7 @@ def attack_training_target(caller, target):
     reward_exp = target.db.reward_exp if target.db.reward_exp is not None else 12
     counter = target.db.counter_damage if target.db.counter_damage is not None else 6
     drop_key = target.db.drop_key
-    drop_desc = target.db.drop_desc
+    drop_desc = target.db.drop_desc or ((get_item_definition(drop_key) or {}).get("desc") if drop_key else None)
 
     if stats["stamina"] < cost:
         return {"ok": False, "reason": "stamina", "cost": cost, "stats": stats}

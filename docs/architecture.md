@@ -43,14 +43,23 @@
   - 任务状态兼容与进度判定
   - `任务` 命令使用的展示文本生成
   - 主线/支线奖励发放
+- `items.py`
+  - 从 `world/data/items.json` 读取物品定义
+  - 处理炼化与使用效果
 - `combat.py`
   - 训练目标战斗结算
-  - 敌人按对象属性驱动的奖励与掉落
+  - 结合 `world/data/enemies.json` 处理怪物模板与掉落
 
 ### `world/`
 
 - `start_area.py`
   - 新手区房间、出口、NPC、训练目标铺设
+- `data/quests.json`
+  - 主线/支线任务定义
+- `data/items.json`
+  - 物品模板、炼化值、使用效果
+- `data/enemies.json`
+  - 怪物模板、基础属性、掉落、任务标记
 - `help_entries.py`
   - 文件型帮助条目
 
@@ -83,6 +92,7 @@
 4. 新功能先做最小可玩，再逐步抽象。
 5. 新任务优先补充阶段数据，而不是直接扩写命令分支。
 6. 任务定义优先写进 `world/data/quests.json`，代码只做流程控制。
+7. 怪物和物品模板也优先写进 `world/data/*.json`，命令层尽量不再硬编码数值。
 
 ## 下一步建议
 
