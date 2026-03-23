@@ -143,6 +143,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前房间内交互对象模板也已独立到 `world/data/objects.json`
 - 当前已增加最小可读对象类型，`阅读 <目标>` 可用于公告牌一类对象
 - 当前已增加最小可采集对象类型，`采集 <目标>` 可用于采药点一类对象
+- 当前已增加最小传送对象类型，`触发 <目标>` 可用于回渡石一类对象
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 NPC 交谈处理器路由、触发条件和处理步骤已开始独立到 `world/data/npc_routes.json`
 - 当前主线阶段的完成流转、兼容映射与开始时进度重置已独立到 `world/data/quests.json`

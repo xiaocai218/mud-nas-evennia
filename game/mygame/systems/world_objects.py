@@ -1,5 +1,7 @@
 """Helpers for configured world objects."""
 
+from evennia.objects.models import ObjectDB
+
 from systems.items import create_loot
 from systems.player_stats import get_stats
 
@@ -38,3 +40,21 @@ def gather_from_object(caller, target):
         "stamina_now": caller.db.stamina,
         "max_stamina": stats["max_stamina"],
     }
+
+
+def is_teleportable(target):
+    return bool(getattr(target.db, "teleport_room_key", None))
+
+
+def teleport_via_object(caller, target):
+    room_key = getattr(target.db, "teleport_room_key", None)
+    if not room_key:
+        return {"ok": False, "reason": "not_teleportable"}
+
+    destination = ObjectDB.objects.filter(db_key=room_key).first()
+    if not destination:
+        return {"ok": False, "reason": "destination_missing", "text": "这处灵纹如今黯淡无光，似乎暂时无法回应。"}
+
+    caller.move_to(destination, quiet=True)
+    text = getattr(target.db, "teleport_text", None) or f"你借 {target.key} 的灵力回到了 {destination.key}。"
+    return {"ok": True, "text": text, "destination": destination}

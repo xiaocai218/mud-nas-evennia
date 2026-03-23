@@ -5,7 +5,14 @@ from evennia.utils import evtable
 from .command import Command
 from systems.items import get_inventory_items
 from systems.player_stats import get_stats
-from systems.world_objects import gather_from_object, get_readable_text, is_gatherable, is_readable
+from systems.world_objects import (
+    gather_from_object,
+    get_readable_text,
+    is_gatherable,
+    is_readable,
+    is_teleportable,
+    teleport_via_object,
+)
 
 
 def get_target(caller, target_name):
@@ -29,6 +36,7 @@ class CmdNewbie(Command):
             "  |w状态|n        查看当前角色状态\n"
             "  |w阅读 渡口告示牌|n  查看当前渡口公告\n"
             "  |w采集 松纹草丛|n  在古松林采集基础草药\n"
+            "  |w触发 回渡石|n  从溪谷栈道快速返回青云渡\n"
             "  |w任务|n        查看当前新手任务\n"
             "  |w修炼|n        消耗体力获取修为\n"
             "  |w休息|n        恢复体力\n"
@@ -110,3 +118,28 @@ class CmdGather(Command):
             f"|g采集收获|n: 获得 |w{result['item'].key}|n，体力 -{result['cost']}\n"
             f"|g当前体力|n: {result['stamina_now']}/{result['max_stamina']}"
         )
+
+
+class CmdTrigger(Command):
+    key = "触发"
+    aliases = ["trigger", "激活", "touch"]
+    locks = "cmd:all()"
+    help_category = "交互"
+
+    def func(self):
+        caller = self.caller
+        if not self.args:
+            caller.msg("你想触发什么？用法：|w触发 回渡石|n")
+            return
+        target = get_target(caller, self.args.strip())
+        if not target:
+            caller.msg("你没有在附近看到这个目标。")
+            return
+        if not is_teleportable(target):
+            caller.msg(f"{target.key} 看起来并不会回应你的触碰。")
+            return
+        result = teleport_via_object(caller, target)
+        if not result["ok"]:
+            caller.msg(result["text"])
+            return
+        caller.msg(result["text"])
