@@ -167,6 +167,13 @@ H5 前端接入的第一版评估也已经留档：
   - 记录后端需要提前预留的接口边界
   - 记录 DTO、事件流、动作路由和 WebSocket 方向
 
+第一版 H5 对外协议草案也已留档：
+
+- [h5_api_protocol_v1.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\h5_api_protocol_v1.md)
+  - 记录 HTTP / WebSocket 草案
+  - 记录 action 列表
+  - 记录 QuestDTO / ShopDTO / RoomDTO / CharacterDTO 草案
+
 当前 H5 接入基础设施也已开始落地：
 
 - `game/mygame/systems/serializers.py`

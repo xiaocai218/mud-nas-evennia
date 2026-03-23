@@ -265,6 +265,11 @@ H5 接入后不应继续把这些中文命令字符串作为主协议。
 3. 再做第一版最小 H5 客户端
 4. 最后再正式确定 Vue 或 React 的实现仓库结构
 
+补充：
+
+- 第一版对外协议草案已单独整理到：
+  - [h5_api_protocol_v1.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\h5_api_protocol_v1.md)
+
 ## 当前决策
 
 目前记录在案的建议是：

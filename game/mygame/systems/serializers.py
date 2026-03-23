@@ -5,13 +5,16 @@ from systems.content_loader import load_content
 from systems.items import get_inventory_items
 from systems.player_stats import get_active_effect_text, get_stats
 from systems.quests import (
+    COMPLETED,
+    NOT_STARTED,
     get_active_side_quest_key,
     get_quest_state,
+    get_started_side_quest_keys,
     get_side_quest_data,
     get_side_quest_state,
     get_stage_data,
 )
-from systems.shops import get_shop_in_room
+from systems.shops import get_shop_by_id, get_shop_in_room
 
 
 MAP_DEFINITIONS = load_content("maps")
@@ -146,10 +149,17 @@ def serialize_shop_in_room(room):
     shop = get_shop_in_room(room)
     if not shop:
         return None
+    return serialize_shop(shop)
+
+
+def serialize_shop(shop):
     return {
         "id": shop.get("id"),
         "key": shop.get("key"),
+        "desc": shop.get("desc", ""),
         "currency": shop.get("currency", "铜钱"),
+        "room_id": shop.get("room_id"),
+        "npc_id": shop.get("npc_id"),
         "inventory": [
             {
                 "item_id": entry["item_id"],
@@ -160,6 +170,13 @@ def serialize_shop_in_room(room):
             for entry in shop.get("inventory", [])
         ],
     }
+
+
+def serialize_shop_by_id(shop_id):
+    shop = get_shop_by_id(shop_id)
+    if not shop:
+        return None
+    return serialize_shop(shop)
 
 
 def serialize_world_position(room):
@@ -202,11 +219,49 @@ def serialize_quest_state(caller):
     }
 
 
+def serialize_quest_log(caller):
+    main_state = get_quest_state(caller)
+    main_stage = get_stage_data(main_state)
+    main_completed = main_state == COMPLETED
+
+    side_entries = []
+    for quest_key in get_started_side_quest_keys(caller, include_completed=True):
+        quest = get_side_quest_data(quest_key)
+        state = get_side_quest_state(caller, quest_key)
+        side_entries.append(
+            {
+                "key": quest_key,
+                "id": quest.get("id"),
+                "state": state,
+                "title": quest.get("title"),
+                "objective": quest.get("objective"),
+                "giver": quest.get("giver"),
+                "giver_npc_id": quest.get("giver_npc_id"),
+                "required_item_id": quest.get("required_item_id"),
+                "completed": state == quest.get("completed_state"),
+            }
+        )
+
+    return {
+        "main": {
+            "state": main_state,
+            "id": main_stage.get("id") if main_stage else None,
+            "title": main_stage.get("title") if main_stage else "入门试炼",
+            "objective": main_stage.get("objective") if main_stage else None,
+            "giver": main_stage.get("giver") if main_stage else None,
+            "giver_npc_id": main_stage.get("giver_npc_id") if main_stage else None,
+            "completed": main_completed,
+            "available": main_state != NOT_STARTED,
+        },
+        "side": side_entries,
+    }
+
+
 def build_bootstrap_payload(caller):
     return {
         "character": serialize_character(caller),
         "position": serialize_world_position(caller.location),
-        "quests": serialize_quest_state(caller),
+        "quests": serialize_quest_log(caller),
         "inventory": serialize_inventory(caller),
     }
 

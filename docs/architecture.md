@@ -250,6 +250,7 @@
 - [area_design.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\area_design.md)
 - [world_structure.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\world_structure.md)
 - [frontend_h5_plan.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\frontend_h5_plan.md)
+- [h5_api_protocol_v1.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\h5_api_protocol_v1.md)
 
 ## 内容 ID
 

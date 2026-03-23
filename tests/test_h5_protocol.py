@@ -132,6 +132,47 @@ class SerializerTests(unittest.TestCase):
         self.assertEqual(payload["area_key"], "starter_area")
         self.assertEqual(payload["exits"][0]["destination"], "古松林")
 
+    def test_serialize_shop_by_id(self):
+        with patch("systems.serializers.get_shop_by_id", return_value={
+            "id": "shop_ferry_general_store",
+            "key": "渡口杂货摊",
+            "desc": "desc",
+            "currency": "铜钱",
+            "room_id": "general_store",
+            "npc_id": "npc_general_store_keeper",
+            "inventory": [{"item_id": "item_songwen_grass", "key": "松纹草", "desc": "d", "price": 8}],
+        }):
+            payload = serializers.serialize_shop_by_id("shop_ferry_general_store")
+        self.assertEqual(payload["id"], "shop_ferry_general_store")
+        self.assertEqual(payload["inventory"][0]["price"], 8)
+
+    def test_serialize_quest_log(self):
+        caller = FakeCaller()
+        with (
+            patch("systems.serializers.get_quest_state", return_value="stage_one_started"),
+            patch("systems.serializers.get_stage_data", return_value={
+                "id": "quest_main_stage_01",
+                "title": "渡口试手",
+                "objective": "击败一次青木傀儡",
+                "giver": "守渡老人",
+                "giver_npc_id": "npc_old_ferryman",
+            }),
+            patch("systems.serializers.get_started_side_quest_keys", return_value=["herb_delivery"]),
+            patch("systems.serializers.get_side_quest_data", return_value={
+                "id": "quest_side_herb_delivery",
+                "title": "雾露代药",
+                "objective": "交付一个雾露果",
+                "giver": "药庐学徒",
+                "giver_npc_id": "npc_herb_apprentice",
+                "required_item_id": "item_mist_fruit",
+                "completed_state": "side_herb_completed",
+            }),
+            patch("systems.serializers.get_side_quest_state", return_value="side_herb_started"),
+        ):
+            payload = serializers.serialize_quest_log(caller)
+        self.assertEqual(payload["main"]["id"], "quest_main_stage_01")
+        self.assertEqual(payload["side"][0]["key"], "herb_delivery")
+
 
 class ActionRouterTests(unittest.TestCase):
     def test_bootstrap_action(self):
