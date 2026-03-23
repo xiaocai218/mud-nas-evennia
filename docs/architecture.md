@@ -66,6 +66,8 @@
   - NPC 与常驻对象定义
 - `data/dialogues.json`
   - NPC 对话文案与通用交互提示
+- `data/npc_routes.json`
+  - NPC 交谈路由配置
 - `help_entries.py`
   - 文件型帮助条目
 

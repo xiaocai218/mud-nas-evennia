@@ -1,0 +1,11 @@
+{
+  "guide_main": {
+    "handler": "guide_main"
+  },
+  "scout_trial": {
+    "handler": "scout_trial"
+  },
+  "herb_delivery": {
+    "handler": "herb_delivery"
+  }
+}

@@ -5,7 +5,8 @@
       "key": "守渡老人",
       "desc": "一位须发半白的老人倚着渡口旧碑静静站着，衣袍洗得发旧，目光却十分沉稳。看起来像是见惯了来来往往的新人修士。",
       "attrs": {
-        "npc_role": "guide"
+        "npc_role": "guide",
+        "talk_route": "guide_main"
       }
     },
     {
@@ -13,7 +14,8 @@
       "key": "药庐学徒",
       "desc": "一名穿着青灰短褂的年轻学徒守在一只竹匾旁，袖口上还沾着细碎药粉。他像是刚从药庐跑出来帮忙分拣药材，神情里带着些忙乱。",
       "attrs": {
-        "npc_role": "herbalist"
+        "npc_role": "herbalist",
+        "talk_route": "herb_delivery"
       }
     },
     {
@@ -21,7 +23,8 @@
       "key": "巡山弟子",
       "desc": "一名束发利落的青年弟子立在栈道旁，腰间挂着木牌与短哨，目光总不时扫向雾气深处。看起来是负责这一带巡查的外门弟子。",
       "attrs": {
-        "npc_role": "scout"
+        "npc_role": "scout",
+        "talk_route": "scout_trial"
       }
     }
   ],
