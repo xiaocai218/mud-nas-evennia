@@ -7,6 +7,7 @@ from evennia import default_cmds
 from .combat import CmdAttack, CmdTrain
 from .core import CmdGather, CmdNewbie, CmdRead, CmdStatus, CmdTrigger
 from .cultivation import CmdCultivate, CmdRecoverHp, CmdRest
+from .devtools import CmdContent
 from .inventory import CmdInventory, CmdRefine, CmdUseItem
 from .social import CmdQuest, CmdTalk
 
@@ -31,6 +32,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdRefine())
         self.add(CmdUseItem())
         self.add(CmdQuest())
+        self.add(CmdContent())
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):
