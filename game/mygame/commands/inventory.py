@@ -4,7 +4,7 @@ from evennia.utils import evtable
 
 from .command import Command
 from systems.items import find_item, get_inventory_items
-from systems.player_stats import apply_exp
+from systems.player_stats import apply_exp, get_stats
 
 
 class CmdInventory(Command):
@@ -52,3 +52,37 @@ class CmdRefine(Command):
         )
         if new_realm != old_realm:
             caller.msg(f"|y借这一缕灵息之助，你的境界提升至 {new_realm}。|n")
+
+
+class CmdUseItem(Command):
+    key = "使用"
+    aliases = ["use", "服用"]
+    locks = "cmd:all()"
+    help_category = "物品"
+
+    def func(self):
+        caller = self.caller
+        if not self.args:
+            caller.msg("你要使用什么？用法：|w使用 渡口药包|n")
+            return
+        item = find_item(caller, self.args.strip())
+        if not item:
+            caller.msg("你的背包里没有这个物品。")
+            return
+
+        if item.key == "渡口药包":
+            stats = get_stats(caller)
+            if stats["hp"] >= stats["max_hp"]:
+                caller.msg("你现在气血充盈，暂时没必要拆开渡口药包。")
+                return
+            gain = 35
+            caller.db.hp = min(stats["max_hp"], stats["hp"] + gain)
+            recovered = caller.db.hp - stats["hp"]
+            item.delete()
+            caller.msg(
+                "你拆开渡口药包，将其中草药简单敷用，只觉胸腹间的闷痛渐渐消退。\n"
+                f"|g使用效果|n: 气血 +{recovered}，当前气血 {caller.db.hp}/{stats['max_hp']}"
+            )
+            return
+
+        caller.msg(f"{item.key} 现在还不能直接使用。")

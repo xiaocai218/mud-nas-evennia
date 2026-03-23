@@ -97,7 +97,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/commands/cultivation.py`: 修炼、休息、调息
 - `game/mygame/commands/combat.py`: 练拳、攻击
 - `game/mygame/commands/social.py`: 交谈、任务
-- `game/mygame/commands/inventory.py`: 背包、炼化
+- `game/mygame/commands/inventory.py`: 背包、炼化、使用
 - `game/mygame/world/help_entries.py`: 中文帮助条目
 - `game/mygame/world/start_area.py`: 可重复执行的新手区域建图脚本
 - `game/mygame/systems/`: 可复用的规则逻辑
