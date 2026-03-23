@@ -44,3 +44,43 @@ export type WorldCard = {
   tag: string;
   active?: boolean;
 };
+
+export type H5Envelope<T> = {
+  type?: string;
+  ok: boolean;
+  payload: T;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+};
+
+export type AccountSummary = {
+  id: number;
+  username: string;
+  is_authenticated: boolean;
+};
+
+export type CharacterSummary = {
+  id: number;
+  key: string;
+  realm: string;
+  hp?: number;
+  max_hp?: number;
+  stamina?: number;
+  max_stamina?: number;
+  area?: { id?: string; key?: string } | null;
+  room?: { id?: string; key?: string; desc?: string } | null;
+};
+
+export type LoginResponse = H5Envelope<{
+  account: AccountSummary;
+  characters: CharacterSummary[];
+  active_character_id: number | null;
+}>;
+
+export type CharacterListResponse = H5Envelope<{
+  account: AccountSummary;
+  characters: CharacterSummary[];
+  active_character_id: number | null;
+}>;

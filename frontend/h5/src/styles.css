@@ -41,6 +41,68 @@ button {
   background: linear-gradient(180deg, #fbfbfa 0%, #f5f4f1 100%);
 }
 
+.auth-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(16, 16, 16, 0.28);
+  backdrop-filter: blur(10px);
+}
+
+.auth-card {
+  width: min(100%, 360px);
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: var(--shadow);
+}
+
+.auth-logo {
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.auth-card h1 {
+  margin: 10px 0 8px;
+  font-size: 32px;
+}
+
+.auth-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.auth-input {
+  min-height: 56px;
+  padding: 0 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel-soft);
+  font: inherit;
+}
+
+.auth-error {
+  color: #c23636;
+  font-size: 14px;
+}
+
+.auth-button {
+  width: 100%;
+}
+
 .topbar {
   display: grid;
   grid-template-columns: 64px 1fr auto;
@@ -538,6 +600,25 @@ button {
   flex-direction: column;
   gap: 16px;
   margin-top: 18px;
+}
+
+.character-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.character-select-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 72px;
+  padding: 0 18px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  text-align: left;
 }
 
 .world-card {

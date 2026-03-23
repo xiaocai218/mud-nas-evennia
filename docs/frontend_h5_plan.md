@@ -327,3 +327,10 @@ H5 接入后不应继续把这些中文命令字符串作为主协议。
 - `POST /api/h5/auth/logout/`
 - `GET /api/h5/account/characters/`
 - `POST /api/h5/account/characters/select/`
+
+当前前端也已开始接这条链路：
+
+- 登录面板
+- 角色选择弹窗
+- bootstrap 拉取
+- 接口失败时自动回退 mock 视觉骨架

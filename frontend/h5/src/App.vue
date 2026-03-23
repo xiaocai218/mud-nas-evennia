@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 import BottomNav from "@/components/BottomNav.vue";
+import CharacterSelectModal from "@/components/CharacterSelectModal.vue";
 import EntityList from "@/components/EntityList.vue";
+import LoginPanel from "@/components/LoginPanel.vue";
 import PersonModal from "@/components/PersonModal.vue";
 import RoomMap from "@/components/RoomMap.vue";
 import SectionTabs from "@/components/SectionTabs.vue";
@@ -10,33 +12,121 @@ import SystemGrid from "@/components/SystemGrid.vue";
 import TopBar from "@/components/TopBar.vue";
 import WorldSelectorModal from "@/components/WorldSelectorModal.vue";
 import { featureEntries, roomEntities, roomMap, topResources, worldCards } from "@/mocks/world";
-import type { BottomNavKey, EntityCard } from "@/types";
+import { bootstrap, listCharacters, login, selectCharacter } from "@/services/gameClient";
+import type { BottomNavKey, CharacterSummary, EntityCard } from "@/types";
 
 const activeNav = ref<BottomNavKey>("map");
 const activeMapTab = ref("地图");
 const activeBattleTab = ref("综合");
 const selectedEntity = ref<EntityCard | null>(null);
 const worldSelectorOpen = ref(false);
+const authLoading = ref(false);
+const authErrorText = ref("");
+const characters = ref<CharacterSummary[]>([]);
+const activeCharacterId = ref<number | null>(null);
+const isAuthenticated = ref(false);
+const useMockData = ref(true);
 
-const roomSummary = {
+const roomSummary = ref({
   title: "药草铺",
   area: "青云村",
   desc: "空气中弥漫着草药的清香，药婆婆正在整理各种药材。",
   date: "10月29日",
   weather: "西时 阴",
   era: "末法纪元1007年",
-};
+});
 
 const battleMessages = [
   "[世界] 成就精英 xumi: 最后一次",
 ];
 
 const currentContent = computed(() => activeNav.value);
+const showCharacterSelect = computed(() => isAuthenticated.value && !activeCharacterId.value && characters.value.length > 0);
+const currentResources = computed(() => topResources);
+
+async function refreshCharacterState() {
+  try {
+    const response = await listCharacters();
+    isAuthenticated.value = true;
+    useMockData.value = false;
+    characters.value = response.payload.characters;
+    activeCharacterId.value = response.payload.active_character_id;
+    if (activeCharacterId.value) {
+      await hydrateFromBootstrap();
+    }
+  } catch {
+    useMockData.value = true;
+  }
+}
+
+async function hydrateFromBootstrap() {
+  try {
+    const response = await bootstrap();
+    const payload = response.payload as {
+      character?: { name?: string; copper?: number };
+      position?: { area?: { key?: string }; room?: { key?: string; desc?: string } };
+    };
+    roomSummary.value = {
+      ...roomSummary.value,
+      title: payload.position?.room?.key || roomSummary.value.title,
+      area: payload.position?.area?.key || roomSummary.value.area,
+      desc: payload.position?.room?.desc || roomSummary.value.desc,
+    };
+  } catch {
+    useMockData.value = true;
+  }
+}
+
+async function handleLogin(payload: { username: string; password: string }) {
+  authLoading.value = true;
+  authErrorText.value = "";
+  try {
+    const response = await login(payload.username, payload.password);
+    isAuthenticated.value = true;
+    useMockData.value = false;
+    characters.value = response.payload.characters;
+    activeCharacterId.value = response.payload.active_character_id;
+    if (activeCharacterId.value) {
+      await hydrateFromBootstrap();
+    }
+  } catch (error) {
+    const message =
+      typeof error === "object" && error && "error" in error
+        ? (error as { error?: { message?: string } }).error?.message
+        : "";
+    authErrorText.value = message || "登录失败，当前仍可继续查看 mock 页面。";
+    useMockData.value = true;
+  } finally {
+    authLoading.value = false;
+  }
+}
+
+async function handleSelectCharacter(characterId: number) {
+  authLoading.value = true;
+  authErrorText.value = "";
+  try {
+    const response = await selectCharacter(characterId);
+    activeCharacterId.value = response.payload.active_character_id;
+    await hydrateFromBootstrap();
+  } catch (error) {
+    const message =
+      typeof error === "object" && error && "error" in error
+        ? (error as { error?: { message?: string } }).error?.message
+        : "";
+    authErrorText.value = message || "角色激活失败。";
+  } finally {
+    authLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  void refreshCharacterState();
+});
 </script>
 
 <template>
   <div class="app-shell">
-    <TopBar :resources="topResources" />
+    <TopBar :resources="currentResources" />
 
     <main class="page-shell">
       <template v-if="currentContent === 'map'">
@@ -120,6 +210,18 @@ const currentContent = computed(() => activeNav.value);
 
     <BottomNav :active="activeNav" @select="activeNav = $event" />
 
+    <LoginPanel
+      v-if="!isAuthenticated && useMockData"
+      :loading="authLoading"
+      :error-text="authErrorText"
+      @submit="handleLogin"
+    />
+    <CharacterSelectModal
+      v-if="showCharacterSelect"
+      :characters="characters"
+      :loading="authLoading"
+      @select="handleSelectCharacter"
+    />
     <PersonModal v-if="selectedEntity" :entity="selectedEntity" @close="selectedEntity = null" />
     <WorldSelectorModal v-if="worldSelectorOpen" :cards="worldCards" @close="worldSelectorOpen = false" />
   </div>
