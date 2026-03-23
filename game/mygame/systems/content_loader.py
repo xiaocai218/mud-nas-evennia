@@ -26,6 +26,7 @@ VALID_NPC_ROUTE_CONDITIONS = {
     "main_state_is",
     "main_stage_completable",
     "side_state_is",
+    "side_quest_state_is",
     "side_quest_completable",
 }
 
@@ -97,6 +98,7 @@ def validate_content():
         for item in load_content("items").values()
         if item.get("id")
     }
+    effect_keys = set(load_content("effects").keys())
     npc_ids = {
         npc.get("id")
         for npc in load_content("npcs").get("npcs", [])
@@ -135,9 +137,13 @@ def validate_content():
         if trigger_effect.get("room_id") and trigger_effect["room_id"] not in room_content_ids:
             issues.append(f"objects.{obj_name}: trigger_effect.room_id '{trigger_effect['room_id']}' 不存在")
         if trigger_effect.get("buff_key"):
-            effects = load_content("effects")
-            if trigger_effect["buff_key"] not in effects:
+            if trigger_effect["buff_key"] not in effect_keys:
                 issues.append(f"objects.{obj_name}: buff_key '{trigger_effect['buff_key']}' 不存在")
+
+    for item_key, item in load_content("items").items():
+        use_effect = item.get("use_effect", {})
+        if use_effect.get("buff_key") and use_effect["buff_key"] not in effect_keys:
+            issues.append(f"items.{item_key}: use_effect.buff_key '{use_effect['buff_key']}' 不存在")
 
     quests = load_content("quests")
     for state, stage in quests.get("main_stages", {}).items():
@@ -170,6 +176,14 @@ def validate_content():
             unknown_conditions = [key for key in condition if key not in VALID_NPC_ROUTE_CONDITIONS]
             if unknown_conditions:
                 issues.append(f"npc_routes.{route_key}.steps[{index}]: 未知 condition {unknown_conditions}")
+            if "side_quest_state_is" in condition:
+                side_condition = condition["side_quest_state_is"]
+                quest_key = side_condition.get("quest")
+                state = side_condition.get("state")
+                if not quest_key or quest_key not in side_quest_keys:
+                    issues.append(f"npc_routes.{route_key}.steps[{index}]: side_quest_state_is.quest '{quest_key}' 不存在")
+                if not state:
+                    issues.append(f"npc_routes.{route_key}.steps[{index}]: side_quest_state_is.state 缺失")
             action = step.get("action", {})
             action_type = action.get("type")
             if action_type not in VALID_NPC_ROUTE_ACTIONS:

@@ -41,13 +41,20 @@ def get_stage_data(state):
     return QUEST_STAGE_DATA.get(state)
 
 
-def get_side_quest_state(caller):
-    for quest in SIDE_QUEST_DATA.values():
+def get_side_quest_state(caller, quest_key=None):
+    if quest_key:
+        quest = get_side_quest_data(quest_key)
+        if not quest:
+            return NOT_STARTED
         state_attr = quest.get("state_attr")
-        if state_attr:
-            state = getattr(caller.db, state_attr, None)
-            if state and state != NOT_STARTED:
-                return state
+        if not state_attr:
+            return NOT_STARTED
+        return getattr(caller.db, state_attr, NOT_STARTED) or NOT_STARTED
+
+    for quest_key in SIDE_QUEST_DATA:
+        state = get_side_quest_state(caller, quest_key)
+        if state != NOT_STARTED:
+            return state
     return NOT_STARTED
 
 
@@ -70,15 +77,24 @@ def get_side_quest_completed_state(quest_key):
     return quest.get("completed_state") if quest else None
 
 
-def get_active_side_quest_key(caller):
+def get_started_side_quest_keys(caller, include_completed=True):
+    started = []
     for quest_key, quest in SIDE_QUEST_DATA.items():
-        state_attr = quest.get("state_attr")
-        if not state_attr:
+        state = get_side_quest_state(caller, quest_key)
+        if state == NOT_STARTED:
             continue
-        state = getattr(caller.db, state_attr, None)
-        if state and state != NOT_STARTED:
-            return quest_key
-    return None
+        if not include_completed and state == quest.get("completed_state"):
+            continue
+        started.append(quest_key)
+    return started
+
+
+def get_active_side_quest_key(caller):
+    active = get_started_side_quest_keys(caller, include_completed=False)
+    if active:
+        return active[0]
+    started = get_started_side_quest_keys(caller, include_completed=True)
+    return started[0] if started else None
 
 
 def get_quest_status_text(caller):
@@ -108,20 +124,24 @@ def get_main_quest_status_text(caller):
 
 
 def get_side_quest_status_text(caller):
-    quest_key = get_active_side_quest_key(caller)
-    if not quest_key:
+    quest_keys = get_started_side_quest_keys(caller, include_completed=True)
+    if not quest_keys:
         return None
-    quest = SIDE_QUEST_DATA[quest_key]
-    state = getattr(caller.db, quest.get("state_attr"), NOT_STARTED)
-    if state == quest.get("completed_state"):
-        return quest["completed_text"]
-    has_item = "已获得" if bool(find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))) else "未获得"
-    return (
-        "|g当前支线|n\n"
-        f"任务名: {quest['title']}\n"
-        f"目标: {quest['objective']} [{has_item}]\n"
-        f"交付人: {quest['giver']}"
-    )
+    lines = []
+    for quest_key in quest_keys:
+        quest = SIDE_QUEST_DATA[quest_key]
+        state = get_side_quest_state(caller, quest_key)
+        if state == quest.get("completed_state"):
+            lines.append(quest["completed_text"])
+            continue
+        has_item = "已获得" if bool(find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))) else "未获得"
+        lines.append(
+            "|g当前支线|n\n"
+            f"任务名: {quest['title']}\n"
+            f"目标: {quest['objective']} [{has_item}]\n"
+            f"交付人: {quest['giver']}"
+        )
+    return "\n\n".join(lines)
 
 
 def _grant_rewards(caller, data):
@@ -191,7 +211,7 @@ def can_complete_side_quest(caller, quest_key):
         return False
     state_attr = quest.get("state_attr")
     start_state = quest.get("start_state")
-    if state_attr and getattr(caller.db, state_attr, NOT_STARTED) != start_state:
+    if state_attr and get_side_quest_state(caller, quest_key) != start_state:
         return False
     return bool(
         find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))

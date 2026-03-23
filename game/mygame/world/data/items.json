@@ -66,5 +66,24 @@
       "hp": 18,
       "full_text": "你将松纹草揉碎敷在伤处，又含了一点草汁，只觉胸腹间的闷痛缓缓散开。"
     }
+  },
+  "露华草": {
+    "id": "item_dewgrass",
+    "desc": "一束叶尖仍带着清晨露气的细草，捻开时会逸出一点甘凉草香，既可入药，也可慢慢炼化出极细的木水灵息。",
+    "kind": "material",
+    "refine_exp": 14
+  },
+  "清心香囊": {
+    "id": "item_clearheart_sachet",
+    "desc": "一个塞着细碎药草与香片的小香囊，靠近时能闻到清浅安神气息，像是专给外门弟子稳神静息用的。",
+    "kind": "consumable",
+    "use_effect": {
+      "type": "buff",
+      "buff_key": "clearheart_focus",
+      "buff_bonus": 4,
+      "buff_duration": 480,
+      "buff_label": "清心香息",
+      "full_text": "你轻轻一按香囊，清凉药香顺着鼻息与胸腹缓缓落下，心绪和呼吸都随之安定了许多。"
+    }
   }
 }

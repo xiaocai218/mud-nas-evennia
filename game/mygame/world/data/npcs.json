@@ -29,6 +29,16 @@
         "npc_role": "scout",
         "talk_route": "scout_trial"
       }
+    },
+    {
+      "id": "npc_garden_attendant",
+      "room_id": "outer_court",
+      "key": "药圃执事",
+      "desc": "一名袖口束得利落的外门执事站在前坪一角，腰间挂着竹牌与细剪，衣摆上沾着几点未干的露痕。看起来是专门负责照看药圃与杂役分发的人。",
+      "attrs": {
+        "npc_role": "garden_keeper",
+        "talk_route": "garden_supply"
+      }
     }
   ]
 }

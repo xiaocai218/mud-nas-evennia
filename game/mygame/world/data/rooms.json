@@ -25,6 +25,11 @@
       "content_id": "room_qingyun_outer_court",
       "key": "青云外门前坪",
       "desc": "一片被晨风吹得格外清明的石坪在山门前展开，两侧古松肃立，尽头是层层石阶与白墙青瓦。这里像是真正踏入宗门之前的第一道门槛，连空气都比山下更清冷几分。"
+    },
+    "herb_garden": {
+      "content_id": "room_tingquan_herb_garden",
+      "key": "听泉药圃",
+      "desc": "几畦药草沿着石渠与矮篱整整齐齐铺开，细泉从山壁间引下，在圃边叮咚作响。空气里浮着潮润草木香，连呼吸都像被洗得清亮了一层。"
     }
   },
   "exits": [
@@ -63,6 +68,18 @@
       "to": "stair",
       "key": "南",
       "aliases": ["south", "s"]
+    },
+    {
+      "from": "outer_court",
+      "to": "herb_garden",
+      "key": "东",
+      "aliases": ["east", "e"]
+    },
+    {
+      "from": "herb_garden",
+      "to": "outer_court",
+      "key": "西",
+      "aliases": ["west", "w"]
     }
   ]
 }

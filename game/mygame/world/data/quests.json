@@ -120,6 +120,25 @@
         "desc": "药庐学徒分装给你的细纸药包，药香清苦，适合在重伤时应急。"
       },
       "completed_text": "|g当前支线|n\n任务名: 雾露代药\n状态: 已完成\n药庐学徒已经收下你带回的雾露果。"
+    },
+    "dewgrass_delivery": {
+      "id": "quest_side_dewgrass_delivery",
+      "state_attr": "side_dewgrass_quest",
+      "start_state": "side_dewgrass_started",
+      "completed_state": "side_dewgrass_completed",
+      "title": "药圃添香",
+      "giver": "药圃执事",
+      "giver_npc_id": "npc_garden_attendant",
+      "objective": "交付一束露华草",
+      "required_item_id": "item_dewgrass",
+      "required_item": "露华草",
+      "reward_exp": 22,
+      "reward_item": {
+        "item_id": "item_clearheart_sachet",
+        "key": "清心香囊",
+        "desc": "一个塞着细碎药草与香片的小香囊，靠近时能闻到清浅安神气息，像是专给外门弟子稳神静息用的。"
+      },
+      "completed_text": "|g当前支线|n\n任务名: 药圃添香\n状态: 已完成\n药圃执事已经收下你送来的露华草。"
     }
   }
 }

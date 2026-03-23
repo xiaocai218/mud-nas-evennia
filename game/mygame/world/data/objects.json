@@ -116,6 +116,21 @@
           "text": "你伸手触向山门，门上云纹一层层亮起，原本凝滞的灵压忽然散开，随后你被一道柔和气机引入门后石坪。"
         }
       }
+    },
+    {
+      "id": "obj_dew_herb_patch_01",
+      "room_id": "herb_garden",
+      "key": "露华药畦",
+      "object_type": "gather_node",
+      "desc": "几畦叶片修长的药草顺着浅渠生长，叶尖还缀着一层细密露珠，微微一碰便散出清凉药香。看起来正适合细细采下一些可用的灵草。",
+      "attrs": {
+        "gather_config": {
+          "gather_item_id": "item_dewgrass",
+          "gather_cost": 5,
+          "gather_text": "你沿着药畦仔细挑拣，轻手轻脚采下了一束带着露气的露华草。",
+          "gather_fail_text": "你刚俯下身，便觉得手臂发沉。要稳稳采下这些细嫩药草，至少需要 |w{cost}|n 点体力。"
+        }
+      }
     }
   ]
 }

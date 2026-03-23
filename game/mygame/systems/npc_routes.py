@@ -30,6 +30,12 @@ def _match_condition(caller, condition):
         return False
     if "side_state_is" in condition and get_side_quest_state(caller) != condition["side_state_is"]:
         return False
+    if "side_quest_state_is" in condition:
+        side_condition = condition["side_quest_state_is"]
+        quest_key = side_condition.get("quest")
+        state = side_condition.get("state")
+        if not quest_key or get_side_quest_state(caller, quest_key) != state:
+            return False
     if "side_quest_completable" in condition and not can_complete_side_quest(caller, condition["side_quest_completable"]):
         return False
     return True

@@ -14,5 +14,13 @@
     "modifiers": {
       "cultivation_gain": -3
     }
+  },
+  "clearheart_focus": {
+    "id": "effect_clearheart_focus",
+    "label": "清心香息",
+    "effect_type": "buff",
+    "modifiers": {
+      "cultivation_gain": 4
+    }
   }
 }

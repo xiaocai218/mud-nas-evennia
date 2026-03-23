@@ -125,7 +125,10 @@
     "steps": [
       {
         "condition": {
-          "side_state_is": "not_started"
+          "side_quest_state_is": {
+            "quest": "herb_delivery",
+            "state": "not_started"
+          }
         },
         "action": {
           "type": "start_side_quest",
@@ -146,6 +149,51 @@
           },
           "reward_label": "支线完成",
           "realm_up_text": "在药气与灵息交汇之间，你的境界提升至 {new_realm}。"
+        }
+      }
+    ]
+  },
+  "garden_supply": {
+    "fallback_dialogue": "garden_keeper.idle",
+    "steps": [
+      {
+        "condition": {
+          "side_quest_state_is": {
+            "quest": "dewgrass_delivery",
+            "state": "not_started"
+          }
+        },
+        "action": {
+          "type": "start_side_quest",
+          "quest": "dewgrass_delivery",
+          "dialogue": "garden_keeper.side_start"
+        }
+      },
+      {
+        "condition": {
+          "side_quest_completable": "dewgrass_delivery"
+        },
+        "action": {
+          "type": "complete_side_quest",
+          "quest": "dewgrass_delivery",
+          "dialogue": "garden_keeper.side_complete",
+          "dialogue_kwargs": {
+            "reward_key": "{reward_key}"
+          },
+          "reward_label": "支线完成",
+          "realm_up_text": "你在药香与吐纳之间多了一层心得，境界提升至 {new_realm}。"
+        }
+      },
+      {
+        "condition": {
+          "side_quest_state_is": {
+            "quest": "dewgrass_delivery",
+            "state": "side_dewgrass_started"
+          }
+        },
+        "action": {
+          "type": "dialogue",
+          "dialogue": "garden_keeper.side_remind"
         }
       }
     ]
