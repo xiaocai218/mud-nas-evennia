@@ -94,10 +94,15 @@
 - `data/rooms.json`
   - 房间定义、出口关系与所属区域
 - `data/areas.json`
-  - 后续用于定义地域 / 区域元数据
-  - 例如新手村、外门、坊市、山路试炼区
+  - 定义地域 / 区域元数据
+  - 当前已通过 `zone_id` 归属上层州域
 - `data/area_exits.json`
   - 后续用于定义区域到区域的迁移关系与解锁条件
+- `data/maps.json`
+  - 定义世界板块，例如大陆 / 海域 / 异界
+- `data/zones.json`
+  - 定义州域 / 大区域
+  - 通过 `map_id` 归属上层世界板块
 - `data/npcs.json`
   - NPC 定义
 - `data/objects.json`
@@ -166,9 +171,27 @@
 16. JSON 内容加载优先走统一加载器，后续热更新和内容索引也应从这一层扩展。
 17. 地图扩展优先按 `area -> room -> object/npc/enemy` 的顺序组织，而不是只堆散房间。
 
-## Area 设计基线
+## World / Area 设计基线
 
-后续世界结构将从“只有 room”升级为“area + room”两层：
+后续世界结构将固定为四层：
+
+- `map`
+- `zone`
+- `area`
+- `room`
+
+其中当前已先落地 `area + room`，并开始给 `area` 补 `zone_id`：
+
+- `map`
+  - 世界板块，例如 `神洲大陆`
+- `zone`
+  - 州域 / 大区域，例如 `宁洲`
+- `area`
+  - 具体地域，例如 `青云渡新手村`
+- `room`
+  - 玩家实际进入的地点，例如 `青云渡`
+
+`area` 与 `room` 的职责仍然保持：
 
 - `area`
   - 表示完整地域
@@ -199,6 +222,7 @@
 详细设计参见：
 
 - [area_design.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\area_design.md)
+- [world_structure.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\world_structure.md)
 
 ## 内容 ID
 

@@ -1,6 +1,7 @@
 {
   "qingyundu_village": {
     "id": "area_qingyundu_village",
+    "zone_id": "zone_ningzhou",
     "key": "青云渡新手村",
     "region_type": "starter_village",
     "recommended_realm": "炼气一层",
@@ -22,6 +23,7 @@
   },
   "qingyun_outer_gate": {
     "id": "area_qingyun_outer_gate",
+    "zone_id": "zone_ningzhou",
     "key": "青云外门",
     "region_type": "outer_gate",
     "recommended_realm": "炼气三层",

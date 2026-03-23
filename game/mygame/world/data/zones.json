@@ -1,0 +1,10 @@
+{
+  "ningzhou": {
+    "id": "zone_ningzhou",
+    "map_id": "map_shenzhou_mainland",
+    "key": "宁洲",
+    "zone_type": "prefecture",
+    "recommended_realm": "炼气一层",
+    "desc": "宁洲位于神洲大陆东南一隅，山川秀润，宗门林立。青云一脉山门所在的山下村镇、外门药圃与入门试炼，多半都分布在这一州之内。"
+  }
+}

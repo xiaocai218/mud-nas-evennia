@@ -1,5 +1,9 @@
 # Area Design
 
+注：当前文档聚焦 `area + room`。更高一层的世界结构设计已单独整理到：
+
+- [world_structure.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\world_structure.md)
+
 ## 目标
 
 当前项目已经有若干 `room`，但后续继续扩世界时，只靠房间会逐渐失去“地域层级”。
