@@ -4,3 +4,5 @@ __pycache__/
 game/mygame/server/evennia.db3
 game/mygame/server/logs/*.log
 game/mygame/server/logs/*.lock
+frontend/h5/node_modules/
+frontend/h5/dist/
