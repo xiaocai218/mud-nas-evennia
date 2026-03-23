@@ -104,6 +104,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/world/data/enemies.json`: 怪物模板、掉落、任务标记
 - `game/mygame/world/data/rooms.json`: 房间定义与出口关系
 - `game/mygame/world/data/npcs.json`: NPC 与常驻对象定义
+- `game/mygame/world/data/dialogues.json`: NPC 对话文案与通用交互提示
 - `game/mygame/world/start_area.py`: 可重复执行的新手区域建图脚本
 - `game/mygame/systems/`: 可复用的规则逻辑
 - `game/mygame/typeclasses/items.py`: 最小物品类型
@@ -136,6 +137,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前物品定义与使用/炼化效果已独立到 `world/data/items.json`
 - 当前怪物模板与掉落配置已独立到 `world/data/enemies.json`
 - 当前房间、出口、NPC 与常驻对象配置已独立到 `world/data/rooms.json` 和 `world/data/npcs.json`
+- 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 `commands/inventory.py` 主要做命令入口，实际效果执行在 `systems/items.py`
 - `雾露果` 属于直接使用型掉落，不走炼化路线
 - 旧版单阶段任务角色如果 `guide_quest=completed` 但没有第二阶段奖励标记，系统会自动按“第一阶段已完成、第二阶段未开始”兼容处理

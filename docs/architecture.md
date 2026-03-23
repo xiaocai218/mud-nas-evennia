@@ -64,6 +64,8 @@
   - 房间定义与出口关系
 - `data/npcs.json`
   - NPC 与常驻对象定义
+- `data/dialogues.json`
+  - NPC 对话文案与通用交互提示
 - `help_entries.py`
   - 文件型帮助条目
 
