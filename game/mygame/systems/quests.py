@@ -23,23 +23,28 @@ QUEST_DATA_PATH = Path(__file__).resolve().parent.parent / "world" / "data" / "q
 
 def _load_quest_data():
     with QUEST_DATA_PATH.open("r", encoding="utf-8") as file_obj:
-        data = json.load(file_obj)
-    return data
+        return json.load(file_obj)
 
 
 QUEST_DATA = _load_quest_data()
+MAIN_FLOW = QUEST_DATA["main_flow"]
 QUEST_STAGE_DATA = QUEST_DATA["main_stages"]
 SIDE_QUEST_DATA = QUEST_DATA["side_quests"]
 QUEST_STATUS_TEXT = QUEST_DATA["main_status_text"]
 COMBAT_PROGRESS_FLAGS = QUEST_DATA["combat_progress_flags"]
+COMPATIBILITY_RULES = QUEST_DATA.get("compatibility", {}).get("main_state_overrides", [])
 
 
 def get_quest_state(caller):
     state = caller.db.guide_quest or NOT_STARTED
-    if state == COMPLETED and not bool(caller.db.guide_quest_stage_two_rewarded):
-        return STAGE_ONE_DONE
-    if state == COMPLETED and bool(caller.db.guide_quest_stage_two_rewarded) and not bool(caller.db.guide_quest_stage_three_rewarded):
-        return STAGE_THREE_READY
+    for rule in COMPATIBILITY_RULES:
+        if state != rule["when_state"]:
+            continue
+        if any(not bool(getattr(caller.db, flag, False)) for flag in rule.get("required_flags", [])):
+            continue
+        if any(bool(getattr(caller.db, flag, False)) for flag in rule.get("missing_flags", [])):
+            continue
+        return rule["mapped_state"]
     return state
 
 
@@ -94,11 +99,7 @@ def get_side_quest_status_text(caller):
     )
 
 
-def grant_stage_rewards(caller, stage):
-    data = get_stage_data(stage)
-    if not data:
-        return None
-
+def _grant_rewards(caller, data):
     old_realm, new_realm, exp = apply_exp(caller, data["reward_exp"])
     reward = None
     if data.get("reward_item"):
@@ -112,41 +113,40 @@ def grant_stage_rewards(caller, stage):
         "new_realm": new_realm,
         "exp": exp,
     }
+
+
+def grant_stage_rewards(caller, stage):
+    data = get_stage_data(stage)
+    if not data:
+        return None
+    return _grant_rewards(caller, data)
 
 
 def grant_side_quest_rewards(caller, quest_key):
     data = SIDE_QUEST_DATA.get(quest_key)
     if not data:
         return None
+    return _grant_rewards(caller, data)
 
-    old_realm, new_realm, exp = apply_exp(caller, data["reward_exp"])
-    reward = None
-    if data.get("reward_item"):
-        reward_key = data["reward_item"]["key"]
-        reward_desc = data["reward_item"]["desc"]
-        reward = create_reward_item(caller, reward_key, reward_desc)
-    return {
-        "reward_exp": data["reward_exp"],
-        "reward": reward,
-        "old_realm": old_realm,
-        "new_realm": new_realm,
-        "exp": exp,
-    }
+
+def set_main_quest_state(caller, state):
+    stage = get_stage_data(state)
+    if stage:
+        for attr in stage.get("start_resets", []):
+            setattr(caller.db, attr, False)
+    caller.db.guide_quest = state
 
 
 def start_guide_quest(caller):
-    caller.db.guide_quest = STAGE_ONE
-    caller.db.guide_quest_dummy_kill = False
+    set_main_quest_state(caller, MAIN_FLOW["start_state"])
 
 
 def unlock_second_stage(caller):
-    caller.db.guide_quest = STAGE_TWO
-    caller.db.guide_quest_stone_kill = False
+    set_main_quest_state(caller, STAGE_TWO)
 
 
 def start_third_stage(caller):
-    caller.db.guide_quest = STAGE_THREE
-    caller.db.guide_quest_mist_kill = False
+    set_main_quest_state(caller, STAGE_THREE)
 
 
 def start_side_herb_quest(caller):
@@ -154,7 +154,8 @@ def start_side_herb_quest(caller):
 
 
 def can_complete_side_herb_quest(caller):
-    return get_side_quest_state(caller) == SIDE_HERB and bool(find_item(caller, SIDE_QUEST_DATA["herb_delivery"]["required_item"]))
+    quest = SIDE_QUEST_DATA["herb_delivery"]
+    return get_side_quest_state(caller) == SIDE_HERB and bool(find_item(caller, quest["required_item"]))
 
 
 def complete_side_herb_quest(caller):
@@ -176,27 +177,45 @@ def mark_combat_kill(caller, target):
         setattr(caller.db, progress_attr, True)
 
 
+def can_complete_main_stage(caller, state):
+    stage = get_stage_data(state)
+    if not stage or get_quest_state(caller) != state:
+        return False
+    return bool(getattr(caller.db, stage["progress_attr"], False))
+
+
+def complete_main_stage(caller, state):
+    stage = get_stage_data(state)
+    if not stage:
+        return None
+
+    next_state = stage["complete_to"]
+    reward_flag = stage.get("reward_flag")
+    caller.db.guide_quest = next_state
+    if reward_flag:
+        setattr(caller.db, reward_flag, True)
+    return next_state
+
+
 def can_complete_stage_one(caller):
-    return get_quest_state(caller) == STAGE_ONE and bool(caller.db.guide_quest_dummy_kill)
+    return can_complete_main_stage(caller, STAGE_ONE)
 
 
 def can_complete_stage_two(caller):
-    return get_quest_state(caller) == STAGE_TWO and bool(caller.db.guide_quest_stone_kill)
+    return can_complete_main_stage(caller, STAGE_TWO)
 
 
 def can_complete_stage_three(caller):
-    return get_quest_state(caller) == STAGE_THREE and bool(caller.db.guide_quest_mist_kill)
+    return can_complete_main_stage(caller, STAGE_THREE)
 
 
 def complete_stage_one(caller):
-    caller.db.guide_quest = STAGE_ONE_DONE
+    return complete_main_stage(caller, STAGE_ONE)
 
 
 def complete_stage_two(caller):
-    caller.db.guide_quest = STAGE_THREE_READY
-    caller.db.guide_quest_stage_two_rewarded = True
+    return complete_main_stage(caller, STAGE_TWO)
 
 
 def complete_stage_three(caller):
-    caller.db.guide_quest = COMPLETED
-    caller.db.guide_quest_stage_three_rewarded = True
+    return complete_main_stage(caller, STAGE_THREE)

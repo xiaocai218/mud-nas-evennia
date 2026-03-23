@@ -36,19 +36,20 @@
   - 境界阈值与修为到境界的映射
 - `player_stats.py`
   - 玩家气血、体力、修为等辅助读写
-- `items.py`
-  - 背包物品查找、掉落生成
 - `quests.py`
   - 从 `world/data/quests.json` 读取任务定义
-  - 任务状态兼容与进度判定
+  - 任务状态兼容、阶段推进与奖励发放
   - `任务` 命令使用的展示文本生成
-  - 主线/支线奖励发放
 - `items.py`
   - 从 `world/data/items.json` 读取物品定义
   - 处理炼化与使用效果
 - `combat.py`
   - 训练目标战斗结算
   - 结合 `world/data/enemies.json` 处理怪物模板与掉落
+- `dialogues.py`
+  - 从 `world/data/dialogues.json` 读取 NPC 对话文案
+- `npc_routes.py`
+  - 从 `world/data/npc_routes.json` 读取 NPC 交谈路由
 
 ### `world/`
 
@@ -80,7 +81,7 @@
 3. `巡山弟子` 发布 `溪谷巡查`
 
 其中阶段标题、目标、交付人、进度字段已经收进 `systems/quests.py`，后续继续扩展时应优先沿用这套数据结构，而不是在 `commands/social.py` 里继续堆新的状态判断。
-现在这些任务定义已经进一步独立到 `world/data/quests.json`，后续增删任务时优先修改 JSON，再让 `systems/quests.py` 负责读取与执行。
+现在这些任务定义已经进一步独立到 `world/data/quests.json`，除了奖励外，阶段完成后的流转状态、兼容映射和开始时的进度重置也已经进入配置层。后续增删任务时优先修改 JSON，再让 `systems/quests.py` 负责读取与执行。
 
 ## 当前支线
 
@@ -102,10 +103,11 @@
 6. 任务定义优先写进 `world/data/quests.json`，代码只做流程控制。
 7. 怪物和物品模板也优先写进 `world/data/*.json`，命令层尽量不再硬编码数值。
 8. 房间、出口、NPC 的基础定义也优先写进 `world/data/*.json`。
+9. 运行时状态保留在 Evennia 数据库，静态模板优先放到 `world/data/*.json`。
 
 ## 下一步建议
 
-1. 把三段新手任务继续整理成完整的数据化任务链
-2. 把更多任务奖励逐步抽到 `systems/quests.py`
-3. 把敌人数据从对象属性继续收敛到更清晰的数据层
+1. 把更多 NPC 交谈触发条件继续整理进配置层
+2. 给主线和支线统一一套更通用的任务模板
+3. 把敌人摆放关系也逐步从建图脚本抽离
 4. 给后续门派引导或支线任务复用这一套结构

@@ -5,6 +5,10 @@
       "objective": "击败一次青木傀儡",
       "giver": "守渡老人",
       "progress_attr": "guide_quest_dummy_kill",
+      "start_resets": [
+        "guide_quest_dummy_kill"
+      ],
+      "complete_to": "stage_one_done",
       "reward_exp": 20,
       "reward_item": {
         "key": "渡口药包",
@@ -16,6 +20,11 @@
       "objective": "击败一次山石傀儡",
       "giver": "守渡老人",
       "progress_attr": "guide_quest_stone_kill",
+      "start_resets": [
+        "guide_quest_stone_kill"
+      ],
+      "complete_to": "stage_three_ready",
+      "reward_flag": "guide_quest_stage_two_rewarded",
       "reward_exp": 30,
       "reward_item": {
         "key": "石阶护符",
@@ -27,12 +36,20 @@
       "objective": "击败一次雾行山魈",
       "giver": "巡山弟子",
       "progress_attr": "guide_quest_mist_kill",
+      "start_resets": [
+        "guide_quest_mist_kill"
+      ],
+      "complete_to": "completed",
+      "reward_flag": "guide_quest_stage_three_rewarded",
       "reward_exp": 36,
       "reward_item": {
         "key": "巡山木牌",
         "desc": "一块刻着巡山纹记的木牌，边角被磨得光滑，象征你已通过这段入门试炼。"
       }
     }
+  },
+  "main_flow": {
+    "start_state": "stage_one_started"
   },
   "main_status_text": {
     "not_started": "你暂时还没有接到任务。可以试试 |w交谈 守渡老人|n。",
@@ -53,6 +70,27 @@
       "state": "stage_three_started",
       "progress_attr": "guide_quest_mist_kill"
     }
+  },
+  "compatibility": {
+    "main_state_overrides": [
+      {
+        "when_state": "completed",
+        "missing_flags": [
+          "guide_quest_stage_two_rewarded"
+        ],
+        "mapped_state": "stage_one_done"
+      },
+      {
+        "when_state": "completed",
+        "required_flags": [
+          "guide_quest_stage_two_rewarded"
+        ],
+        "missing_flags": [
+          "guide_quest_stage_three_rewarded"
+        ],
+        "mapped_state": "stage_three_ready"
+      }
+    ]
   },
   "side_quests": {
     "herb_delivery": {

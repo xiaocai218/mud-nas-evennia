@@ -140,6 +140,8 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前房间、出口、NPC 与常驻对象配置已独立到 `world/data/rooms.json` 和 `world/data/npcs.json`
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 NPC 交谈处理器路由已开始独立到 `world/data/npc_routes.json`
+- 当前主线阶段的完成流转、兼容映射与开始时进度重置已独立到 `world/data/quests.json`
 - 当前 `commands/inventory.py` 主要做命令入口，实际效果执行在 `systems/items.py`
 - `雾露果` 属于直接使用型掉落，不走炼化路线
 - 旧版单阶段任务角色如果 `guide_quest=completed` 但没有第二阶段奖励标记，系统会自动按“第一阶段已完成、第二阶段未开始”兼容处理
+- Evennia 数据库主要保存玩家进度、背包和运行时状态，任务/物品/怪物/NPC/房间模板优先维护在 `world/data/*.json`
