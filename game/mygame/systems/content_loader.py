@@ -14,6 +14,7 @@ CONTENT_SPECS = {
     "rooms": {"source": "rooms", "container": "rooms", "kind": "dict", "key_field": "room_key", "id_field": "content_id"},
     "npcs": {"source": "npcs", "container": "npcs", "kind": "list", "key_field": "key", "id_field": "id"},
     "objects": {"source": "objects", "container": "objects", "kind": "list", "key_field": "key", "id_field": "id"},
+    "shops": {"source": "shops", "container": None, "kind": "dict", "key_field": "shop_key", "id_field": "id"},
     "main_stages": {"source": "quests", "container": "main_stages", "kind": "dict", "key_field": "state", "id_field": "id"},
     "side_quests": {"source": "quests", "container": "side_quests", "kind": "dict", "key_field": "quest_key", "id_field": "id"},
 }
@@ -118,6 +119,11 @@ def validate_content():
     main_stage_states = set(load_content("quests").get("main_stages", {}).keys())
     side_quest_keys = set(load_content("quests").get("side_quests", {}).keys())
     dialogue_sections = load_content("dialogues")
+    shop_ids = {
+        shop.get("id")
+        for shop in load_content("shops").values()
+        if shop.get("id")
+    }
 
     for room_key, room in rooms_data.items():
         area_id = room.get("area_id")
@@ -156,6 +162,9 @@ def validate_content():
         talk_route = ((npc.get("attrs") or {}).get("talk_route"))
         if talk_route and talk_route not in load_content("npc_routes"):
             issues.append(f"npcs.{npc.get('id') or npc.get('key')}: talk_route '{talk_route}' 不存在")
+        shop_id = ((npc.get("attrs") or {}).get("shop_id"))
+        if shop_id and shop_id not in shop_ids:
+            issues.append(f"npcs.{npc.get('id') or npc.get('key')}: shop_id '{shop_id}' 不存在")
 
     for obj in load_content("objects").get("objects", []):
         obj_name = obj.get("id") or obj.get("key")
@@ -177,6 +186,16 @@ def validate_content():
         use_effect = item.get("use_effect", {})
         if use_effect.get("buff_key") and use_effect["buff_key"] not in effect_keys:
             issues.append(f"items.{item_key}: use_effect.buff_key '{use_effect['buff_key']}' 不存在")
+
+    for shop_key, shop in load_content("shops").items():
+        if shop.get("room_id") and shop["room_id"] not in room_keys:
+            issues.append(f"shops.{shop_key}: room_id '{shop['room_id']}' 不存在")
+        if shop.get("npc_id") and shop["npc_id"] not in npc_ids:
+            issues.append(f"shops.{shop_key}: npc_id '{shop['npc_id']}' 不存在")
+        for index, entry in enumerate(shop.get("inventory", []), start=1):
+            item_id = entry.get("item_id")
+            if item_id and item_id not in item_ids:
+                issues.append(f"shops.{shop_key}.inventory[{index}]: item_id '{item_id}' 不存在")
 
     quests = load_content("quests")
     for state, stage in quests.get("main_stages", {}).items():

@@ -19,6 +19,30 @@
       "key": "古松林",
       "desc": "几株古松盘根错节，枝叶高高探向天幕。林间有碎石小径通行，空气里带着松脂与湿土的清气，适合新人暂作停留。"
     },
+    "general_store": {
+      "content_id": "room_ferry_general_store",
+      "area_id": "qingyundu_village",
+      "key": "村口杂货摊",
+      "desc": "一面旧布篷支在渡口边，木架和竹篮里塞满了火石、草绳、粗布和小药包。摊主把价签写得很大，显然不打算在新人身上绕弯子。"
+    },
+    "apothecary": {
+      "content_id": "room_ferry_apothecary",
+      "area_id": "qingyundu_village",
+      "key": "小药铺",
+      "desc": "一间半开木门的小药铺倚着石墙而建，柜台后堆着纸包、药杵和晾晒到半干的草束。空气里带着一层温苦药香，让人不自觉放轻了呼吸。"
+    },
+    "forge": {
+      "content_id": "room_ferry_forge",
+      "area_id": "qingyundu_village",
+      "key": "铁匠铺",
+      "desc": "矮檐下挂着几把还没开锋的短刀和农具，炉膛里的炭火偶尔噼啪作响。这里暂时还只接些修补和打胚的粗活，但已经有了村中铁铺该有的烟火气。"
+    },
+    "cottage": {
+      "content_id": "room_ferry_cottage",
+      "area_id": "qingyundu_village",
+      "key": "临溪村舍",
+      "desc": "几张旧木凳和矮桌挤在不大的屋里，窗边挂着还没完全干透的蓑衣。这里没有什么机缘与试炼，只让人想起山下凡居的安稳日子。"
+    },
     "valley": {
       "content_id": "room_valley_walk",
       "area_id": "qingyun_outer_gate",
@@ -62,6 +86,54 @@
       "to": "qingyundu",
       "key": "西",
       "aliases": ["west", "w"]
+    },
+    {
+      "from": "qingyundu",
+      "to": "general_store",
+      "key": "西",
+      "aliases": ["west", "w"]
+    },
+    {
+      "from": "general_store",
+      "to": "qingyundu",
+      "key": "东",
+      "aliases": ["east", "e"]
+    },
+    {
+      "from": "qingyundu",
+      "to": "apothecary",
+      "key": "南",
+      "aliases": ["south", "s"]
+    },
+    {
+      "from": "apothecary",
+      "to": "qingyundu",
+      "key": "北",
+      "aliases": ["north", "n"]
+    },
+    {
+      "from": "stair",
+      "to": "forge",
+      "key": "东",
+      "aliases": ["east", "e"]
+    },
+    {
+      "from": "forge",
+      "to": "stair",
+      "key": "西",
+      "aliases": ["west", "w"]
+    },
+    {
+      "from": "general_store",
+      "to": "cottage",
+      "key": "南",
+      "aliases": ["south", "s"]
+    },
+    {
+      "from": "cottage",
+      "to": "general_store",
+      "key": "北",
+      "aliases": ["north", "n"]
     },
     {
       "from": "stair",

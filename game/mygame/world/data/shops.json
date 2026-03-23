@@ -1,0 +1,46 @@
+{
+  "ferry_general_store": {
+    "id": "shop_ferry_general_store",
+    "room_id": "general_store",
+    "npc_id": "npc_general_store_keeper",
+    "key": "渡口杂货摊",
+    "desc": "摊上摆着些新人最常用的杂物和草药，价钱不高，胜在应急方便。",
+    "currency": "铜钱",
+    "inventory": [
+      {
+        "item_id": "item_songwen_grass",
+        "price": 8
+      },
+      {
+        "item_id": "item_ferry_medicine_pack",
+        "price": 20
+      },
+      {
+        "item_id": "item_cloth_waterskin",
+        "price": 14
+      }
+    ]
+  },
+  "ferry_apothecary": {
+    "id": "shop_ferry_apothecary",
+    "room_id": "apothecary",
+    "npc_id": "npc_apothecary_keeper",
+    "key": "渡口小药铺",
+    "desc": "木架上整齐码着纸包和草束，都是山下新人常备的疗伤药材。",
+    "currency": "铜钱",
+    "inventory": [
+      {
+        "item_id": "item_songwen_grass",
+        "price": 7
+      },
+      {
+        "item_id": "item_ferry_medicine_pack",
+        "price": 18
+      },
+      {
+        "item_id": "item_stopbleed_powder",
+        "price": 26
+      }
+    ]
+  }
+}

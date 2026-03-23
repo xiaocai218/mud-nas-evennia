@@ -37,21 +37,25 @@ def load_json(path):
         return json.load(file_obj)
 
 
-def get_room_by_id(room_id, key, desc, content_id=None):
+def get_room_by_id(room_id, key, desc, content_id=None, room_key=None):
     room = ObjectDB.objects.get(id=room_id)
     room.key = key
     room.db.desc = desc
+    if room_key:
+        room.db.room_id = room_key
     if content_id:
         room.db.content_id = content_id
     room.save()
     return room
 
 
-def get_or_create_room(key, desc, content_id=None):
+def get_or_create_room(key, desc, content_id=None, room_key=None):
     room = ObjectDB.objects.filter(db_key=key).first()
     if not room:
         room = create_object(ROOM_TYPECLASS, key=key)
     room.db.desc = desc
+    if room_key:
+        room.db.room_id = room_key
     if content_id:
         room.db.content_id = content_id
     room.save()
@@ -92,9 +96,20 @@ def build_rooms(room_defs):
     rooms = {}
     for room_id, room_data in room_defs.items():
         if room_data.get("id"):
-            room = get_room_by_id(room_data["id"], room_data["key"], room_data["desc"], content_id=room_data.get("content_id", room_id))
+            room = get_room_by_id(
+                room_data["id"],
+                room_data["key"],
+                room_data["desc"],
+                content_id=room_data.get("content_id", room_id),
+                room_key=room_id,
+            )
         else:
-            room = get_or_create_room(room_data["key"], room_data["desc"], content_id=room_data.get("content_id", room_id))
+            room = get_or_create_room(
+                room_data["key"],
+                room_data["desc"],
+                content_id=room_data.get("content_id", room_id),
+                room_key=room_id,
+            )
         if room_data.get("area_id"):
             room.db.area_id = room_data["area_id"]
         rooms[room_id] = room

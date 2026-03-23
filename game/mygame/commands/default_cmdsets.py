@@ -9,6 +9,7 @@ from .core import CmdGather, CmdNewbie, CmdRead, CmdStatus, CmdTrigger
 from .cultivation import CmdCultivate, CmdRecoverHp, CmdRest
 from .devtools import CmdContent
 from .inventory import CmdInventory, CmdRefine, CmdUseItem
+from .shop import CmdBuy, CmdShop
 from .social import CmdQuest, CmdTalk
 
 
@@ -31,5 +32,7 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdInventory())
         self.add(CmdRefine())
         self.add(CmdUseItem())
+        self.add(CmdShop())
+        self.add(CmdBuy())
         self.add(CmdQuest())
         self.add(CmdContent())

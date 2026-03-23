@@ -29,6 +29,8 @@
 - `inventory.py`
   - `背包`
   - `炼化`
+  - `商店`
+  - `购买`
 - `devtools.py`
   - `内容`
   - 面向管理员的内容索引、重载与校验入口
@@ -67,6 +69,9 @@
 - `items.py`
   - 从 `world/data/items.json` 读取物品定义
   - 处理炼化与使用效果
+- `shops.py`
+  - 从 `world/data/shops.json` 读取商店定义
+  - 处理房间商店查询与最小购买结算
 - `combat.py`
   - 训练目标战斗结算
   - 结合 `world/data/enemies.json` 处理怪物模板与掉落
@@ -119,8 +124,11 @@
   - buff / debuff 模板与属性修正配置
 - `data/character_defaults.json`
   - 角色默认模板与基础属性配置
+  - 当前也开始承载基础货币 `铜钱`
 - `data/help_content.json`
   - 帮助文案与新手指引配置
+- `data/shops.json`
+  - 商店模板、所在房间、售卖清单与价格
 - `help_entries.py`
   - 文件型帮助条目桥接层
 
@@ -218,6 +226,14 @@
 - 杂货摊
 - 区域出口
 - 基础商店
+
+当前第一版已经开始落地：
+
+- `村口杂货摊`
+- `小药铺`
+- `铁匠铺`
+- `临溪村舍`
+- `shops.json` 最小商店配置
 
 详细设计参见：
 

@@ -19,6 +19,7 @@ def get_stats(caller):
         "stamina": profile["stamina"] if caller.db.stamina is None else caller.db.stamina,
         "max_stamina": profile["max_stamina"] if caller.db.max_stamina is None else caller.db.max_stamina,
         "exp": profile["exp"] if caller.db.exp is None else caller.db.exp,
+        "copper": profile.get("copper", 0) if caller.db.copper is None else caller.db.copper,
     }
 
 
@@ -114,3 +115,21 @@ def get_active_effect_text(caller):
         prefix = "增益" if effect_type == "buff" else "减益"
         parts.append(f"{prefix}:{label}{modifier_text}({minutes}分{seconds}秒)")
     return "，".join(parts)
+
+
+def get_currency(caller):
+    return get_stats(caller)["copper"]
+
+
+def add_currency(caller, amount):
+    caller.db.copper = get_currency(caller) + int(amount)
+    return caller.db.copper
+
+
+def spend_currency(caller, amount):
+    amount = int(amount)
+    current = get_currency(caller)
+    if current < amount:
+        return False, current
+    caller.db.copper = current - amount
+    return True, caller.db.copper

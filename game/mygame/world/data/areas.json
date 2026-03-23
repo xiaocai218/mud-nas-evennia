@@ -9,16 +9,21 @@
     "rooms": [
       "qingyundu",
       "stair",
-      "pine"
+      "pine",
+      "general_store",
+      "apothecary",
+      "forge",
+      "cottage"
     ],
     "facilities": [
       "渡口公告",
       "基础采集点",
       "木人桩",
       "新手引导",
-      "未来药铺",
-      "未来铁匠铺",
-      "未来杂货摊"
+      "小药铺",
+      "铁匠铺",
+      "村口杂货摊",
+      "临溪村舍"
     ]
   },
   "qingyun_outer_gate": {

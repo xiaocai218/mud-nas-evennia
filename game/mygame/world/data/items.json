@@ -85,5 +85,25 @@
       "buff_label": "清心香息",
       "full_text": "你轻轻一按香囊，清凉药香顺着鼻息与胸腹缓缓落下，心绪和呼吸都随之安定了许多。"
     }
+  },
+  "粗布水囊": {
+    "id": "item_cloth_waterskin",
+    "desc": "一个装着清水的粗布水囊，虽然简陋，却足够让奔走后的气息重新缓下来。",
+    "kind": "consumable",
+    "use_effect": {
+      "type": "restore_stamina",
+      "stamina": 16,
+      "full_text": "你拧开水囊灌了几口清水，只觉喉间和胸腹都舒展开来，奔波后的疲意散去了不少。"
+    }
+  },
+  "止血散": {
+    "id": "item_stopbleed_powder",
+    "desc": "一小包颜色灰白的止血药粉，药味辛烈，最适合在轻伤时紧急敷用。",
+    "kind": "consumable",
+    "use_effect": {
+      "type": "restore_hp",
+      "hp": 42,
+      "full_text": "你把止血散敷在伤处，辛烈药气很快逼得伤口发热，随后疼痛和渗血都缓了下来。"
+    }
   }
 }

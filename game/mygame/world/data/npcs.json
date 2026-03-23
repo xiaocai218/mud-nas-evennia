@@ -21,6 +21,26 @@
       }
     },
     {
+      "id": "npc_general_store_keeper",
+      "room_id": "general_store",
+      "key": "杂货摊掌柜",
+      "desc": "一名裹着旧布褂的中年掌柜坐在摊后拨弄算盘，眼神精明却不算刻薄。看起来只要价钱到位，他并不介意教新人先怎么把行头备齐。",
+      "attrs": {
+        "npc_role": "shopkeeper",
+        "shop_id": "shop_ferry_general_store"
+      }
+    },
+    {
+      "id": "npc_apothecary_keeper",
+      "room_id": "apothecary",
+      "key": "药铺掌柜",
+      "desc": "一位手指常年带着淡黄药渍的掌柜站在柜台后，翻纸包的动作干脆利落。她看人的眼神很平静，像是只在意你买药还是闲看。",
+      "attrs": {
+        "npc_role": "apothecary_keeper",
+        "shop_id": "shop_ferry_apothecary"
+      }
+    },
+    {
       "id": "npc_valley_scout",
       "room_id": "valley",
       "key": "巡山弟子",

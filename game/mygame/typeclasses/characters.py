@@ -29,3 +29,4 @@ class Character(ObjectParent, DefaultCharacter):
         self.db.stamina = profile["stamina"] if self.db.stamina is None else self.db.stamina
         self.db.max_stamina = profile["max_stamina"] if self.db.max_stamina is None else self.db.max_stamina
         self.db.exp = profile["exp"] if self.db.exp is None else self.db.exp
+        self.db.copper = profile.get("copper", 0) if self.db.copper is None else self.db.copper

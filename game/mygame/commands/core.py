@@ -67,6 +67,7 @@ class CmdStatus(Command):
         table.add_row("气血", f"{stats['hp']}/{stats['max_hp']}")
         table.add_row("体力", f"{stats['stamina']}/{stats['max_stamina']}")
         table.add_row("修为", str(stats["exp"]))
+        table.add_row("铜钱", str(stats["copper"]))
         table.add_row("区域", area["key"] if area else "未划分")
         table.add_row("位置", location)
         table.add_row("效果", get_active_effect_text(caller))
