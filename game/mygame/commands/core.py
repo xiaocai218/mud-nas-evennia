@@ -6,6 +6,7 @@ from evennia.utils import evtable
 
 from .command import Command
 from systems.effect_executor import format_effect_result
+from systems.help_content import get_newbie_content
 from systems.items import get_inventory_items
 from systems.player_stats import get_active_effect_text, get_stats
 from systems.world_objects import (
@@ -30,27 +31,19 @@ class CmdNewbie(Command):
     help_category = "入门"
 
     def func(self):
+        content = get_newbie_content()
+        command_lines = [
+            f"  |w{entry['command']}|n  {entry['description']}"
+            for entry in content.get("recommended_commands", [])
+        ]
+        feature_lines = [f"- {entry}" for entry in content.get("completed_features", [])]
         self.caller.msg(
-            "|g新手指引|n\n\n"
-            "欢迎来到这个中文 MUD 原型服，目前已经可以完成最基础的登录与探索。\n\n"
+            f"{content['title']}\n\n"
+            f"{content['intro']}\n\n"
             "你现在最推荐先试这些命令：\n"
-            "  |wlook|n        查看当前场景\n"
-            "  |whelp 新手|n   查看新手帮助条目\n"
-            "  |w状态|n        查看当前角色状态\n"
-            "  |w阅读 渡口告示牌|n  查看当前渡口公告\n"
-            "  |w阅读 问道路碑|n  查看当前任务引导\n"
-            "  |w采集 松纹草丛|n  在古松林采集基础草药\n"
-            "  |w触发 回渡石|n  从溪谷栈道快速返回青云渡\n"
-            "  |w触发 凝神蒲团|n  获取短时修炼加持\n"
-            "  |w触发 洗尘泉眼|n  在渡口快速恢复气血与体力\n"
-            "  |w触发 青云山门|n  试着进入外门前坪\n"
-            "  |w任务|n        查看当前新手任务\n"
-            "  |w修炼|n        消耗体力获取修为\n"
-            "  |w休息|n        恢复体力\n"
-            "  |w调息|n        恢复气血\n"
-            "  |w攻击 青木傀儡|n  进行最基础战斗测试\n"
-            "  |w背包|n        查看当前获得的物品\n"
-            "  |w炼化 青木碎片|n  将掉落物转成修为\n"
+            f"{chr(10).join(command_lines)}\n\n"
+            "当前服务器已经完成：\n\n"
+            f"{chr(10).join(feature_lines)}"
         )
 
 

@@ -88,6 +88,9 @@
 - `character_defaults.json`
   - 角色默认模板
   - 当前用于初始境界、气血、体力、修为等基础值
+- `help_content.json`
+  - 帮助文案与新手指引配置
+  - 当前 `help_entries.py` 与 `新手` 命令开始共用这份内容
 - `enemies.json`
   - 怪物模板
   - 掉落
