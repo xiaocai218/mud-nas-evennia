@@ -107,7 +107,10 @@ def build_exits(rooms, exit_defs):
 
 def build_objects(rooms, object_defs):
     for obj in object_defs:
-        ensure_object(rooms[obj["room"]], obj["key"], obj["desc"], obj.get("attrs"))
+        attrs = dict(obj.get("attrs", {}))
+        if obj.get("object_type"):
+            attrs["object_type"] = obj["object_type"]
+        ensure_object(rooms[obj["room"]], obj["key"], obj["desc"], attrs)
 
 
 def build_enemies(rooms, enemy_defs):

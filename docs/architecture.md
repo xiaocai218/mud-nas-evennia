@@ -36,6 +36,8 @@
   - 境界阈值与修为到境界的映射
 - `player_stats.py`
   - 玩家气血、体力、修为等辅助读写
+- `world_objects.py`
+  - 处理房间交互对象的基础能力
 - `quests.py`
   - 从 `world/data/quests.json` 读取任务定义
   - 任务状态兼容、阶段推进与奖励发放
@@ -67,7 +69,7 @@
 - `data/npcs.json`
   - NPC 定义
 - `data/objects.json`
-  - 房间内交互对象模板
+  - 房间内交互对象模板与对象类型
 - `data/dialogues.json`
   - NPC 对话文案与通用交互提示
 - `data/npc_routes.json`

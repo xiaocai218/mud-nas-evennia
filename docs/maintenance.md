@@ -94,6 +94,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/server/conf/at_initial_setup.py`: 首次世界初始化钩子
 - `game/mygame/server/conf/settings.py`: 项目命令集、帮助模块、类型类绑定
 - `game/mygame/commands/core.py`: 基础查看类命令
+- `game/mygame/systems/world_objects.py`: 房间交互对象的基础能力
 - `game/mygame/commands/cultivation.py`: 修炼、休息、调息
 - `game/mygame/commands/combat.py`: 练拳、攻击
 - `game/mygame/commands/social.py`: 交谈、任务
@@ -104,7 +105,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/world/data/enemies.json`: 怪物模板、掉落、任务标记
 - `game/mygame/world/data/rooms.json`: 房间定义与出口关系
 - `game/mygame/world/data/npcs.json`: NPC 定义
-- `game/mygame/world/data/objects.json`: 房间内交互对象模板
+- `game/mygame/world/data/objects.json`: 房间内交互对象模板与对象类型
 - `game/mygame/world/data/dialogues.json`: NPC 对话文案与通用交互提示
 - `game/mygame/world/data/npc_routes.json`: NPC 交谈路由配置
 - `game/mygame/world/start_area.py`: 可重复执行的新手区域建图脚本
@@ -140,6 +141,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前怪物模板与掉落配置已独立到 `world/data/enemies.json`
 - 当前房间、出口、NPC 与常驻对象配置已独立到 `world/data/rooms.json` 和 `world/data/npcs.json`
 - 当前房间内交互对象模板也已独立到 `world/data/objects.json`
+- 当前已增加最小可读对象类型，`阅读 <目标>` 可用于公告牌一类对象
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 NPC 交谈处理器路由、触发条件和处理步骤已开始独立到 `world/data/npc_routes.json`
 - 当前主线阶段的完成流转、兼容映射与开始时进度重置已独立到 `world/data/quests.json`
