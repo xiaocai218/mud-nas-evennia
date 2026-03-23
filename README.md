@@ -167,6 +167,15 @@ H5 前端接入的第一版评估也已经留档：
   - 记录后端需要提前预留的接口边界
   - 记录 DTO、事件流、动作路由和 WebSocket 方向
 
+当前 H5 接入基础设施也已开始落地：
+
+- `game/mygame/systems/serializers.py`
+- `game/mygame/systems/action_router.py`
+- `game/mygame/systems/event_bus.py`
+- `game/mygame/systems/client_protocol.py`
+
+当前目标不是直接上前端框架，而是先把后端整理成可以被 H5 客户端稳定消费的结构。
+
 最新一轮内容扩展示例：
 
 - `青云外门前坪` 新增 NPC `药圃执事`

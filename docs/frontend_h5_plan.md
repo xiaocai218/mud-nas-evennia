@@ -112,11 +112,18 @@
 
 新增统一网关层，屏蔽 Evennia 原生命令输入方式和未来 H5 协议的差异。
 
-建议后续增加：
+当前已新增基础骨架：
 
 - `systems/api_gateway.py`
 - `systems/ws_gateway.py`
 - `systems/serializers.py`
+
+当前已落地：
+
+- `systems/serializers.py`
+- `systems/action_router.py`
+- `systems/event_bus.py`
+- `systems/client_protocol.py`
 
 职责：
 
@@ -189,7 +196,7 @@ H5 接入后不应继续把这些中文命令字符串作为主协议。
 
 ## 当前代码需要补的工具层
 
-建议下一阶段优先新增这些模块：
+当前已新增这些模块的第一版：
 
 - `game/mygame/systems/serializers.py`
   - 负责把运行时对象转成 DTO
@@ -199,6 +206,12 @@ H5 接入后不应继续把这些中文命令字符串作为主协议。
   - 负责统一事件格式
 - `game/mygame/systems/client_protocol.py`
   - 约束客户端请求/响应格式
+
+当前状态：
+
+- 已能输出基础 `Character / Room / Area / Zone / Map / Quest / Inventory` 结构化数据
+- 已能按结构化 action 分发 `bootstrap / look / move / read / gather / trigger_object / use_item / buy_item`
+- `talk / attack` 暂时仍保留为未实现占位，后续接现有玩法系统
 
 ## 建议的前后端协议方向
 
