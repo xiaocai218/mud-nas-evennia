@@ -4,7 +4,7 @@ Command sets
 
 from evennia import default_cmds
 
-from .newbie import CmdAttack, CmdCultivate, CmdInventory, CmdNewbie, CmdRecoverHp, CmdRefine, CmdRest, CmdStatus, CmdTalk, CmdTrain
+from .newbie import CmdAttack, CmdCultivate, CmdInventory, CmdNewbie, CmdQuest, CmdRecoverHp, CmdRefine, CmdRest, CmdStatus, CmdTalk, CmdTrain
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -22,6 +22,7 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
         self.add(CmdAttack())
         self.add(CmdInventory())
         self.add(CmdRefine())
+        self.add(CmdQuest())
 
 
 class AccountCmdSet(default_cmds.AccountCmdSet):

@@ -29,6 +29,10 @@ def get_target(caller, target_name):
     return results[0] if results else None
 
 
+def get_quest_state(caller):
+    return caller.db.guide_quest or "not_started"
+
+
 class CmdNewbie(Command):
     """
     查看新手引导
@@ -64,6 +68,7 @@ class CmdNewbie(Command):
             "  |w攻击 青木傀儡|n  进行最基础战斗测试\n"
             "  |w炼化 青木碎片|n  将掉落物转成修为\n"
             "  |w背包|n        查看当前获得的物品\n"
+            "  |w任务|n        查看当前新手任务进度\n"
             "  |w北|n / |w东|n      在新手区域中移动\n"
             "  |wchannels|n    查看可用频道\n"
             "\n"
@@ -313,10 +318,53 @@ class CmdTalk(Command):
             return
 
         if target.key == "守渡老人":
+            quest_state = get_quest_state(caller)
+            if quest_state == "not_started":
+                caller.db.guide_quest = "started"
+                caller.msg(
+                    "守渡老人抬眼看了你一会儿，慢声说道：\n"
+                    "“初来乍到，不必心急。先去古松林击倒一次|w青木傀儡|n，再回来见我。”\n"
+                    "“记住，体力不足就|w休息|n，气血受损就|w调息|n。打完回来，我自会给你些入门资粮。”\n"
+                    "|g任务已接取|n: 击败一次青木傀儡。"
+                )
+                return
+            if quest_state == "started" and caller.db.guide_quest_dummy_kill:
+                caller.db.guide_quest = "completed"
+                reward_exp = 20
+                exp = caller.db.exp if caller.db.exp is not None else 0
+                old_realm = caller.db.realm or get_realm_from_exp(exp)
+                exp += reward_exp
+                new_realm = get_realm_from_exp(exp)
+                caller.db.exp = exp
+                caller.db.realm = new_realm
+                reward = create_object(
+                    "typeclasses.items.Item",
+                    key="渡口药包",
+                    location=caller,
+                )
+                reward.db.desc = "守渡老人交给你的简陋药包，带着些草木辛气，也许日后会派上用场。"
+                caller.msg(
+                    "守渡老人看你气息沉稳了几分，微微点头：\n"
+                    "“不错，至少不是站都站不稳的新雏了。这点东西你先拿着。”\n"
+                    f"|g任务完成|n: 修为 +{reward_exp}，获得 |w{reward.key}|n。"
+                )
+                if new_realm != old_realm:
+                    caller.msg(f"|y在这一番历练之后，你的境界提升至 {new_realm}。|n")
+                return
+            if quest_state == "started":
+                caller.msg(
+                    "守渡老人拄着旧杖，朝东边古松林扬了扬下巴：\n"
+                    "“先去把青木傀儡打倒一次，再回来见我。”"
+                )
+                return
+            if quest_state == "completed":
+                caller.msg(
+                    "守渡老人淡淡一笑：\n"
+                    "“该教你的入门路数，你已经走过一遍了。接下来，就看你自己能走多远。”"
+                )
+                return
             caller.msg(
-                "守渡老人抬眼看了你一会儿，慢声说道：\n"
-                "“初来乍到，不必心急。先在青云渡稳住气息，再去古松林对着木人桩练练手。”\n"
-                "“若体力不足，便先|w休息|n；若想积攒修为，就多|w修炼|n几次。”"
+                "守渡老人抬眼看了你一会儿，却没有多说什么。"
             )
             return
 
@@ -383,6 +431,8 @@ class CmdAttack(Command):
             caller.db.exp = exp
             caller.db.realm = new_realm
             target.db.hp = target_max_hp
+            if target.key == "青木傀儡" and get_quest_state(caller) == "started":
+                caller.db.guide_quest_dummy_kill = True
             drop = create_object(
                 "typeclasses.items.Item",
                 key="青木碎片",
@@ -497,3 +547,42 @@ class CmdRefine(Command):
             return
 
         caller.msg(f"{item_name} 现在还无法炼化。")
+
+
+class CmdQuest(Command):
+    """
+    查看任务
+
+    用法:
+      任务
+      quest
+
+    查看当前新手任务进度。
+    """
+
+    key = "任务"
+    aliases = ["quest", "missions"]
+    locks = "cmd:all()"
+    help_category = "任务"
+
+    def func(self):
+        caller = self.caller
+        state = get_quest_state(caller)
+        if state == "not_started":
+            caller.msg("你暂时还没有接到任务。可以试试 |w交谈 守渡老人|n。")
+            return
+        if state == "started":
+            done = "已完成" if caller.db.guide_quest_dummy_kill else "未完成"
+            caller.msg(
+                "|g当前任务|n\n"
+                "任务名: 渡口试手\n"
+                f"目标: 击败一次青木傀儡 [{done}]\n"
+                "交付人: 守渡老人"
+            )
+            return
+        caller.msg(
+            "|g当前任务|n\n"
+            "任务名: 渡口试手\n"
+            "状态: 已完成\n"
+            "守渡老人已经认可你完成了最基础的入门试炼。"
+        )
