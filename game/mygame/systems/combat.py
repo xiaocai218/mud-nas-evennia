@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from .items import create_loot, get_item_definition
+from .items import create_loot, get_item_definition, get_item_definition_by_id, resolve_item_key
 from .player_stats import apply_exp, get_stats
 from .quests import mark_combat_kill
 
@@ -32,8 +32,11 @@ def attack_training_target(caller, target):
     damage = target.db.damage_taken if target.db.damage_taken is not None else 12
     reward_exp = target.db.reward_exp if target.db.reward_exp is not None else 12
     counter = target.db.counter_damage if target.db.counter_damage is not None else 6
-    drop_key = target.db.drop_key
-    drop_desc = target.db.drop_desc or ((get_item_definition(drop_key) or {}).get("desc") if drop_key else None)
+    drop_item_id = target.db.drop_item_id
+    drop_key = target.db.drop_key or resolve_item_key(item_id=drop_item_id)
+    drop_desc = target.db.drop_desc or (
+        (get_item_definition(drop_key) or {}).get("desc") if drop_key else (get_item_definition_by_id(drop_item_id) or {}).get("desc")
+    )
 
     if stats["stamina"] < cost:
         return {"ok": False, "reason": "stamina", "cost": cost, "stats": stats}
@@ -47,7 +50,7 @@ def attack_training_target(caller, target):
         mark_combat_kill(caller, target)
         drop = None
         if drop_key and drop_desc:
-            drop = create_loot(caller, drop_key, drop_desc)
+            drop = create_loot(caller, key=drop_key, item_id=drop_item_id, desc=drop_desc)
         return {
             "ok": True,
             "result": "kill",

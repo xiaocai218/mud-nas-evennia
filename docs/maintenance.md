@@ -147,6 +147,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前已增加最小传送对象类型，`触发 <目标>` 可用于回渡石一类对象
 - 当前已增加最小增益点对象类型，`触发 凝神蒲团` 可获得短时修炼加持
 - 当前已增加带解锁条件的山门入口对象，`触发 青云山门` 会按主线完成状态决定是否放行
+- 当前内容层已开始补充稳定 `id/content_id`，后续系统内部引用应逐步从中文名切到这些稳定标识
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
 - 当前 NPC 交谈处理器路由、触发条件和处理步骤已开始独立到 `world/data/npc_routes.json`
 - 当前主线阶段的完成流转、兼容映射与开始时进度重置已独立到 `world/data/quests.json`

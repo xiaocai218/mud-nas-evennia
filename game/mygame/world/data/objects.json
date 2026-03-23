@@ -1,7 +1,8 @@
 {
   "objects": [
     {
-      "room": "pine",
+      "id": "obj_training_post_01",
+      "room_id": "pine",
       "key": "木人桩",
       "object_type": "training_post",
       "desc": "一具被反复击打得有些发亮的木人桩安静立在林间，桩身上留着新旧不一的拳印。看起来很适合新人练手。",
@@ -10,7 +11,8 @@
       }
     },
     {
-      "room": "qingyundu",
+      "id": "obj_noticeboard_01",
+      "room_id": "qingyundu",
       "key": "渡口告示牌",
       "object_type": "noticeboard",
       "desc": "一块钉在旧木架上的告示牌立在渡口边，木纹里还沾着些潮气。上面贴着几张新旧不一的纸笺，像是专给新来的修行者看的。",
@@ -19,29 +21,32 @@
       }
     },
     {
-      "room": "pine",
+      "id": "obj_songwen_herb_patch",
+      "room_id": "pine",
       "key": "松纹草丛",
       "object_type": "gather_node",
       "desc": "一丛贴着林间石根生长的细草在风里轻轻摇晃，叶面带着淡淡油亮光泽，看起来像是可以采来应急疗伤的草药。",
       "attrs": {
-        "gather_item": "松纹草",
+        "gather_item_id": "item_songwen_grass",
         "gather_cost": 4,
         "gather_text": "你俯身拨开松针，小心从草丛里摘下几束完整的松纹草。",
         "gather_fail_text": "你刚蹲下身，便觉得四肢发沉，至少需要 |w{cost}|n 点体力才能细细采药。"
       }
     },
     {
-      "room": "valley",
+      "id": "obj_return_stone_01",
+      "room_id": "valley",
       "key": "回渡石",
       "object_type": "teleport_anchor",
       "desc": "一块半人高的青灰石柱立在栈道转角，表面刻着极浅的回纹，摸上去带着一点潮凉灵意，像是与渡口方向隐约呼应。",
       "attrs": {
-        "teleport_room_key": "青云渡",
+        "teleport_room_id": "room_qingyundu",
         "teleport_text": "你将手按在回渡石上，石纹微微一亮，脚下景物一阵恍惚，下一瞬已回到熟悉的渡口雾气之间。"
       }
     },
     {
-      "room": "stair",
+      "id": "obj_quest_marker_01",
+      "room_id": "stair",
       "key": "问道路碑",
       "object_type": "quest_marker",
       "desc": "一块窄长青碑立在石阶旁，碑面被风雨磨得发暗，只有几道浅刻纹路依稀可辨。靠近时，总让人不自觉想起自己此行到底要去做什么。",
@@ -51,7 +56,8 @@
       }
     },
     {
-      "room": "qingyundu",
+      "id": "obj_meditation_cushion_01",
+      "room_id": "qingyundu",
       "key": "凝神蒲团",
       "object_type": "blessing_spot",
       "desc": "一个旧蒲团安静摆在青碑旁，团面虽有些磨损，却仍残留着温和灵息。若在此收摄心神片刻，似乎能让接下来的吐纳更顺一些。",
@@ -64,12 +70,13 @@
       }
     },
     {
-      "room": "valley",
+      "id": "obj_qingyun_gate_01",
+      "room_id": "valley",
       "key": "青云山门",
       "object_type": "sect_gate",
       "desc": "一道半掩的青石山门立在栈道尽头，门楣上覆着淡淡云纹，像是把山下与真正的宗门内界轻轻分隔开来。门后隐约可见更高处的石坪与檐影。",
       "attrs": {
-        "teleport_room_key": "青云外门前坪",
+        "teleport_room_id": "room_qingyun_outer_court",
         "required_main_state": "completed",
         "teleport_text": "你伸手触向山门，门上云纹一层层亮起，原本凝滞的灵压忽然散开，随后你被一道柔和气机引入门后石坪。",
         "locked_text": "你刚靠近山门，门上云纹便生出一层微凉阻力，像是在提醒你：先完成眼前这段入门试炼，再谈更高处的去路。"

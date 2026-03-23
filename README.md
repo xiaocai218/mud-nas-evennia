@@ -96,6 +96,26 @@
 - `npc_routes.json`
   - NPC 交谈触发条件与路由步骤
 
+## 内容 ID 规范
+
+项目现在开始补充稳定内容 ID，后续系统内部会优先用这些 ID 互相引用，而不是直接依赖中文显示名。
+
+- 房间：优先使用 `rooms.json` 的字典键和 `content_id`
+- 对象：使用 `objects.json` 中的 `id`
+- NPC：使用 `npcs.json` 中的 `id`
+- 怪物：优先使用 `enemies.json` 的字典键，并补充显式 `id`
+- 物品：使用 `items.json` 中的 `id`
+- 任务：使用 `quests.json` 中的阶段/任务 `id`
+
+推荐形式：
+
+- `room_qingyundu`
+- `obj_qingyun_gate_01`
+- `npc_old_ferryman`
+- `enemy_mist_ape`
+- `item_songwen_grass`
+- `quest_main_stage_01`
+
 数据库和配置的分工是：
 
 - Evennia 数据库保存运行时状态

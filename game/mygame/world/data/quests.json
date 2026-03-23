@@ -1,9 +1,11 @@
 {
   "main_stages": {
     "stage_one_started": {
+      "id": "quest_main_stage_01",
       "title": "渡口试手",
       "objective": "击败一次青木傀儡",
       "giver": "守渡老人",
+      "giver_npc_id": "npc_old_ferryman",
       "progress_attr": "guide_quest_dummy_kill",
       "start_resets": [
         "guide_quest_dummy_kill"
@@ -11,14 +13,17 @@
       "complete_to": "stage_one_done",
       "reward_exp": 20,
       "reward_item": {
+        "item_id": "item_ferry_medicine_pack",
         "key": "渡口药包",
         "desc": "守渡老人交给你的简陋药包，带着些草木辛气，也许日后会派上用场。"
       }
     },
     "stage_two_started": {
+      "id": "quest_main_stage_02",
       "title": "石阶试锋",
       "objective": "击败一次山石傀儡",
       "giver": "守渡老人",
+      "giver_npc_id": "npc_old_ferryman",
       "progress_attr": "guide_quest_stone_kill",
       "start_resets": [
         "guide_quest_stone_kill"
@@ -27,14 +32,17 @@
       "reward_flag": "guide_quest_stage_two_rewarded",
       "reward_exp": 30,
       "reward_item": {
+        "item_id": "item_stair_talisman",
         "key": "石阶护符",
         "desc": "一枚刻着浅淡山纹的护符，触手微凉，像是能让人稍稍安定心神。"
       }
     },
     "stage_three_started": {
+      "id": "quest_main_stage_03",
       "title": "溪谷巡查",
       "objective": "击败一次雾行山魈",
       "giver": "巡山弟子",
+      "giver_npc_id": "npc_valley_scout",
       "progress_attr": "guide_quest_mist_kill",
       "start_resets": [
         "guide_quest_mist_kill"
@@ -43,6 +51,7 @@
       "reward_flag": "guide_quest_stage_three_rewarded",
       "reward_exp": 36,
       "reward_item": {
+        "item_id": "item_scout_wood_token",
         "key": "巡山木牌",
         "desc": "一块刻着巡山纹记的木牌，边角被磨得光滑，象征你已通过这段入门试炼。"
       }
@@ -94,12 +103,16 @@
   },
   "side_quests": {
     "herb_delivery": {
+      "id": "quest_side_herb_delivery",
       "title": "雾露代药",
       "giver": "药庐学徒",
+      "giver_npc_id": "npc_herb_apprentice",
       "objective": "交付一个雾露果",
+      "required_item_id": "item_mist_fruit",
       "required_item": "雾露果",
       "reward_exp": 18,
       "reward_item": {
+        "item_id": "item_huichun_powder",
         "key": "回春散",
         "desc": "药庐学徒分装给你的细纸药包，药香清苦，适合在重伤时应急。"
       },

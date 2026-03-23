@@ -94,7 +94,7 @@ def get_side_quest_status_text(caller):
         return SIDE_QUEST_DATA["herb_delivery"]["completed_text"]
 
     quest = SIDE_QUEST_DATA["herb_delivery"]
-    has_item = "已获得" if bool(find_item(caller, quest["required_item"])) else "未获得"
+    has_item = "已获得" if bool(find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))) else "未获得"
     return (
         "|g当前支线|n\n"
         f"任务名: {quest['title']}\n"
@@ -107,9 +107,10 @@ def _grant_rewards(caller, data):
     old_realm, new_realm, exp = apply_exp(caller, data["reward_exp"])
     reward = None
     if data.get("reward_item"):
-        reward_key = data["reward_item"]["key"]
+        reward_key = data["reward_item"].get("key")
+        reward_item_id = data["reward_item"].get("item_id")
         reward_desc = data["reward_item"]["desc"]
-        reward = create_reward_item(caller, reward_key, reward_desc)
+        reward = create_reward_item(caller, key=reward_key, item_id=reward_item_id, desc=reward_desc)
     return {
         "reward_exp": data["reward_exp"],
         "reward": reward,
@@ -164,7 +165,9 @@ def start_side_quest(caller, quest_key):
 
 def can_complete_side_herb_quest(caller):
     quest = SIDE_QUEST_DATA["herb_delivery"]
-    return get_side_quest_state(caller) == SIDE_HERB and bool(find_item(caller, quest["required_item"]))
+    return get_side_quest_state(caller) == SIDE_HERB and bool(
+        find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))
+    )
 
 
 def can_complete_side_quest(caller, quest_key):
@@ -174,7 +177,8 @@ def can_complete_side_quest(caller, quest_key):
 
 
 def complete_side_herb_quest(caller):
-    item = find_item(caller, SIDE_QUEST_DATA["herb_delivery"]["required_item"])
+    quest = SIDE_QUEST_DATA["herb_delivery"]
+    item = find_item(caller, item_name=quest.get("required_item"), item_id=quest.get("required_item_id"))
     if item:
         item.delete()
     caller.db.side_herb_quest = SIDE_HERB_DONE

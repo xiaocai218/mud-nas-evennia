@@ -37,19 +37,23 @@ def load_json(path):
         return json.load(file_obj)
 
 
-def get_room_by_id(room_id, key, desc):
+def get_room_by_id(room_id, key, desc, content_id=None):
     room = ObjectDB.objects.get(id=room_id)
     room.key = key
     room.db.desc = desc
+    if content_id:
+        room.db.content_id = content_id
     room.save()
     return room
 
 
-def get_or_create_room(key, desc):
+def get_or_create_room(key, desc, content_id=None):
     room = ObjectDB.objects.filter(db_key=key).first()
     if not room:
         room = create_object(ROOM_TYPECLASS, key=key)
     room.db.desc = desc
+    if content_id:
+        room.db.content_id = content_id
     room.save()
     return room
 
@@ -88,9 +92,9 @@ def build_rooms(room_defs):
     rooms = {}
     for room_id, room_data in room_defs.items():
         if room_data.get("id"):
-            room = get_room_by_id(room_data["id"], room_data["key"], room_data["desc"])
+            room = get_room_by_id(room_data["id"], room_data["key"], room_data["desc"], content_id=room_data.get("content_id", room_id))
         else:
-            room = get_or_create_room(room_data["key"], room_data["desc"])
+            room = get_or_create_room(room_data["key"], room_data["desc"], content_id=room_data.get("content_id", room_id))
         rooms[room_id] = room
     return rooms
 
@@ -110,25 +114,30 @@ def build_objects(rooms, object_defs):
         attrs = dict(obj.get("attrs", {}))
         if obj.get("object_type"):
             attrs["object_type"] = obj["object_type"]
-        ensure_object(rooms[obj["room"]], obj["key"], obj["desc"], attrs)
+        if obj.get("id"):
+            attrs["content_id"] = obj["id"]
+        room_key = obj.get("room_id") or obj.get("room")
+        ensure_object(rooms[room_key], obj["key"], obj["desc"], attrs)
 
 
 def build_enemies(rooms, enemy_defs):
     for enemy_id, enemy in enemy_defs.items():
-        room_id = enemy["room"]
+        room_id = enemy.get("room_id") or enemy.get("room")
         ensure_object(
             rooms[room_id],
             enemy["key"],
             enemy["desc"],
             {
                 "combat_target": True,
+                "content_id": enemy.get("id", enemy_id),
                 "enemy_id": enemy_id,
                 "hp": enemy["hp"],
                 "max_hp": enemy["max_hp"],
                 "reward_exp": enemy["reward_exp"],
                 "counter_damage": enemy["counter_damage"],
                 "damage_taken": enemy["damage_taken"],
-                "drop_key": enemy["drop_key"],
+                "drop_item_id": enemy.get("drop_item_id"),
+                "drop_key": enemy.get("drop_key"),
                 "quest_flag": enemy["quest_flag"],
             },
         )

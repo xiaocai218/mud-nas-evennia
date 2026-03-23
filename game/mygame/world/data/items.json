@@ -1,15 +1,18 @@
 {
   "青木碎片": {
+    "id": "item_qingmu_fragment",
     "desc": "一块从青木傀儡身上掉下来的木质碎片，边缘仍留着浅浅灵纹。",
     "kind": "material",
     "refine_exp": 10
   },
   "山纹石屑": {
+    "id": "item_stone_dust",
     "desc": "几片带着浅灰纹路的石屑，摸上去仍残留着微弱的土行灵意。",
     "kind": "material",
     "refine_exp": 16
   },
   "雾露果": {
+    "id": "item_mist_fruit",
     "desc": "一枚沾着薄雾水气的青白果子，闻起来带着淡淡甘凉气息。",
     "kind": "consumable",
     "use_effect": {
@@ -20,6 +23,7 @@
     }
   },
   "渡口药包": {
+    "id": "item_ferry_medicine_pack",
     "desc": "守渡老人交给你的简陋药包，带着些草木辛气，也许日后会派上用场。",
     "kind": "consumable",
     "use_effect": {
@@ -29,6 +33,7 @@
     }
   },
   "石阶护符": {
+    "id": "item_stair_talisman",
     "desc": "一枚刻着浅淡山纹的护符，触手微凉，像是能让人稍稍安定心神。",
     "kind": "consumable",
     "use_effect": {
@@ -38,10 +43,12 @@
     }
   },
   "巡山木牌": {
+    "id": "item_scout_wood_token",
     "desc": "一块刻着巡山纹记的木牌，边角被磨得光滑，象征你已通过这段入门试炼。",
     "kind": "quest_reward"
   },
   "回春散": {
+    "id": "item_huichun_powder",
     "desc": "药庐学徒分装给你的细纸药包，药香清苦，适合在重伤时应急。",
     "kind": "consumable",
     "use_effect": {
@@ -51,6 +58,7 @@
     }
   },
   "松纹草": {
+    "id": "item_songwen_grass",
     "desc": "一小束带着松脂清香的细草，叶脉里隐约藏着一点温和木气，适合简单外敷或直接服下调养。",
     "kind": "consumable",
     "use_effect": {
