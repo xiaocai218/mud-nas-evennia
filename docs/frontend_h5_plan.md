@@ -277,3 +277,17 @@ H5 接入后不应继续把这些中文命令字符串作为主协议。
 - 短中期默认推荐 `Vue 3`
 - 后端协议层保持中立
 - 当前开发优先预留客户端网关和结构化事件，而不是继续只扩文本命令
+
+## 视觉参考基线
+
+当前已经基于九洲类参考图补充了专门的 UI 风格文档：
+
+- [frontend_ui_style_guide.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\frontend_ui_style_guide.md)
+
+后续 H5 页面默认按这份规范执行，重点包括：
+
+- 浅色底 + 黑白灰主色 + 蓝色高亮
+- 顶部资源栏 + 底部 Tab Bar
+- 页面内使用文字 tab + 下划线
+- 详情内容优先 modal 化
+- 区域列表、人物面板、设置页、系统页统一卡片语言

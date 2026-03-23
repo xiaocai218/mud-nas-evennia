@@ -167,6 +167,12 @@ H5 前端接入的第一版评估也已经留档：
   - 记录后端需要提前预留的接口边界
   - 记录 DTO、事件流、动作路由和 WebSocket 方向
 
+H5 视觉和布局参考也已经留档：
+
+- [frontend_ui_style_guide.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\frontend_ui_style_guide.md)
+  - 记录地图页、房间页、系统页、人物/NPC详情弹窗、设置页的视觉基线
+  - 后续 H5 页面默认以这份风格为准
+
 第一版 H5 对外协议草案也已留档：
 
 - [h5_api_protocol_v1.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\h5_api_protocol_v1.md)
