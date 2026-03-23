@@ -160,6 +160,13 @@
   - 本地托管 jQuery、Bootstrap、Popper、Golden Layout、Favico
   - 避免公网访问首开时依赖外部 CDN
 
+H5 前端接入的第一版评估也已经留档：
+
+- [frontend_h5_plan.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\frontend_h5_plan.md)
+  - 记录 Vue / React 评估
+  - 记录后端需要提前预留的接口边界
+  - 记录 DTO、事件流、动作路由和 WebSocket 方向
+
 最新一轮内容扩展示例：
 
 - `青云外门前坪` 新增 NPC `药圃执事`

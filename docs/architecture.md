@@ -239,6 +239,7 @@
 
 - [area_design.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\area_design.md)
 - [world_structure.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\world_structure.md)
+- [frontend_h5_plan.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\frontend_h5_plan.md)
 
 ## 内容 ID
 
@@ -258,6 +259,13 @@
 3. 后续新内容默认先定义 `id`，再定义显示名。
 
 ## 下一步建议
+
+除了继续扩区域和内容外，当前还新增了一个明确方向：
+
+1. 后端开始为 H5 客户端预留协议层。
+2. 当前默认推荐 H5 第一版前端使用 `Vue 3 + TypeScript`。
+3. 但后端必须继续保持框架中立，不直接绑定 Vue 或 React。
+4. 后续应优先补 `serializers / action_router / event_bus / client_protocol`。
 
 1. 新增 `areas.json`
 2. 给 `rooms.json` 补 `area_id`
