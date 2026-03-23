@@ -99,6 +99,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - `game/mygame/commands/social.py`: 交谈、任务
 - `game/mygame/commands/inventory.py`: 背包、炼化、使用
 - `game/mygame/world/help_entries.py`: 中文帮助条目
+- `game/mygame/world/data/quests.json`: 主线/支线任务定义与奖励配置
 - `game/mygame/world/start_area.py`: 可重复执行的新手区域建图脚本
 - `game/mygame/systems/`: 可复用的规则逻辑
 - `game/mygame/typeclasses/items.py`: 最小物品类型
@@ -127,6 +128,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前新手区内的交互对象 `木人桩` 也是由 `world/start_area.py` 负责维护
 - 当前新手区内的 `守渡老人`、`青木傀儡` 与 `山石傀儡` 都由 `world/start_area.py` 负责维护
 - 当前 `溪谷栈道`、`巡山弟子` 与 `雾行山魈` 也由 `world/start_area.py` 负责维护
+- 当前主线、支线、奖励、状态文案的配置已独立到 `world/data/quests.json`
 - 当前 `青木碎片`、`山纹石屑` 与奖励物处理逻辑分别在 `commands/inventory.py` 和 `systems/items.py`
 - `雾露果` 属于直接使用型掉落，不走炼化路线
 - 旧版单阶段任务角色如果 `guide_quest=completed` 但没有第二阶段奖励标记，系统会自动按“第一阶段已完成、第二阶段未开始”兼容处理

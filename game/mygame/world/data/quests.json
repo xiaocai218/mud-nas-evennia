@@ -1,0 +1,71 @@
+{
+  "main_stages": {
+    "stage_one_started": {
+      "title": "渡口试手",
+      "objective": "击败一次青木傀儡",
+      "giver": "守渡老人",
+      "progress_attr": "guide_quest_dummy_kill",
+      "reward_exp": 20,
+      "reward_item": {
+        "key": "渡口药包",
+        "desc": "守渡老人交给你的简陋药包，带着些草木辛气，也许日后会派上用场。"
+      }
+    },
+    "stage_two_started": {
+      "title": "石阶试锋",
+      "objective": "击败一次山石傀儡",
+      "giver": "守渡老人",
+      "progress_attr": "guide_quest_stone_kill",
+      "reward_exp": 30,
+      "reward_item": {
+        "key": "石阶护符",
+        "desc": "一枚刻着浅淡山纹的护符，触手微凉，像是能让人稍稍安定心神。"
+      }
+    },
+    "stage_three_started": {
+      "title": "溪谷巡查",
+      "objective": "击败一次雾行山魈",
+      "giver": "巡山弟子",
+      "progress_attr": "guide_quest_mist_kill",
+      "reward_exp": 36,
+      "reward_item": {
+        "key": "巡山木牌",
+        "desc": "一块刻着巡山纹记的木牌，边角被磨得光滑，象征你已通过这段入门试炼。"
+      }
+    }
+  },
+  "main_status_text": {
+    "not_started": "你暂时还没有接到任务。可以试试 |w交谈 守渡老人|n。",
+    "stage_one_done": "|g当前主线|n\n任务名: 渡口试手\n状态: 已完成，等待后续指引\n交付人: 守渡老人",
+    "stage_three_ready": "|g当前主线|n\n任务名: 溪谷巡查\n状态: 待接取\n提示: 前往溪谷栈道，交谈 巡山弟子",
+    "completed": "|g当前主线|n\n任务名: 入门试炼\n状态: 已全部完成\n守渡老人已经认可你完成了三段基础试炼。"
+  },
+  "combat_progress_flags": {
+    "dummy_kill": {
+      "state": "stage_one_started",
+      "progress_attr": "guide_quest_dummy_kill"
+    },
+    "stone_kill": {
+      "state": "stage_two_started",
+      "progress_attr": "guide_quest_stone_kill"
+    },
+    "mist_kill": {
+      "state": "stage_three_started",
+      "progress_attr": "guide_quest_mist_kill"
+    }
+  },
+  "side_quests": {
+    "herb_delivery": {
+      "title": "雾露代药",
+      "giver": "药庐学徒",
+      "objective": "交付一个雾露果",
+      "required_item": "雾露果",
+      "reward_exp": 18,
+      "reward_item": {
+        "key": "回春散",
+        "desc": "药庐学徒分装给你的细纸药包，药香清苦，适合在重伤时应急。"
+      },
+      "completed_text": "|g当前支线|n\n任务名: 雾露代药\n状态: 已完成\n药庐学徒已经收下你带回的雾露果。"
+    }
+  }
+}
