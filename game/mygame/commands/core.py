@@ -88,7 +88,7 @@ class CmdRead(Command):
         if not is_readable(target):
             caller.msg(f"{target.key} 上并没有什么可读的内容。")
             return
-        caller.msg(get_readable_text(target))
+        caller.msg(get_readable_text(caller, target))
 
 
 class CmdGather(Command):

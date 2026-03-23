@@ -4,14 +4,24 @@ from evennia.objects.models import ObjectDB
 
 from systems.items import create_loot
 from systems.player_stats import get_stats
+from systems.quests import get_quest_status_text
 
 
 def is_readable(target):
-    return bool(getattr(target.db, "readable_text", None))
+    return bool(getattr(target.db, "readable_text", None) or getattr(target.db, "quest_hint_title", None))
 
 
-def get_readable_text(target):
-    return getattr(target.db, "readable_text", None)
+def get_readable_text(caller, target):
+    static_text = getattr(target.db, "readable_text", None)
+    if static_text:
+        return static_text
+
+    quest_hint_title = getattr(target.db, "quest_hint_title", None)
+    if quest_hint_title:
+        intro = getattr(target.db, "quest_hint_intro", None) or "碑面上的灵光缓缓聚拢，映出你当前最紧要的方向。"
+        return f"{quest_hint_title}\n\n{intro}\n\n{get_quest_status_text(caller)}"
+
+    return None
 
 
 def is_gatherable(target):

@@ -142,6 +142,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前房间、出口、NPC 与常驻对象配置已独立到 `world/data/rooms.json` 和 `world/data/npcs.json`
 - 当前房间内交互对象模板也已独立到 `world/data/objects.json`
 - 当前已增加最小可读对象类型，`阅读 <目标>` 可用于公告牌一类对象
+- 当前已增加任务碑对象类型，`阅读 问道路碑` 可直接查看当前任务引导
 - 当前已增加最小可采集对象类型，`采集 <目标>` 可用于采药点一类对象
 - 当前已增加最小传送对象类型，`触发 <目标>` 可用于回渡石一类对象
 - 当前 NPC 对话文案已开始独立到 `world/data/dialogues.json`
