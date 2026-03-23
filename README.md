@@ -274,6 +274,16 @@ docker compose up -d
 
 ## 常用维护入口
 
+## 本地 Evennia 测试环境
+
+当前已经在 `C:\Users\CZH\Documents\Playground` 下准备了一套本地 Evennia 包目录，用于本地模块测试：
+
+- 包目录：`C:\Users\CZH\Documents\Playground\evennia-local-env`
+- 启动脚本：`C:\Users\CZH\Documents\Playground\run-evennia-local.ps1`
+- 说明文档：[local_evennia_env.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\local_evennia_env.md)
+
+当前方案采用 `wheel 下载 + 本地解压`，原因是本机 `Python 3.14` 的 `venv/ensurepip` 链路存在权限问题。
+
 详细维护说明见：
 
 - [maintenance.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\maintenance.md)
