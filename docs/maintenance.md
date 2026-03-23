@@ -143,6 +143,7 @@ docker run --rm -v /share/CACHEDEV1_DATA/Container/mud-nas-evennia/game/mygame:/
 - 当前主线阶段的完成流转、兼容映射与开始时进度重置已独立到 `world/data/quests.json`
 - 当前 `commands/inventory.py` 主要做命令入口，实际效果执行在 `systems/items.py`
 - 当前 `commands/social.py` 主要做交谈入口校验，实际任务分支分发已下沉到 `systems/npc_routes.py`
+- 当前怪物摆放房间也已并入 `world/data/enemies.json`，`world/start_area.py` 不再手写敌人房间映射
 - `雾露果` 属于直接使用型掉落，不走炼化路线
 - 旧版单阶段任务角色如果 `guide_quest=completed` 但没有第二阶段奖励标记，系统会自动按“第一阶段已完成、第二阶段未开始”兼容处理
 - Evennia 数据库主要保存玩家进度、背包和运行时状态，任务/物品/怪物/NPC/房间模板优先维护在 `world/data/*.json`

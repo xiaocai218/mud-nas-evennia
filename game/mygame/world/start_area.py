@@ -110,13 +110,8 @@ def build_npcs(rooms, npc_defs):
 
 
 def build_enemies(rooms, enemy_defs):
-    placements = {
-        "qingmu_dummy": "pine",
-        "stone_dummy": "stair",
-        "mist_ape": "valley",
-    }
-    for enemy_id, room_id in placements.items():
-        enemy = enemy_defs[enemy_id]
+    for enemy_id, enemy in enemy_defs.items():
+        room_id = enemy["room"]
         ensure_object(
             rooms[room_id],
             enemy["key"],
