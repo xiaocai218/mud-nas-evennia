@@ -3,6 +3,8 @@
 import time
 
 import evennia
+from evennia.comms.comms import DefaultChannel
+from evennia.accounts.models import AccountDB
 
 from systems.chat_payloads import serialize_chat_message
 from systems.event_bus import chat_message_event, enqueue_account_event
@@ -46,6 +48,18 @@ CHANNEL_INPUTS = {
     "team": CHANNEL_TEAM,
     "系统": CHANNEL_SYSTEM,
     "system": CHANNEL_SYSTEM,
+}
+
+MANAGED_CHANNEL_ALIASES = {
+    "世界",
+    "world",
+    "队伍",
+    "team",
+    "系统",
+    "system",
+    "chat_world",
+    "chat_team",
+    "chat_system",
 }
 
 
@@ -213,6 +227,14 @@ def notify_player(recipient, message, code=None, level="info"):
 def ensure_all_channels():
     for channel_name in CHANNEL_CONFIG:
         _ensure_channel(channel_name)
+
+
+def cleanup_managed_channel_nicks(accounts=None):
+    if accounts is None:
+        accounts = AccountDB.objects.all()
+    for account in accounts:
+        for alias in MANAGED_CHANNEL_ALIASES:
+            DefaultChannel.remove_user_channel_alias(account, alias)
 
 
 def _send_channel_message(channel_name, caller, text):

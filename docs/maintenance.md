@@ -403,6 +403,11 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 - 额外增加只读拦截命令：
   - `系统`
 - `系统` 频道现在必须由业务逻辑推送，不能再由玩家手工发送
+- 服务器启动时会额外清理所有账户上残留的频道 nick/alias：
+  - `世界/world`
+  - `队伍/team`
+  - `系统/system`
+  - `chat_world/chat_team/chat_system`
 
 后续建议：
 

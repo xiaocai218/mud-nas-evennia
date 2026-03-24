@@ -125,6 +125,22 @@ class ChatSystemTests(unittest.TestCase):
             SESSION_HANDLER=SimpleNamespace(get_sessions=lambda: sessions or []),
         )
 
+    def test_cleanup_managed_channel_nicks_removes_aliases(self):
+        removed = []
+
+        class FakeNicks:
+            def remove(self, key, category=None, **kwargs):
+                removed.append((key, category))
+
+        account = SimpleNamespace(nicks=FakeNicks())
+        with patch("systems.chat.DefaultChannel.remove_user_channel_alias") as mocked_remove:
+            mocked_remove.side_effect = lambda user, alias, **kwargs: removed.append((alias, "channel_cleanup"))
+            chat.cleanup_managed_channel_nicks(accounts=[account])
+        removed_aliases = {alias for alias, _ in removed}
+        self.assertIn("世界", removed_aliases)
+        self.assertIn("系统", removed_aliases)
+        self.assertIn("chat_world", removed_aliases)
+
     def test_world_message_delivers_to_online_accounts(self):
         sessions = [
             FakeSession(self.sender_account, puppet=self.sender),
