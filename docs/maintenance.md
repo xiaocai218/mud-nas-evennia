@@ -356,9 +356,12 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 
 - 在仓库中补了默认 typeclass wrapper：
   - `accounts.py`
-  - `exits.py`
   - `channels.py`
   - `scripts.py`
+- `exits.py` 不能直接转发到 `game_template.typeclasses.exits.Exit`
+  - 因为它会连带导入 `game_template.typeclasses.objects.Object`
+  - 这会和项目自己的 `typeclasses.objects.Object` 产生冲突
+  - 当前已改为本地定义：`ObjectParent + DefaultExit`
 
 后续建议：
 
