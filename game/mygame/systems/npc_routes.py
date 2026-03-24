@@ -12,6 +12,7 @@ from systems.quests import (
     get_side_quest_state,
     grant_side_quest_rewards,
     grant_stage_rewards,
+    notify_team_main_stage_completed,
     start_side_quest,
     set_main_quest_state,
 )
@@ -89,6 +90,7 @@ def _handle_complete_main_stage(caller, action):
     reward = rewards["reward"]
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
     _send_reward_messages(caller, action, rewards)
+    notify_team_main_stage_completed(caller, action["stage"])
     notify_player(caller, f"主线已推进：{action['stage']}", code="quest_main_completed")
     return True
 

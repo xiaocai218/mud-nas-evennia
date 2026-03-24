@@ -18,7 +18,7 @@ import django  # noqa: E402
 
 django.setup()
 
-from systems import combat, npc_routes, shops  # noqa: E402
+from systems import combat, npc_routes, quests, shops  # noqa: E402
 
 
 class FakeCaller:
@@ -103,6 +103,56 @@ class SystemNoticeTests(unittest.TestCase):
         self.assertTrue(result)
         notify_mock.assert_called_once()
         self.assertEqual(notify_mock.call_args.kwargs["code"], "quest_main_started")
+
+    def test_npc_route_complete_main_stage_notifies_team(self):
+        caller = FakeCaller()
+        route = {
+            "steps": [
+                {
+                    "condition": {"main_stage_completable": "stage_one_started"},
+                    "action": {
+                        "type": "complete_main_stage",
+                        "stage": "stage_one_started",
+                        "dialogue": "guide_old_ferryman.stage_one_complete",
+                        "reward_label": "试炼奖励",
+                    },
+                }
+            ]
+        }
+        with (
+            patch("systems.npc_routes.get_npc_route", return_value=route),
+            patch("systems.npc_routes.can_complete_main_stage", return_value=True),
+            patch("systems.npc_routes.get_dialogue", return_value="任务完成"),
+            patch("systems.npc_routes.complete_main_stage"),
+            patch("systems.npc_routes.grant_stage_rewards", return_value={"reward_exp": 12, "reward": None, "old_realm": "炼气一层", "new_realm": "炼气一层", "exp": 12}),
+            patch("systems.npc_routes.notify_team_main_stage_completed") as team_notice_mock,
+            patch("systems.npc_routes.notify_player") as notify_mock,
+        ):
+            result = npc_routes.run_npc_route(caller, "guide_main")
+        self.assertTrue(result)
+        team_notice_mock.assert_called_once_with(caller, "stage_one_started")
+        notify_mock.assert_called_once()
+
+    def test_main_stage_delivery_notifies_team_members(self):
+        caller = FakeCaller()
+        teammate = FakeCaller()
+        teammate.key = "队友"
+        with patch("systems.quests.get_team_member_characters", return_value=[teammate]), patch(
+            "systems.quests.send_system_message"
+        ) as send_mock:
+            result = quests.notify_team_main_stage_completed(caller, "stage_one_started")
+        self.assertTrue(result)
+        send_mock.assert_called_once()
+        self.assertIn("已完成主线交付", send_mock.call_args.args[0])
+
+    def test_main_stage_delivery_skips_team_notice_without_teammates(self):
+        caller = FakeCaller()
+        with patch("systems.quests.get_team_member_characters", return_value=[]), patch(
+            "systems.quests.send_system_message"
+        ) as send_mock:
+            result = quests.notify_team_main_stage_completed(caller, "stage_one_started")
+        self.assertFalse(result)
+        send_mock.assert_not_called()
 
 
 if __name__ == "__main__":

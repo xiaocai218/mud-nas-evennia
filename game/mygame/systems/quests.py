@@ -4,7 +4,7 @@ from systems.chat import send_system_message
 from systems.content_loader import load_content
 from systems.items import create_reward_item, find_item
 from systems.player_stats import apply_exp
-from systems.teams import get_same_area_team_members
+from systems.teams import get_same_area_team_members, get_team_member_characters
 
 
 STAGE_ONE = "stage_one_started"
@@ -175,6 +175,21 @@ def grant_side_quest_rewards(caller, quest_key):
     if not data:
         return None
     return _grant_rewards(caller, data)
+
+
+def notify_team_main_stage_completed(caller, state):
+    stage = get_stage_data(state)
+    if not stage:
+        return False
+    teammates = get_team_member_characters(caller, include_self=False)
+    if not teammates:
+        return False
+    send_system_message(
+        f"{caller.key} 已完成主线交付“{stage['title']}”，可继续推进后续引导。",
+        recipients=teammates,
+        code="quest_team_completed",
+    )
+    return True
 
 
 def set_main_quest_state(caller, state):
