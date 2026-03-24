@@ -377,6 +377,16 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 
 这两个脚本都已经内置一次 `status -> 必要时补起 Server` 的逻辑，后续优先用脚本，不再手工乱序操作
 
+补充：
+
+- 在 `Server` 正在启动但 `status` 还没更新的窗口里，可能看到：
+  - `Another twistd server is running, PID ...`
+- 这不一定表示新故障，也可能只是 Server 已在启动过程中
+- 当前脚本已经改成：
+  - 先轮询几次 `evennia status`
+  - 仍未起来时再补一次 `evennia start`
+  - 如果看到 `Another twistd server is running`，再重查一次状态
+
 ### 2026-03-24: 仓库中的 `server/conf/` 不完整，重建环境后启动报缺模块
 
 现象：

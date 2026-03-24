@@ -55,3 +55,5 @@ Known behavior:
   `Server: NOT RUNNING`.
 - Repeating `evennia start` while both services are already running can produce
   a misleading `Address in use` error on the internal AMP port.
+- The helper scripts already retry `status` and treat `Another twistd server is running`
+  as a transitional startup state, then re-check `evennia status`.

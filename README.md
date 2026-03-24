@@ -72,6 +72,7 @@ status
 - `start` 会先执行 `docker compose up -d`
 - 如果遇到 QNAP 当前这套环境里常见的“`Portal` 已启动但 `Server` 未启动”问题，
   脚本会自动补一次 `evennia start`
+- 如果补起过程中命中 `Another twistd server is running`，脚本会重查状态，不再直接把这类启动中提示当成失败
 - 不要在 `start` 之后又手工重复执行 `evennia start`，否则可能看到内部端口
   `4006` 的 `Address in use` 假报错
 
