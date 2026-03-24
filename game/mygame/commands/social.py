@@ -3,7 +3,7 @@
 from .command import Command
 from systems.dialogues import get_dialogue
 from systems.npc_routes import run_npc_route
-from systems.quests import get_quest_status_text
+from systems.quests import get_quest_status_text, reset_all_quest_progress
 
 
 def get_target(caller, target_name):
@@ -43,3 +43,15 @@ class CmdQuest(Command):
     def func(self):
         caller = self.caller
         caller.msg(get_quest_status_text(caller))
+
+
+class CmdResetQuest(Command):
+    key = "重置任务"
+    aliases = ["questreset", "任务重置"]
+    locks = "cmd:all()"
+    help_category = "任务"
+
+    def func(self):
+        caller = self.caller
+        reset_all_quest_progress(caller)
+        caller.msg("任务状态已重置。你现在已回到接取任务之前的状态。当前只重置任务进度，不移除已有奖励物品。")

@@ -177,6 +177,37 @@ def grant_side_quest_rewards(caller, quest_key):
     return _grant_rewards(caller, data)
 
 
+def reset_all_quest_progress(caller):
+    caller.db.guide_quest = NOT_STARTED
+
+    reset_attrs = set()
+    for stage in QUEST_STAGE_DATA.values():
+        progress_attr = stage.get("progress_attr")
+        if progress_attr:
+            reset_attrs.add(progress_attr)
+        for attr in stage.get("start_resets", []):
+            reset_attrs.add(attr)
+        reward_flag = stage.get("reward_flag")
+        if reward_flag:
+            reset_attrs.add(reward_flag)
+
+    for attr in reset_attrs:
+        setattr(caller.db, attr, False)
+
+    for quest in SIDE_QUEST_DATA.values():
+        state_attr = quest.get("state_attr")
+        if state_attr:
+            setattr(caller.db, state_attr, NOT_STARTED)
+
+    return {
+        "main_state": NOT_STARTED,
+        "reset_attrs": sorted(reset_attrs),
+        "side_quests": sorted(
+            quest_key for quest_key, quest in SIDE_QUEST_DATA.items() if quest.get("state_attr")
+        ),
+    }
+
+
 def notify_team_main_stage_completed(caller, state):
     stage = get_stage_data(state)
     if not stage:
