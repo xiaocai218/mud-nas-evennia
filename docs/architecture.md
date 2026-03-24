@@ -310,6 +310,8 @@
 4. `serializers / action_router / event_bus / client_protocol` 第一版骨架已落地，`talk / attack` 已接入，后续继续向 `quest / shop` 细化动作扩展。
 5. 聊天层已形成 `世界 / 队伍 / 私聊 / 系统` 四类实时入口，其中 `系统` 保持只读。
 6. 组队应继续沿 `systems/teams.py` 扩展，不要把队伍逻辑重新散回命令层。
+7. `systems/chat.py` 当前已把频道、私聊、系统通知统一收口到共享投递函数，避免不同消息类型各自维护一套发送循环。
+8. `commands/chat.py` 与 `commands/team.py` 当前已把错误映射集中，命令层只负责参数校验、查询输出与错误提示，不再重复承担成功通知。
 
 1. 新增 `areas.json`
 2. 给 `rooms.json` 补 `area_id`

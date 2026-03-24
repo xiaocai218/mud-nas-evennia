@@ -11,17 +11,37 @@ from systems.chat import (
 )
 
 
+CHAT_ERROR_MESSAGES = {
+    "team_not_joined": "你当前没有加入队伍，暂时不能使用队伍频道。",
+    "target_not_found": "没有找到你要私聊的玩家。",
+    "channel_not_found": "没有这个可操作的频道。可用频道：世界、队伍、系统。",
+}
+
+
 def _render_chat_result(caller, result, fallback):
     if not result.get("ok"):
-        reason = result.get("reason")
-        if reason == "team_not_joined":
-            caller.msg("你当前没有加入队伍，暂时不能使用队伍频道。")
-            return
-        if reason == "target_not_found":
-            caller.msg("没有找到你要私聊的玩家。")
-            return
-        caller.msg(fallback)
+        caller.msg(CHAT_ERROR_MESSAGES.get(result.get("reason"), fallback))
         return
+
+
+def _send_chat_or_error(caller, text, sender, empty_message, fallback):
+    text = text.strip()
+    if not text:
+        caller.msg(empty_message)
+        return
+    _render_chat_result(caller, sender(caller, text), fallback)
+
+
+def _toggle_channel_state(caller, raw_name, handler, usage, success_template):
+    channel_name = raw_name.strip()
+    if not channel_name:
+        caller.msg(usage)
+        return
+    result = handler(caller, channel_name)
+    if not result["ok"]:
+        caller.msg(CHAT_ERROR_MESSAGES.get(result.get("reason"), "没有这个可操作的频道。可用频道：世界、队伍、系统。"))
+        return
+    caller.msg(success_template.format(channel=result["channel"]))
 
 
 class CmdWorldChat(Command):
@@ -32,11 +52,13 @@ class CmdWorldChat(Command):
     priority = 1
 
     def func(self):
-        text = self.args.strip()
-        if not text:
-            self.caller.msg("你想在世界频道说什么？用法：|w世界 大家好|n")
-            return
-        _render_chat_result(self.caller, send_world_message(self.caller, text), "世界频道发送失败。")
+        _send_chat_or_error(
+            self.caller,
+            self.args,
+            send_world_message,
+            "你想在世界频道说什么？用法：|w世界 大家好|n",
+            "世界频道发送失败。",
+        )
 
 
 class CmdTeamChat(Command):
@@ -47,11 +69,13 @@ class CmdTeamChat(Command):
     priority = 1
 
     def func(self):
-        text = self.args.strip()
-        if not text:
-            self.caller.msg("你想在队伍频道说什么？用法：|w队伍 集合到村口|n")
-            return
-        _render_chat_result(self.caller, send_team_message(self.caller, text), "队伍频道发送失败。")
+        _send_chat_or_error(
+            self.caller,
+            self.args,
+            send_team_message,
+            "你想在队伍频道说什么？用法：|w队伍 集合到村口|n",
+            "队伍频道发送失败。",
+        )
 
 
 class CmdPrivateChat(Command):
@@ -101,15 +125,13 @@ class CmdMuteChannel(Command):
     priority = 1
 
     def func(self):
-        channel_name = self.args.strip()
-        if not channel_name:
-            self.caller.msg("用法：|w静音 世界|n")
-            return
-        result = mute_channel(self.caller, channel_name)
-        if not result["ok"]:
-            self.caller.msg("没有这个可静音的频道。可用频道：世界、队伍、系统。")
-            return
-        self.caller.msg(f"你已静音频道：|w{result['channel']}|n。")
+        _toggle_channel_state(
+            self.caller,
+            self.args,
+            mute_channel,
+            "用法：|w静音 世界|n",
+            "你已静音频道：|w{channel}|n。",
+        )
 
 
 class CmdUnmuteChannel(Command):
@@ -120,15 +142,13 @@ class CmdUnmuteChannel(Command):
     priority = 1
 
     def func(self):
-        channel_name = self.args.strip()
-        if not channel_name:
-            self.caller.msg("用法：|w取消静音 世界|n")
-            return
-        result = unmute_channel(self.caller, channel_name)
-        if not result["ok"]:
-            self.caller.msg("没有这个可取消静音的频道。可用频道：世界、队伍、系统。")
-            return
-        self.caller.msg(f"你已恢复接收频道：|w{result['channel']}|n。")
+        _toggle_channel_state(
+            self.caller,
+            self.args,
+            unmute_channel,
+            "用法：|w取消静音 世界|n",
+            "你已恢复接收频道：|w{channel}|n。",
+        )
 
 
 class CmdSystemChannel(Command):

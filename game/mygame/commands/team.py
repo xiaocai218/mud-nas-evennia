@@ -11,36 +11,21 @@ from systems.teams import (
 )
 
 
+TEAM_ERROR_MESSAGES = {
+    "team_not_joined": "你当前还没有加入队伍。",
+    "already_in_team": "你已经在队伍中，不能重复执行这个操作。",
+    "not_team_leader": "只有队长可以发起邀请。",
+    "target_not_found": "没有找到你要邀请的玩家。",
+    "target_is_self": "不能邀请自己加入队伍。",
+    "target_already_in_team": "目标已经在其他队伍中。",
+    "invite_not_found": "没有找到可接受的组队邀请。",
+    "invite_expired": "当前没有有效的组队邀请，旧邀请可能已经过期。",
+    "team_not_found": "这条邀请对应的队伍已经不存在了。",
+}
+
+
 def _render_team_error(caller, result):
-    reason = result.get("reason")
-    if reason == "team_not_joined":
-        caller.msg("你当前还没有加入队伍。")
-        return
-    if reason == "already_in_team":
-        caller.msg("你已经在队伍中，不能重复执行这个操作。")
-        return
-    if reason == "not_team_leader":
-        caller.msg("只有队长可以发起邀请。")
-        return
-    if reason == "target_not_found":
-        caller.msg("没有找到你要邀请的玩家。")
-        return
-    if reason == "target_is_self":
-        caller.msg("不能邀请自己加入队伍。")
-        return
-    if reason == "target_already_in_team":
-        caller.msg("目标已经在其他队伍中。")
-        return
-    if reason == "invite_not_found":
-        caller.msg("没有找到可接受的组队邀请。")
-        return
-    if reason == "invite_expired":
-        caller.msg("当前没有有效的组队邀请，旧邀请可能已经过期。")
-        return
-    if reason == "team_not_found":
-        caller.msg("这条邀请对应的队伍已经不存在了。")
-        return
-    caller.msg("队伍操作失败。")
+    caller.msg(TEAM_ERROR_MESSAGES.get(result.get("reason"), "队伍操作失败。"))
 
 
 def _format_pending_invites(result):
@@ -57,6 +42,13 @@ def _format_pending_invites(result):
     if result.get("expired_invites_count"):
         rows.append(f"- 已自动清理过期邀请 {result['expired_invites_count']} 条")
     return "\n" + "\n".join(rows)
+
+
+def _send_team_action_or_error(caller, action, *args):
+    result = action(caller, *args)
+    if not result["ok"]:
+        _render_team_error(caller, result)
+    return result
 
 
 class CmdTeamStatus(Command):
@@ -120,10 +112,7 @@ class CmdCreateTeam(Command):
     help_category = "社交"
 
     def func(self):
-        result = create_team(self.caller, self.args.strip())
-        if not result["ok"]:
-            _render_team_error(self.caller, result)
-            return
+        _send_team_action_or_error(self.caller, create_team, self.args.strip())
 
 
 class CmdInviteTeam(Command):
@@ -137,10 +126,7 @@ class CmdInviteTeam(Command):
         if not target:
             self.caller.msg("用法：邀请 玩家名")
             return
-        result = invite_to_team(self.caller, target)
-        if not result["ok"]:
-            _render_team_error(self.caller, result)
-            return
+        _send_team_action_or_error(self.caller, invite_to_team, target)
 
 
 class CmdAcceptTeamInvite(Command):
@@ -150,10 +136,7 @@ class CmdAcceptTeamInvite(Command):
     help_category = "社交"
 
     def func(self):
-        result = accept_team_invite(self.caller, self.args.strip() or None)
-        if not result["ok"]:
-            _render_team_error(self.caller, result)
-            return
+        _send_team_action_or_error(self.caller, accept_team_invite, self.args.strip() or None)
 
 
 class CmdRejectTeamInvite(Command):
@@ -163,10 +146,7 @@ class CmdRejectTeamInvite(Command):
     help_category = "社交"
 
     def func(self):
-        result = reject_team_invite(self.caller, self.args.strip() or None)
-        if not result["ok"]:
-            _render_team_error(self.caller, result)
-            return
+        _send_team_action_or_error(self.caller, reject_team_invite, self.args.strip() or None)
 
 
 class CmdLeaveTeam(Command):
@@ -176,7 +156,4 @@ class CmdLeaveTeam(Command):
     help_category = "社交"
 
     def func(self):
-        result = leave_team(self.caller)
-        if not result["ok"]:
-            _render_team_error(self.caller, result)
-            return
+        _send_team_action_or_error(self.caller, leave_team)

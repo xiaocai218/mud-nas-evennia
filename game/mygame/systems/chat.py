@@ -168,11 +168,7 @@ def send_private_message(caller, target_name, text):
     event = chat_message_event(dto)
     formatted = f"[私聊] {caller.key} -> {target_character.key}: {text}"
 
-    delivered = 0
-    for account in _unique_accounts([sender_account, target_account]):
-        account.msg(formatted)
-        enqueue_account_event(account, event)
-        delivered += 1
+    delivered = _deliver_chat_event(_unique_accounts([sender_account, target_account]), formatted, event)
 
     return {
         "ok": True,
@@ -202,13 +198,7 @@ def send_system_message(message, recipients=None, code=None, level="info"):
     event = chat_message_event(dto)
     formatted = f"[系统] {message}"
 
-    delivered = 0
-    for account in recipients:
-        if account in channel.mutelist:
-            continue
-        account.msg(formatted)
-        enqueue_account_event(account, event)
-        delivered += 1
+    delivered = _deliver_chat_event(recipients, formatted, event, muted_accounts=channel.mutelist)
 
     return {
         "ok": True,
@@ -254,13 +244,7 @@ def _send_channel_message(channel_name, caller, text):
     label = CHANNEL_CONFIG[channel_name]["key"]
     formatted = f"[{label}] {caller.key}: {text}"
 
-    delivered = 0
-    for account in recipients:
-        if account in channel.mutelist:
-            continue
-        account.msg(formatted)
-        enqueue_account_event(account, event)
-        delivered += 1
+    delivered = _deliver_chat_event(recipients, formatted, event, muted_accounts=channel.mutelist)
 
     return {
         "ok": True,
@@ -320,17 +304,16 @@ def _normalize_channel_identity(channel, channel_name):
         aliases.clear()
 
 
-def _sync_online_subscribers(channel_name):
-    channel = _ensure_channel(channel_name)
-    accounts = _get_online_accounts()
+def _deliver_chat_event(accounts, formatted, event, muted_accounts=None):
+    delivered = 0
+    muted = set(muted_accounts or [])
     for account in accounts:
-        _sync_channel_subscriber(channel, account)
-    return accounts
-
-
-def _sync_channel_subscriber(channel, account):
-    if account and not channel.has_connection(account):
-        channel.connect(account)
+        if account in muted:
+            continue
+        account.msg(formatted)
+        enqueue_account_event(account, event)
+        delivered += 1
+    return delivered
 
 
 def _get_online_accounts():
