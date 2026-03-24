@@ -270,6 +270,34 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 - 远端需要 `sudo` 覆盖文件时，不要直接用 `sudo tee` 接本地文件内容
 - 优先采用“先写用户可写临时文件，再 `sudo cp` 到项目目录”的两段式同步
 
+### 2026-03-24: 重新 clone 项目目录后，容器启动丢失数据库和私有配置
+
+现象：
+
+- 新目录代码完整
+- `evennia reload` 或容器启动时提示：
+  - `secret_settings.py file not found or failed to import`
+  - `no such table: accounts_accountdb`
+
+根因：
+
+- 旧部署方式把运行时数据直接放在 `game/mygame/server/` 下
+- 重新 clone 或替换项目目录后，代码目录被刷新，但数据库、私有配置和日志没有一起恢复
+
+当前建议的修复和后续部署方式：
+
+- 将持久化运行时数据统一放到项目根的 `runtime/` 目录：
+  - `runtime/conf/secret_settings.py`
+  - `runtime/evennia.db3`
+  - `runtime/logs/`
+  - `runtime/static/`
+- `docker-compose.yml` 启动时自动把这些运行时文件链接进 `/usr/src/game/server/`
+
+后续建议：
+
+- 后续不要再把数据库和私有配置只放在 `game/mygame/server/` 里
+- 重建容器前优先确认 `runtime/` 目录仍然完整
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次

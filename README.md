@@ -18,6 +18,22 @@
   - Web：`http://192.168.2.222:4001`
   - WebSocket：`192.168.2.222:4002`
 
+## 部署建议
+
+当前推荐的 NAS 部署结构是：
+
+- 代码目录：`/share/CACHEDEV1_DATA/Container/mud-nas-evennia/`
+- 运行时持久化目录：`/share/CACHEDEV1_DATA/Container/mud-nas-evennia/runtime/`
+
+其中这些文件不再建议只放在仓库代码树里，而是统一放到 `runtime/` 下：
+
+- `runtime/conf/secret_settings.py`
+- `runtime/evennia.db3`
+- `runtime/logs/`
+- `runtime/static/`
+
+这样重新拉代码或重建容器时，重要运行数据不会再和代码目录混在一起。
+
 ## 已有内容
 
 当前已经具备这些基础玩法：

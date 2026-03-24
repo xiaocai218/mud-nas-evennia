@@ -6,3 +6,10 @@ game/mygame/server/logs/*.log
 game/mygame/server/logs/*.lock
 frontend/h5/node_modules/
 frontend/h5/dist/
+runtime/conf/secret_settings.py
+runtime/evennia.db3
+runtime/*.pid
+runtime/logs/*
+!runtime/logs/.gitkeep
+runtime/static/*
+!runtime/static/.gitkeep

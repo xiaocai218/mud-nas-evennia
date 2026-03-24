@@ -12,11 +12,25 @@ services:
       TZ: "${TZ:-Asia/Shanghai}"
     volumes:
       - ./game/mygame:/usr/src/game
+      - ./runtime:/usr/src/runtime
     stdin_open: true
     tty: true
     entrypoint: ["/bin/sh", "-lc"]
     command:
       - |
+        mkdir -p /usr/src/runtime/conf /usr/src/runtime/logs /usr/src/runtime/static
+        if [ -f /usr/src/runtime/conf/secret_settings.py ]; then
+          cp /usr/src/runtime/conf/secret_settings.py server/conf/secret_settings.py
+        fi
+        if [ ! -e /usr/src/runtime/evennia.db3 ] && [ -f server/evennia.db3 ]; then
+          cp server/evennia.db3 /usr/src/runtime/evennia.db3
+        fi
+        rm -f server/evennia.db3
+        ln -s /usr/src/runtime/evennia.db3 server/evennia.db3
+        rm -rf server/logs server/.static
+        ln -sfn /usr/src/runtime/logs server/logs
+        ln -sfn /usr/src/runtime/static server/.static
+        touch /usr/src/runtime/logs/server.log /usr/src/runtime/logs/portal.log
         if [ ! -f server/conf/settings.py ]; then
           echo "Game directory is not initialized yet."
           echo "Run the Evennia init step first."
