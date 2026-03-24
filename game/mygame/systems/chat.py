@@ -46,6 +46,12 @@ CHANNEL_INPUTS = {
 }
 
 
+def get_channel_lockstring(channel_name):
+    if channel_name == CHANNEL_SYSTEM:
+        return "send:false();listen:all();control:perm(Admin)"
+    return "send:all();listen:all();control:perm(Admin)"
+
+
 def get_channel_definition(channel_name):
     return CHANNEL_CONFIG.get(channel_name)
 
@@ -255,17 +261,29 @@ def _ensure_channel(channel_name):
     config = CHANNEL_CONFIG[channel_name]
     matches = evennia.search_channel(config["key"])
     if matches:
-        return matches[0]
+        channel = matches[0]
+        _apply_channel_configuration(channel, channel_name)
+        return channel
     for alias in config.get("aliases", []):
         matches = evennia.search_channel(alias)
         if matches:
-            return matches[0]
-    return evennia.create_channel(
+            channel = matches[0]
+            _apply_channel_configuration(channel, channel_name)
+            return channel
+    channel = evennia.create_channel(
         key=config["key"],
         aliases=config.get("aliases", []),
         desc=config.get("desc", ""),
-        locks="send:all();listen:all();control:perm(Admin)",
+        locks=get_channel_lockstring(channel_name),
     )
+    _apply_channel_configuration(channel, channel_name)
+    return channel
+
+
+def _apply_channel_configuration(channel, channel_name):
+    locks = getattr(channel, "locks", None)
+    if locks and hasattr(locks, "add"):
+        locks.add(get_channel_lockstring(channel_name))
 
 
 def _sync_online_subscribers(channel_name):

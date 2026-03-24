@@ -53,10 +53,15 @@ class FakeChannel:
         self.key = key
         self.connected = []
         self.db = SimpleNamespace(mute_list=[])
+        self.lockstrings = []
+        self.locks = SimpleNamespace(add=self._add_locks)
 
     @property
     def mutelist(self):
         return self.db.mute_list or []
+
+    def _add_locks(self, lockstring):
+        self.lockstrings.append(lockstring)
 
     def has_connection(self, account):
         return account in self.connected
@@ -161,6 +166,11 @@ class ChatSystemTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertIn("[系统] 服务器维护公告", self.sender_account.messages)
         self.assertEqual(self.target_account.messages, [])
+
+    def test_system_channel_is_read_only(self):
+        with self._patch_evennia():
+            channel = chat._ensure_channel(chat.CHANNEL_SYSTEM)
+        self.assertIn("send:false()", channel.lockstrings[-1])
 
     def test_mute_and_unmute_world_channel(self):
         sessions = [
