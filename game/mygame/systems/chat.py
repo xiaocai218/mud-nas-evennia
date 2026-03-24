@@ -14,22 +14,25 @@ CHANNEL_SYSTEM = "system"
 
 CHANNEL_CONFIG = {
     CHANNEL_WORLD: {
+        "db_key": "chat_world",
+        "legacy_names": ["世界", "world"],
         "key": "世界",
-        "aliases": ["world"],
         "desc": "九州群修世界频道",
         "mutable": True,
         "user_sendable": True,
     },
     CHANNEL_TEAM: {
+        "db_key": "chat_team",
+        "legacy_names": ["队伍", "team"],
         "key": "队伍",
-        "aliases": ["team"],
         "desc": "九州群修队伍频道",
         "mutable": True,
         "user_sendable": True,
     },
     CHANNEL_SYSTEM: {
+        "db_key": "chat_system",
+        "legacy_names": ["系统", "system"],
         "key": "系统",
-        "aliases": ["system"],
         "desc": "九州群修系统频道",
         "mutable": True,
         "user_sendable": False,
@@ -68,8 +71,6 @@ def list_channel_status(caller):
     statuses = []
     for channel_name, config in CHANNEL_CONFIG.items():
         channel = _ensure_channel(channel_name)
-        if channel_name in {CHANNEL_WORLD, CHANNEL_SYSTEM}:
-            _sync_online_subscribers(channel_name)
         available, reason = _channel_available(caller, channel_name)
         statuses.append(
             {
@@ -103,7 +104,6 @@ def mute_channel(caller, raw_name):
     if not config.get("mutable", True):
         return {"ok": False, "reason": "channel_not_mutable"}
     channel = _ensure_channel(channel_name)
-    _sync_channel_subscriber(channel, account)
     channel.mute(account)
     return {"ok": True, "channel": config["key"]}
 
@@ -115,7 +115,6 @@ def unmute_channel(caller, raw_name):
         return {"ok": False, "reason": "channel_not_found"}
     config = CHANNEL_CONFIG[channel_name]
     channel = _ensure_channel(channel_name)
-    _sync_channel_subscriber(channel, account)
     channel.unmute(account)
     return {"ok": True, "channel": config["key"]}
 
@@ -175,7 +174,7 @@ def send_system_message(message, recipients=None, code=None, level="info"):
     channel = _ensure_channel(CHANNEL_SYSTEM)
     recipients = _resolve_system_recipients(recipients)
     if not recipients:
-        recipients = _sync_online_subscribers(CHANNEL_SYSTEM)
+        recipients = _get_online_accounts()
 
     ts = int(time.time())
     dto = serialize_chat_message(
@@ -191,7 +190,6 @@ def send_system_message(message, recipients=None, code=None, level="info"):
 
     delivered = 0
     for account in recipients:
-        _sync_channel_subscriber(channel, account)
         if account in channel.mutelist:
             continue
         account.msg(formatted)
@@ -212,18 +210,21 @@ def notify_player(recipient, message, code=None, level="info"):
     return send_system_message(message, recipients=[recipient], code=code, level=level)
 
 
+def ensure_all_channels():
+    for channel_name in CHANNEL_CONFIG:
+        _ensure_channel(channel_name)
+
+
 def _send_channel_message(channel_name, caller, text):
     available, reason = _channel_available(caller, channel_name)
     if not available:
         return {"ok": False, "reason": reason}
 
     channel = _ensure_channel(channel_name)
-    if channel_name in {CHANNEL_WORLD, CHANNEL_SYSTEM}:
-        recipients = _sync_online_subscribers(channel_name)
-    elif channel_name == CHANNEL_TEAM:
+    if channel_name == CHANNEL_TEAM:
         recipients = _get_team_accounts(caller)
     else:
-        recipients = []
+        recipients = _get_online_accounts()
 
     ts = int(time.time())
     dto = serialize_chat_message(channel=channel_name, text=text, sender=caller, target=None, ts=ts)
@@ -233,7 +234,6 @@ def _send_channel_message(channel_name, caller, text):
 
     delivered = 0
     for account in recipients:
-        _sync_channel_subscriber(channel, account)
         if account in channel.mutelist:
             continue
         account.msg(formatted)
@@ -259,20 +259,21 @@ def _channel_available(caller, channel_name):
 
 def _ensure_channel(channel_name):
     config = CHANNEL_CONFIG[channel_name]
-    matches = evennia.search_channel(config["key"])
+    matches = evennia.search_channel(config["db_key"])
     if matches:
         channel = matches[0]
         _apply_channel_configuration(channel, channel_name)
         return channel
-    for alias in config.get("aliases", []):
-        matches = evennia.search_channel(alias)
+    for legacy_name in config.get("legacy_names", []):
+        matches = evennia.search_channel(legacy_name)
         if matches:
             channel = matches[0]
+            _normalize_channel_identity(channel, channel_name)
             _apply_channel_configuration(channel, channel_name)
             return channel
     channel = evennia.create_channel(
-        key=config["key"],
-        aliases=config.get("aliases", []),
+        key=config["db_key"],
+        aliases=[],
         desc=config.get("desc", ""),
         locks=get_channel_lockstring(channel_name),
     )
@@ -284,6 +285,17 @@ def _apply_channel_configuration(channel, channel_name):
     locks = getattr(channel, "locks", None)
     if locks and hasattr(locks, "add"):
         locks.add(get_channel_lockstring(channel_name))
+
+
+def _normalize_channel_identity(channel, channel_name):
+    config = CHANNEL_CONFIG[channel_name]
+    desired_key = config["db_key"]
+    if getattr(channel, "db_key", None) != desired_key:
+        channel.db_key = desired_key
+        channel.save(update_fields=["db_key"])
+    aliases = getattr(channel, "aliases", None)
+    if aliases and hasattr(aliases, "clear"):
+        aliases.clear()
 
 
 def _sync_online_subscribers(channel_name):

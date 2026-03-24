@@ -30,6 +30,7 @@ class CmdWorldChat(Command):
     aliases = ["world"]
     locks = "cmd:all()"
     help_category = "社交"
+    priority = 1
 
     def func(self):
         text = self.args.strip()
@@ -44,6 +45,7 @@ class CmdTeamChat(Command):
     aliases = ["team"]
     locks = "cmd:all()"
     help_category = "社交"
+    priority = 1
 
     def func(self):
         text = self.args.strip()
@@ -58,6 +60,7 @@ class CmdPrivateChat(Command):
     aliases = ["tell", "msg", "whisperto"]
     locks = "cmd:all()"
     help_category = "社交"
+    priority = 1
 
     def func(self):
         parts = self.args.strip().split(None, 1)
@@ -77,6 +80,7 @@ class CmdChannels(Command):
     aliases = ["channels", "channel"]
     locks = "cmd:all()"
     help_category = "社交"
+    priority = 1
 
     def func(self):
         rows = []
@@ -95,6 +99,7 @@ class CmdMuteChannel(Command):
     aliases = ["mute"]
     locks = "cmd:all()"
     help_category = "社交"
+    priority = 1
 
     def func(self):
         channel_name = self.args.strip()
@@ -113,6 +118,7 @@ class CmdUnmuteChannel(Command):
     aliases = ["unmute"]
     locks = "cmd:all()"
     help_category = "社交"
+    priority = 1
 
     def func(self):
         channel_name = self.args.strip()
@@ -124,3 +130,14 @@ class CmdUnmuteChannel(Command):
             self.caller.msg("没有这个可取消静音的频道。可用频道：世界、队伍、系统。")
             return
         self.caller.msg(f"你已恢复接收频道：|w{result['channel']}|n。")
+
+
+class CmdSystemChannel(Command):
+    key = "系统"
+    aliases = ["system"]
+    locks = "cmd:all()"
+    help_category = "社交"
+    priority = 2
+
+    def func(self):
+        self.caller.msg("系统频道为只读。可输入 |w频道|n 查看当前可用频道，系统消息会自动推送。")

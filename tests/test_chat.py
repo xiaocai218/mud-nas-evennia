@@ -51,10 +51,13 @@ class FakeSession:
 class FakeChannel:
     def __init__(self, key):
         self.key = key
+        self.db_key = key
         self.connected = []
         self.db = SimpleNamespace(mute_list=[])
         self.lockstrings = []
         self.locks = SimpleNamespace(add=self._add_locks)
+        self.aliases = SimpleNamespace(clear=self._clear_aliases)
+        self.saved_fields = []
 
     @property
     def mutelist(self):
@@ -62,6 +65,12 @@ class FakeChannel:
 
     def _add_locks(self, lockstring):
         self.lockstrings.append(lockstring)
+
+    def _clear_aliases(self):
+        return None
+
+    def save(self, update_fields=None):
+        self.saved_fields.append(update_fields or [])
 
     def has_connection(self, account):
         return account in self.connected
@@ -95,8 +104,11 @@ class ChatSystemTests(unittest.TestCase):
         self.channels = {}
 
     def _search_channel(self, name):
-        channel = self.channels.get(name)
-        return [channel] if channel else []
+        for channel in self.channels.values():
+            names = {channel.key, getattr(channel, "db_key", channel.key)}
+            if name in names:
+                return [channel]
+        return []
 
     def _create_channel(self, key, **kwargs):
         channel = FakeChannel(key)
@@ -171,6 +183,7 @@ class ChatSystemTests(unittest.TestCase):
         with self._patch_evennia():
             channel = chat._ensure_channel(chat.CHANNEL_SYSTEM)
         self.assertIn("send:false()", channel.lockstrings[-1])
+        self.assertEqual(channel.db_key, "chat_system")
 
     def test_mute_and_unmute_world_channel(self):
         sessions = [

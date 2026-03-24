@@ -367,6 +367,53 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 
 - 只要目标是“仓库重新 clone 后即可起服”，就必须把 Evennia 默认会自动引用的 `typeclasses` 模块链也一并补齐
 
+## 2026-03-24 fresh deploy 后聊天频道命令被 Evennia 动态频道命令抢占
+
+现象：
+
+- 文字版登录正常，但执行：
+  - `世界 大家好`
+  - `系统 1`
+- 返回的是：
+  - `No channel found matching '世界'`
+  - 或直接落到 Evennia 的底层 `Channel 系统` 输出
+
+根因：
+
+- 旧库里可能残留了 Evennia 的频道对象和动态频道命令。
+- fresh deploy 后，项目自己的 `世界/系统` 命令和 Evennia 动态频道命令存在重名竞争。
+- 当频道对象未按项目预期重建时，Evennia 底层频道命令会优先接管输入，导致：
+  - `世界` 发送走不到项目聊天系统
+  - `系统` 还能被用户手工发送
+
+当前修复：
+
+- 聊天频道改为内部稳定键：
+  - `chat_world`
+  - `chat_team`
+  - `chat_system`
+- 启服时通过 `at_server_start()` 主动执行 `ensure_all_channels()`
+- 项目命令显式接管：
+  - `世界`
+  - `队伍`
+  - `私聊`
+  - `频道`
+  - `静音`
+  - `取消静音`
+- 额外增加只读拦截命令：
+  - `系统`
+- `系统` 频道现在必须由业务逻辑推送，不能再由玩家手工发送
+
+后续建议：
+
+- 频道类命令不要再依赖 Evennia 默认频道动态命令是否存在。
+- 所有玩家可见频道命令都应由项目自定义命令显式接管。
+- fresh deploy / 旧库迁移后，优先回归：
+  - `频道`
+  - `世界`
+  - `系统`
+  - `静音/取消静音`
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次

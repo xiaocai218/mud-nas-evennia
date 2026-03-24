@@ -8,6 +8,7 @@ from .chat import (
     CmdChannels,
     CmdMuteChannel,
     CmdPrivateChat,
+    CmdSystemChannel,
     CmdTeamChat,
     CmdUnmuteChannel,
     CmdWorldChat,
@@ -44,6 +45,7 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdWorldChat())
         self.add(CmdTeamChat())
         self.add(CmdPrivateChat())
+        self.add(CmdSystemChannel())
         self.add(CmdChannels())
         self.add(CmdMuteChannel())
         self.add(CmdUnmuteChannel())
