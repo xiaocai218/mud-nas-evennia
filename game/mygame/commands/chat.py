@@ -22,7 +22,6 @@ def _render_chat_result(caller, result, fallback):
             return
         caller.msg(fallback)
         return
-    caller.msg(result["text"])
 
 
 class CmdWorldChat(Command):

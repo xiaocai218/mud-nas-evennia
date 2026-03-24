@@ -451,6 +451,28 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
   - 必要时补起 `Server`
   - 再做游戏内命令回归
 
+## 2026-03-24 队伍频道消息重复显示
+
+现象：
+
+- 玩家发送 `队伍 <内容>` 时，自己会看到两条完全相同的频道消息
+
+根因：
+
+- 系统层 `systems/chat.py` 已经把队伍频道消息投递给发送者本人
+- 命令层 `commands/chat.py` 成功后又额外执行了一次 `caller.msg(result["text"])`
+- 两次投递叠加，导致发送者本地看到重复消息
+
+修复：
+
+- 保留系统层的统一投递
+- 删除命令层成功时的额外回显
+
+结论：
+
+- 所有频道消息应只由系统层投递一次
+- 命令层成功时不再二次输出同一条消息
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次
