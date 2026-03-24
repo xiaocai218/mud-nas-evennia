@@ -298,6 +298,40 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 - 后续不要再把数据库和私有配置只放在 `game/mygame/server/` 里
 - 重建容器前优先确认 `runtime/` 目录仍然完整
 
+### 2026-03-24: 仓库中的 `server/conf/` 不完整，重建环境后启动报缺模块
+
+现象：
+
+- 重建后启动或 `evennia reload` 报错：
+  - `ModuleNotFoundError: No module named 'server.conf.lockfuncs'`
+
+根因：
+
+- 仓库里原本只保留了项目自定义的 `settings.py`、`connection_screens.py`、`at_initial_setup.py`
+- Evennia 默认设置仍会自动导入一组 `server.conf.*` 模块
+
+当前修复：
+
+- 在仓库中补了一组轻量 wrapper：
+  - `at_search.py`
+  - `at_server_startstop.py`
+  - `cmdparser.py`
+  - `inlinefuncs.py`
+  - `inputfuncs.py`
+  - `lockfuncs.py`
+  - `mssp.py`
+  - `portal_services_plugins.py`
+  - `prototypefuncs.py`
+  - `server_services_plugins.py`
+  - `serversession.py`
+  - `web_plugins.py`
+- 这些文件直接转发到 Evennia 官方 game template 实现
+
+后续建议：
+
+- 后续不要再假设容器里旧文件会一直保留
+- 只要仓库准备支持“重新 clone 即可起服”，就必须把 Evennia 默认会自动导入的 `server/conf` 模块链补齐
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次
