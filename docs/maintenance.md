@@ -332,6 +332,38 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 - 后续不要再假设容器里旧文件会一直保留
 - 只要仓库准备支持“重新 clone 即可起服”，就必须把 Evennia 默认会自动导入的 `server/conf` 模块链补齐
 
+### 2026-03-24: 仓库中的 `typeclasses/` 只保留了自定义文件，重建环境后继续报缺模块
+
+现象：
+
+- 补完 `server/conf` 后，启动继续报：
+  - `ModuleNotFoundError: No module named 'typeclasses.accounts'`
+
+根因：
+
+- Evennia 默认设置还会自动导入：
+  - `typeclasses.accounts`
+  - `typeclasses.exits`
+  - `typeclasses.channels`
+  - `typeclasses.scripts`
+- 仓库里之前只保留了项目自定义的：
+  - `characters.py`
+  - `objects.py`
+  - `rooms.py`
+  - `items.py`
+
+当前修复：
+
+- 在仓库中补了默认 typeclass wrapper：
+  - `accounts.py`
+  - `exits.py`
+  - `channels.py`
+  - `scripts.py`
+
+后续建议：
+
+- 只要目标是“仓库重新 clone 后即可起服”，就必须把 Evennia 默认会自动引用的 `typeclasses` 模块链也一并补齐
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次
