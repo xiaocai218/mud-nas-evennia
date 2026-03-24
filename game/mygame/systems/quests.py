@@ -43,6 +43,13 @@ def get_stage_data(state):
     return QUEST_STAGE_DATA.get(state)
 
 
+def get_main_stage_summary(state, prefix="主线已更新"):
+    stage = get_stage_data(state)
+    if not stage:
+        return f"{prefix}。"
+    return f"{prefix}：{stage['title']} - {stage['objective']}"
+
+
 def get_side_quest_state(caller, quest_key=None):
     if quest_key:
         quest = get_side_quest_data(quest_key)
@@ -62,6 +69,13 @@ def get_side_quest_state(caller, quest_key=None):
 
 def get_side_quest_data(quest_key):
     return SIDE_QUEST_DATA.get(quest_key)
+
+
+def get_side_quest_summary(quest_key, prefix="支线已接取"):
+    quest = get_side_quest_data(quest_key)
+    if not quest:
+        return f"{prefix}。"
+    return f"{prefix}：{quest['title']} - {quest['objective']}"
 
 
 def get_side_quest_state_attr(quest_key):

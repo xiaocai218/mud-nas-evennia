@@ -130,6 +130,8 @@ class SystemNoticeTests(unittest.TestCase):
         self.assertTrue(result)
         notify_mock.assert_called_once()
         self.assertEqual(notify_mock.call_args.kwargs["code"], "quest_main_started")
+        self.assertIn("渡口试手", notify_mock.call_args.args[1])
+        self.assertIn("击败一次青木傀儡", notify_mock.call_args.args[1])
 
     def test_npc_route_complete_main_stage_notifies_team(self):
         caller = FakeCaller()
@@ -159,6 +161,7 @@ class SystemNoticeTests(unittest.TestCase):
         self.assertTrue(result)
         team_notice_mock.assert_called_once_with(caller, "stage_one_started")
         notify_mock.assert_called_once()
+        self.assertIn("渡口试手", notify_mock.call_args.args[1])
 
     def test_main_stage_delivery_notifies_team_members(self):
         caller = FakeCaller()

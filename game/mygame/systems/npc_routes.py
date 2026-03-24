@@ -8,7 +8,9 @@ from systems.quests import (
     can_complete_side_quest,
     complete_main_stage,
     complete_side_quest,
+    get_main_stage_summary,
     get_quest_state,
+    get_side_quest_summary,
     get_side_quest_state,
     grant_side_quest_rewards,
     grant_stage_rewards,
@@ -80,7 +82,7 @@ def _handle_dialogue(caller, action):
 def _handle_start_main_stage(caller, action):
     set_main_quest_state(caller, action["stage"])
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
-    notify_player(caller, f"主线已更新：{action['stage']}", code="quest_main_started")
+    notify_player(caller, get_main_stage_summary(action["stage"], prefix="主线已更新"), code="quest_main_started")
     return True
 
 
@@ -91,14 +93,14 @@ def _handle_complete_main_stage(caller, action):
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
     _send_reward_messages(caller, action, rewards)
     notify_team_main_stage_completed(caller, action["stage"])
-    notify_player(caller, f"主线已推进：{action['stage']}", code="quest_main_completed")
+    notify_player(caller, get_main_stage_summary(action["stage"], prefix="主线已推进"), code="quest_main_completed")
     return True
 
 
 def _handle_start_side_quest(caller, action):
     start_side_quest(caller, action["quest"])
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
-    notify_player(caller, f"支线已接取：{action['quest']}", code="quest_side_started")
+    notify_player(caller, get_side_quest_summary(action["quest"], prefix="支线已接取"), code="quest_side_started")
     return True
 
 
@@ -108,7 +110,7 @@ def _handle_complete_side_quest(caller, action):
     reward = rewards["reward"]
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
     _send_reward_messages(caller, action, rewards)
-    notify_player(caller, f"支线已完成：{action['quest']}", code="quest_side_completed")
+    notify_player(caller, get_side_quest_summary(action["quest"], prefix="支线已完成"), code="quest_side_completed")
     return True
 
 
