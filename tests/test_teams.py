@@ -202,6 +202,26 @@ class TeamSystemTests(unittest.TestCase):
         self.assertEqual(snapshot["leader_name"], "乙")
         self.assertEqual(self.member.db.team_role, "leader")
 
+    def test_reject_invite_notifies_leader(self):
+        teams_patch, chat_patch, conf_patch = self._patch_all()
+        with teams_patch, chat_patch, conf_patch:
+            teams.create_team(self.leader, "巡山小队")
+            teams.invite_to_team(self.leader, "乙")
+            result = teams.reject_team_invite(self.member, "甲")
+        self.assertTrue(result["ok"])
+        self.assertIn("乙 拒绝了加入队伍", "".join(self.leader_account.messages))
+        self.assertEqual(self.member.db.team_invites, [])
+
+    def test_accept_expired_invite_returns_invite_expired(self):
+        teams_patch, chat_patch, conf_patch = self._patch_all()
+        with patch("systems.teams.time.time", return_value=1000), teams_patch, chat_patch, conf_patch:
+            teams.create_team(self.leader, "巡山小队")
+            teams.invite_to_team(self.leader, "乙")
+        with patch("systems.teams.time.time", return_value=1000 + teams.INVITE_TTL_SECONDS + 1), teams_patch, chat_patch, conf_patch:
+            result = teams.accept_team_invite(self.member, "甲")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["reason"], "invite_expired")
+
 
 if __name__ == "__main__":
     unittest.main()

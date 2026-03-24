@@ -21,6 +21,7 @@ from .inventory import CmdInventory, CmdRefine, CmdUseItem
 from .shop import CmdBuy, CmdShop
 from .social import CmdQuest, CmdTalk
 from .team import CmdAcceptTeamInvite, CmdCreateTeam, CmdInviteTeam, CmdLeaveTeam, CmdTeamStatus
+from .team import CmdRejectTeamInvite
 
 
 class CharacterCmdSet(EvenniaCharacterCmdSet):
@@ -53,6 +54,7 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdCreateTeam())
         self.add(CmdInviteTeam())
         self.add(CmdAcceptTeamInvite())
+        self.add(CmdRejectTeamInvite())
         self.add(CmdLeaveTeam())
         self.add(CmdShop())
         self.add(CmdBuy())

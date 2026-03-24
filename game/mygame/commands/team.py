@@ -7,6 +7,7 @@ from systems.teams import (
     invite_to_team,
     leave_team,
     list_team_status,
+    reject_team_invite,
 )
 
 
@@ -33,6 +34,9 @@ def _render_team_error(caller, result):
     if reason == "invite_not_found":
         caller.msg("没有找到可接受的组队邀请。")
         return
+    if reason == "invite_expired":
+        caller.msg("当前没有有效的组队邀请，旧邀请可能已经过期。")
+        return
     if reason == "team_not_found":
         caller.msg("这条邀请对应的队伍已经不存在了。")
         return
@@ -48,7 +52,10 @@ class CmdTeamStatus(Command):
     def func(self):
         result = list_team_status(self.caller)
         if not result["ok"]:
-            self.caller.msg("你当前还没有加入队伍。可用命令：建队、邀请、接受邀请、离队。")
+            extra = ""
+            if result.get("pending_invites"):
+                extra = f" 当前有 {result['pending_invites']} 条待处理邀请，可用 接受邀请 或 拒绝邀请。"
+            self.caller.msg("你当前还没有加入队伍。可用命令：建队、邀请、接受邀请、拒绝邀请、离队。" + extra)
             return
         team = result["team"]
         rows = []
@@ -61,6 +68,7 @@ class CmdTeamStatus(Command):
         self.caller.msg(
             f"当前队伍：{team['name']}\n"
             f"队长：{team['leader_name']}\n"
+            f"待处理邀请：{result.get('pending_invites', 0)}\n"
             f"成员：\n" + "\n".join(rows)
         )
 
@@ -109,6 +117,20 @@ class CmdAcceptTeamInvite(Command):
             _render_team_error(self.caller, result)
             return
         self.caller.msg(f"你已加入队伍：{result['team']['name']}。现在可以使用 队伍 <内容>。")
+
+
+class CmdRejectTeamInvite(Command):
+    key = "拒绝邀请"
+    aliases = ["拒绝组队", "rejectinvite"]
+    locks = "cmd:all()"
+    help_category = "社交"
+
+    def func(self):
+        result = reject_team_invite(self.caller, self.args.strip() or None)
+        if not result["ok"]:
+            _render_team_error(self.caller, result)
+            return
+        self.caller.msg(f"你已拒绝来自 {result['leader_name']} 的组队邀请。")
 
 
 class CmdLeaveTeam(Command):

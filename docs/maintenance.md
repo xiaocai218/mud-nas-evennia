@@ -419,6 +419,38 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
   - `系统`
   - `静音/取消静音`
 
+## 2026-03-24 fresh deploy 后 compose 启动成功但 Server 未自动拉起
+
+现象：
+
+- 容器可启动
+- `evennia status` 显示：
+  - `Portal: RUNNING`
+  - `Server: NOT RUNNING`
+- 手动执行一次 `evennia start` 后，`Server` 可以正常起来
+
+根因：
+
+- fresh deploy 阶段经历了：
+  - 运行时目录改造
+  - 旧库恢复
+  - 新仓库替换
+- Portal 能先起来，但 Server 首次启动链没有稳定完成
+- 在该状态下再重复执行完整启动，会触发 Portal 端口占用
+
+当前处理原则：
+
+- 优先先看 `evennia status`
+- 如果 `Portal` 已起、`Server` 未起，只补一次 `evennia start`
+- 不要在 `compose up` 后连续重复执行完整启动流程
+
+后续建议：
+
+- 后续若再次做 fresh deploy，回归顺序应固定为：
+  - `evennia status`
+  - 必要时补起 `Server`
+  - 再做游戏内命令回归
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次

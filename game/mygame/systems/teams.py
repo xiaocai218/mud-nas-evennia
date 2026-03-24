@@ -18,8 +18,9 @@ INVITE_TTL_SECONDS = 1800
 def list_team_status(caller):
     team = get_team_snapshot(caller)
     if not team:
-        return {"ok": False, "reason": "team_not_joined"}
-    return {"ok": True, "team": team}
+        invites = _active_invites(caller)
+        return {"ok": False, "reason": "team_not_joined", "pending_invites": len(invites)}
+    return {"ok": True, "team": team, "pending_invites": len(_active_invites(caller))}
 
 
 def create_team(caller, name=None):
@@ -85,9 +86,10 @@ def accept_team_invite(caller, leader_name=None):
     if _get_team_id(caller):
         return {"ok": False, "reason": "already_in_team"}
 
-    invites = _active_invites(caller)
+    invites, expired_count = _split_invites(caller)
     if not invites:
-        return {"ok": False, "reason": "invite_not_found"}
+        reason = "invite_expired" if expired_count else "invite_not_found"
+        return {"ok": False, "reason": reason}
 
     invite = _select_invite(invites, leader_name)
     if not invite:
@@ -114,6 +116,35 @@ def accept_team_invite(caller, leader_name=None):
         code="team_joined",
     )
     return {"ok": True, "team": team}
+
+
+def reject_team_invite(caller, leader_name=None):
+    if _get_team_id(caller):
+        return {"ok": False, "reason": "already_in_team"}
+
+    invites, expired_count = _split_invites(caller)
+    if not invites:
+        reason = "invite_expired" if expired_count else "invite_not_found"
+        return {"ok": False, "reason": reason}
+
+    invite = _select_invite(invites, leader_name)
+    if not invite:
+        return {"ok": False, "reason": "invite_not_found"}
+
+    caller.db.team_invites = [entry for entry in invites if entry["team_id"] != invite["team_id"]]
+    leader = _get_character_by_id(invite["leader_id"])
+    if leader:
+        notify_player(
+            leader,
+            f"{caller.key} 拒绝了加入队伍“{invite['team_name']}”的邀请。",
+            code="team_invite_declined",
+        )
+    notify_player(
+        caller,
+        f"你已拒绝来自 {invite['leader_name']} 的组队邀请。",
+        code="team_invite_rejected",
+    )
+    return {"ok": True, "leader_name": invite["leader_name"], "team_name": invite["team_name"]}
 
 
 def leave_team(caller):
@@ -204,6 +235,16 @@ def _active_invites(caller) -> List[dict]:
     if filtered != invites:
         caller.db.team_invites = filtered
     return filtered
+
+
+def _split_invites(caller):
+    invites = list(getattr(caller.db, "team_invites", []) or [])
+    now = int(time.time())
+    active = [entry for entry in invites if entry.get("expires_at", 0) > now]
+    expired_count = len(invites) - len(active)
+    if active != invites:
+        caller.db.team_invites = active
+    return active, expired_count
 
 
 def _select_invite(invites, leader_name):
