@@ -33,6 +33,12 @@
   - `频道`
   - `静音`
   - `取消静音`
+- `team.py`
+  - `组队`
+  - `建队`
+  - `邀请`
+  - `接受邀请`
+  - `离队`
 - `inventory.py`
   - `背包`
   - `炼化`
@@ -61,6 +67,11 @@
   - 当前复用 Evennia channel 能力，不单独造底层广播
   - 当前已开始为 H5 输出结构化 `chat.message` 事件
   - `系统` 消息当前已开始接入任务推进、购买成功和战斗掉落提示
+  - `系统` 频道对玩家保持只读
+- `teams.py`
+  - 统一处理最小组队骨架
+  - 当前支持建队、邀请、接受邀请、离队、队长转移与队伍快照
+  - `队伍` 频道当前已与真实队伍状态打通
 - `content_loader.py`
   - 统一加载 `world/data/*.json`
   - 当前 realms、items、quests、dialogues、npc_routes、help_content 等已开始共用这一层
@@ -297,6 +308,8 @@
 2. 当前默认推荐 H5 第一版前端使用 `Vue 3 + TypeScript`。
 3. 但后端必须继续保持框架中立，不直接绑定 Vue 或 React。
 4. `serializers / action_router / event_bus / client_protocol` 第一版骨架已落地，`talk / attack` 已接入，后续继续向 `quest / shop` 细化动作扩展。
+5. 聊天层已形成 `世界 / 队伍 / 私聊 / 系统` 四类实时入口，其中 `系统` 保持只读。
+6. 组队应继续沿 `systems/teams.py` 扩展，不要把队伍逻辑重新散回命令层。
 
 1. 新增 `areas.json`
 2. 给 `rooms.json` 补 `area_id`

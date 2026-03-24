@@ -19,6 +19,7 @@ from .devtools import CmdContent
 from .inventory import CmdInventory, CmdRefine, CmdUseItem
 from .shop import CmdBuy, CmdShop
 from .social import CmdQuest, CmdTalk
+from .team import CmdAcceptTeamInvite, CmdCreateTeam, CmdInviteTeam, CmdLeaveTeam, CmdTeamStatus
 
 
 class CharacterCmdSet(EvenniaCharacterCmdSet):
@@ -46,6 +47,11 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdChannels())
         self.add(CmdMuteChannel())
         self.add(CmdUnmuteChannel())
+        self.add(CmdTeamStatus())
+        self.add(CmdCreateTeam())
+        self.add(CmdInviteTeam())
+        self.add(CmdAcceptTeamInvite())
+        self.add(CmdLeaveTeam())
         self.add(CmdShop())
         self.add(CmdBuy())
         self.add(CmdQuest())
