@@ -1,8 +1,10 @@
 """Quest metadata and state helpers for the starter quest chain."""
 
+from systems.chat import send_system_message
 from systems.content_loader import load_content
 from systems.items import create_reward_item, find_item
 from systems.player_stats import apply_exp
+from systems.teams import get_same_area_team_members
 
 
 STAGE_ONE = "stage_one_started"
@@ -235,12 +237,49 @@ def mark_combat_kill(caller, target):
     quest_flag = getattr(target.db, "quest_flag", None)
     expected = COMBAT_PROGRESS_FLAGS.get(quest_flag)
     if not expected:
-        return
+        return {"updated": [], "shared": []}
 
     state = expected["state"]
     progress_attr = expected["progress_attr"]
+    updated = []
     if get_quest_state(caller) == state:
-        setattr(caller.db, progress_attr, True)
+        if not bool(getattr(caller.db, progress_attr, False)):
+            setattr(caller.db, progress_attr, True)
+            updated.append(caller)
+
+    shared = []
+    teammates = get_same_area_team_members(caller, include_self=False)
+    for teammate in teammates:
+        if get_quest_state(teammate) != state:
+            continue
+        if bool(getattr(teammate.db, progress_attr, False)):
+            continue
+        setattr(teammate.db, progress_attr, True)
+        updated.append(teammate)
+        shared.append(teammate)
+
+    if updated:
+        recipients = []
+        seen_ids = set()
+        for recipient in [caller] + teammates:
+            recipient_id = getattr(recipient, "id", None) or getattr(recipient, "pk", None)
+            if recipient_id in seen_ids:
+                continue
+            seen_ids.add(recipient_id)
+            recipients.append(recipient)
+        if shared:
+            send_system_message(
+                f"{caller.key} 击败 {target.key}，队伍协同推进任务。同步队友：{'、'.join(member.key for member in shared)}。",
+                recipients=recipients,
+                code="quest_team_progress",
+            )
+        else:
+            send_system_message(
+                f"{caller.key} 击败 {target.key}，任务进度已更新。",
+                recipients=recipients,
+                code="quest_progress",
+            )
+    return {"updated": updated, "shared": shared}
 
 
 def can_complete_main_stage(caller, state):

@@ -222,6 +222,30 @@ def get_team_snapshot(caller):
     }
 
 
+def get_team_member_characters(caller, include_self=False):
+    team_id = _get_team_id(caller)
+    if not team_id:
+        return []
+    characters = _get_team_member_characters(team_id)
+    if include_self:
+        return characters
+    caller_id = _get_character_id(caller)
+    return [character for character in characters if _get_character_id(character) != caller_id]
+
+
+def get_same_area_team_members(caller, include_self=False):
+    caller_location = getattr(caller, "location", None)
+    caller_area_id = getattr(getattr(caller_location, "db", None), "area_id", None)
+    if not caller_location or not caller_area_id:
+        return []
+    members = get_team_member_characters(caller, include_self=include_self)
+    return [
+        member
+        for member in members
+        if getattr(getattr(getattr(member, "location", None), "db", None), "area_id", None) == caller_area_id
+    ]
+
+
 def _require_leader_team(caller):
     team = get_team_snapshot(caller)
     if not team:

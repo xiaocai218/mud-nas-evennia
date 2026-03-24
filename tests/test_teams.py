@@ -40,6 +40,7 @@ class FakeCharacter:
         self.account = account
         self.id = pk
         self.pk = pk
+        self.location = SimpleNamespace(db=SimpleNamespace(area_id="qingyundu_village"))
         self.db = SimpleNamespace(
             team_id=None,
             team_name=None,
@@ -245,6 +246,18 @@ class TeamSystemTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["expired_invites_count"], 1)
         self.assertEqual(result["pending_invites"], [])
+
+    def test_get_same_area_team_members_filters_by_area(self):
+        teams_patch, chat_patch, conf_patch = self._patch_all()
+        self.other.location.db.area_id = "qingyun_outer_gate"
+        with teams_patch, chat_patch, conf_patch:
+            teams.create_team(self.leader, "巡山小队")
+            teams.invite_to_team(self.leader, "乙")
+            teams.accept_team_invite(self.member, "甲")
+            teams.invite_to_team(self.leader, "丙")
+            teams.accept_team_invite(self.other, "甲")
+            result = teams.get_same_area_team_members(self.leader)
+        self.assertEqual([member.key for member in result], ["乙"])
 
 
 if __name__ == "__main__":
