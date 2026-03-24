@@ -70,6 +70,7 @@ class H5HttpRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(payload["payload"]["transports"]["poll"]["available"])
         self.assertEqual(payload["payload"]["poll_endpoint"], "/api/h5/events/poll/")
+        self.assertIn("chat.message", payload["payload"]["events"]["supported"])
 
     def test_event_poll_view_requires_active_character(self):
         request = self.factory.get("/api/h5/events/poll/")
@@ -84,13 +85,36 @@ class H5HttpRouteTests(unittest.TestCase):
         request = self.factory.get("/api/h5/events/poll/?cursor=abc")
         request.user = self.account
         request.session = {}
-        response = views.event_poll_view(request)
+        with patch("web.api.views.pop_account_events", return_value=[]):
+            response = views.event_poll_view(request)
         payload = self._decode(response)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload["payload"]["transport"], "poll")
         self.assertEqual(payload["payload"]["cursor"], "abc")
         self.assertEqual(payload["payload"]["events"], [])
         self.assertEqual(payload["payload"]["active_character_id"], 7)
+
+    def test_event_poll_view_returns_chat_events(self):
+        request = self.factory.get("/api/h5/events/poll/?cursor=next")
+        request.user = self.account
+        request.session = {}
+        with patch(
+            "web.api.views.pop_account_events",
+            return_value=[{"event": "chat.message", "payload": {"channel": "world", "text": "hi"}}],
+        ):
+            response = views.event_poll_view(request)
+        payload = self._decode(response)
+        self.assertEqual(payload["payload"]["events"][0]["event"], "chat.message")
+
+    def test_action_view_requires_active_character_for_chat(self):
+        body = json.dumps({"type": "action", "action": "chat_world", "payload": {"text": "hi"}})
+        request = self.factory.post("/api/h5/action/", data=body, content_type="application/json")
+        request.user = SimpleNamespace(is_authenticated=False)
+        request.session = {}
+        response = views.action_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(payload["error"]["code"], "not_authenticated")
 
     def test_login_view_invalid_credentials(self):
         request = self.factory.post(

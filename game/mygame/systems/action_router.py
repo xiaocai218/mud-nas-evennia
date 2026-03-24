@@ -1,6 +1,7 @@
 """Structured action routing layer for future H5/API clients."""
 
 from systems.client_protocol import build_response
+from systems.chat import send_private_message, send_team_message, send_world_message
 from systems.combat import attack_training_target
 from systems.items import find_item, use_item
 from systems.npc_routes import run_npc_route
@@ -28,6 +29,9 @@ def dispatch_action(caller, action, payload=None):
         "trigger_object": _handle_trigger_object,
         "use_item": _handle_use_item,
         "buy_item": _handle_buy_item,
+        "chat_world": _handle_chat_world,
+        "chat_team": _handle_chat_team,
+        "chat_private": _handle_chat_private,
         "talk": _handle_talk,
         "attack": _handle_attack,
     }
@@ -114,6 +118,37 @@ def _handle_buy_item(caller, payload):
     if not result.get("ok"):
         return build_response(False, error={"code": result.get("reason"), "message": result.get("currency")})
     return build_response(True, {"result": result, "inventory": serialize_inventory(caller)})
+
+
+def _build_chat_response(result):
+    if not result.get("ok"):
+        return build_response(
+            False,
+            error={"code": result.get("reason"), "message": result.get("text")},
+        )
+    return build_response(
+        True,
+        {
+            "message": result.get("message"),
+            "event": result.get("event"),
+            "delivered": result.get("delivered", 0),
+            "text": result.get("text", ""),
+        },
+    )
+
+
+def _handle_chat_world(caller, payload):
+    return _build_chat_response(send_world_message(caller, payload.get("text", "").strip()))
+
+
+def _handle_chat_team(caller, payload):
+    return _build_chat_response(send_team_message(caller, payload.get("text", "").strip()))
+
+
+def _handle_chat_private(caller, payload):
+    return _build_chat_response(
+        send_private_message(caller, payload.get("target", "").strip(), payload.get("text", "").strip())
+    )
 
 
 def _handle_talk(caller, payload):

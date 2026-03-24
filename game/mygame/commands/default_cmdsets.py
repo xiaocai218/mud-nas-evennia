@@ -4,6 +4,14 @@ Command sets
 
 from evennia.commands.default.cmdset_character import CharacterCmdSet as EvenniaCharacterCmdSet
 
+from .chat import (
+    CmdChannels,
+    CmdMuteChannel,
+    CmdPrivateChat,
+    CmdTeamChat,
+    CmdUnmuteChannel,
+    CmdWorldChat,
+)
 from .combat import CmdAttack, CmdTrain
 from .core import CmdGather, CmdNewbie, CmdRead, CmdStatus, CmdTrigger
 from .cultivation import CmdCultivate, CmdRecoverHp, CmdRest
@@ -32,6 +40,12 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdInventory())
         self.add(CmdRefine())
         self.add(CmdUseItem())
+        self.add(CmdWorldChat())
+        self.add(CmdTeamChat())
+        self.add(CmdPrivateChat())
+        self.add(CmdChannels())
+        self.add(CmdMuteChannel())
+        self.add(CmdUnmuteChannel())
         self.add(CmdShop())
         self.add(CmdBuy())
         self.add(CmdQuest())

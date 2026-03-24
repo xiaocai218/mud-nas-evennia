@@ -9,7 +9,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from systems.action_router import dispatch_action
 from systems.client_protocol import ACTION_SPECS, build_response, validate_action_message
-from systems.event_bus import build_event_batch
+from systems.event_bus import build_event_batch, pop_account_events
 from systems.serializers import (
     build_bootstrap_payload,
     serialize_account,
@@ -256,6 +256,7 @@ def ws_meta_view(request):
         },
         "events": {
             "supported": [
+                "chat.message",
                 "room.updated",
                 "stats.updated",
                 "inventory.updated",
@@ -279,7 +280,7 @@ def event_poll_view(request):
         return error_response
 
     cursor = request.GET.get("cursor")
-    payload = build_event_batch(events=[], cursor=cursor, transport="poll")
+    payload = build_event_batch(events=pop_account_events(_get_account(request)), cursor=cursor, transport="poll")
     payload["active_character_id"] = getattr(caller, "pk", None)
     return _json_response(build_response(True, payload))
 

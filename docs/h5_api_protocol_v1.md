@@ -317,6 +317,9 @@
 - `bootstrap`
 - `look`
 - `move`
+- `chat_world`
+- `chat_team`
+- `chat_private`
 - `read`
 - `gather`
 - `trigger_object`
@@ -359,6 +362,54 @@
   "action": "move",
   "payload": {
     "direction": "北"
+  }
+}
+```
+
+### `chat_world`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "chat_world",
+  "payload": {
+    "text": "大家好"
+  }
+}
+```
+
+### `chat_team`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "chat_team",
+  "payload": {
+    "text": "集合到村口"
+  }
+}
+```
+
+说明：
+
+- 当前队伍频道只做正式占位
+- 未加入队伍时返回 `team_not_joined`
+
+### `chat_private`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "chat_private",
+  "payload": {
+    "target": "小菜一盆",
+    "text": "你好"
   }
 }
 ```
@@ -542,6 +593,20 @@
 }
 ```
 
+### ChatMessageDTO
+
+```json
+{
+  "channel": "world",
+  "sender_id": 11,
+  "sender_name": "甲",
+  "target_id": null,
+  "target_name": null,
+  "text": "大家好",
+  "ts": 1710000000
+}
+```
+
 ## 当前状态
 
 这份协议还是第一版草案，目标是：
@@ -555,4 +620,5 @@
 - HTTP 路由骨架已落地
 - `ws-meta` 已能返回实时通道元信息
 - `events/poll` 已作为 WebSocket 之前的 fallback transport 落地
+- 当前 poll / future WebSocket 已统一预留 `chat.message`
 - 真正的 WebSocket bridge 仍是下一阶段

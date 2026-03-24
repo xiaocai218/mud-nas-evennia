@@ -146,6 +146,15 @@ class SerializerTests(unittest.TestCase):
         self.assertEqual(payload["id"], "shop_ferry_general_store")
         self.assertEqual(payload["inventory"][0]["price"], 8)
 
+    def test_serialize_chat_message(self):
+        sender = SimpleNamespace(pk=11, key="甲")
+        target = SimpleNamespace(pk=12, key="乙")
+        payload = serializers.serialize_chat_message("private", "你好", sender=sender, target=target, ts=123456)
+        self.assertEqual(payload["channel"], "private")
+        self.assertEqual(payload["sender_name"], "甲")
+        self.assertEqual(payload["target_name"], "乙")
+        self.assertEqual(payload["ts"], 123456)
+
     def test_serialize_quest_log(self):
         caller = FakeCaller()
         with (
@@ -236,6 +245,33 @@ class ActionRouterTests(unittest.TestCase):
         response = action_router.dispatch_action(caller, "attack", {"target": "守渡老人"})
         self.assertFalse(response["ok"])
         self.assertEqual(response["error"]["code"], "target_not_attackable")
+
+    def test_chat_world_action(self):
+        caller = FakeCaller()
+        with patch(
+            "systems.action_router.send_world_message",
+            return_value={
+                "ok": True,
+                "message": {"channel": "world", "text": "你好"},
+                "event": {"event": "chat.message"},
+                "delivered": 2,
+                "text": "[世界] tester: 你好",
+            },
+        ):
+            response = action_router.dispatch_action(caller, "chat_world", {"text": "你好"})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["message"]["channel"], "world")
+        self.assertEqual(response["payload"]["event"]["event"], "chat.message")
+
+    def test_chat_private_action_target_not_found(self):
+        caller = FakeCaller()
+        with patch(
+            "systems.action_router.send_private_message",
+            return_value={"ok": False, "reason": "target_not_found"},
+        ):
+            response = action_router.dispatch_action(caller, "chat_private", {"target": "乙", "text": "你好"})
+        self.assertFalse(response["ok"])
+        self.assertEqual(response["error"]["code"], "target_not_found")
 
 
 if __name__ == "__main__":

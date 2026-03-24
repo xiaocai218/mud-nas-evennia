@@ -37,6 +37,31 @@ def system_notice(message, level="info", code=None):
     return emit_event("system.notice", payload, scope="system")
 
 
+def chat_message(payload):
+    return emit_event("chat.message", payload, scope="social")
+
+
+def chat_message_event(payload):
+    return chat_message(payload)
+
+
+def enqueue_account_event(account, event):
+    if not account:
+        return
+    queue = list(getattr(getattr(account, "db", None), "h5_event_queue", []) or [])
+    queue.append(event)
+    account.db.h5_event_queue = queue[-50:]
+
+
+def pop_account_events(account, limit=50):
+    if not account:
+        return []
+    queue = list(getattr(getattr(account, "db", None), "h5_event_queue", []) or [])
+    events = queue[:limit]
+    account.db.h5_event_queue = queue[limit:]
+    return events
+
+
 def build_event_batch(events=None, cursor=None, transport="poll"):
     events = list(events or [])
     resolved_cursor = cursor if cursor is not None else int(time.time() * 1000)

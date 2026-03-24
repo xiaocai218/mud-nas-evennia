@@ -26,6 +26,13 @@
 - `social.py`
   - `交谈`
   - `任务`
+- `chat.py`
+  - `世界`
+  - `队伍`
+  - `私聊`
+  - `频道`
+  - `静音`
+  - `取消静音`
 - `inventory.py`
   - `背包`
   - `炼化`
@@ -49,6 +56,10 @@
 - `effect_executor.py`
   - 统一处理恢复、buff 等效果执行
   - 物品和对象开始共用这一层，减少重复逻辑
+- `chat.py`
+  - 统一处理实时聊天频道、私聊、系统消息和频道静音
+  - 当前复用 Evennia channel 能力，不单独造底层广播
+  - 当前已开始为 H5 输出结构化 `chat.message` 事件
 - `content_loader.py`
   - 统一加载 `world/data/*.json`
   - 当前 realms、items、quests、dialogues、npc_routes、help_content 等已开始共用这一层
@@ -74,12 +85,13 @@
   - 处理房间商店查询与最小购买结算
 - `serializers.py`
   - 为未来 H5/API 客户端输出结构化 DTO
-  - 当前已支持角色、房间、区域、世界层级、背包与任务状态序列化
+  - 当前已支持角色、房间、区域、世界层级、背包、任务状态与聊天消息序列化
 - `action_router.py`
   - 为未来 H5/API 客户端提供结构化动作分发入口
-  - 当前已支持 `bootstrap / look / move / read / gather / trigger_object / use_item / buy_item / talk / attack`
+  - 当前已支持 `bootstrap / look / move / read / gather / trigger_object / use_item / buy_item / talk / attack / chat_world / chat_team / chat_private`
 - `event_bus.py`
   - 为未来 H5/WebSocket 客户端统一结构化事件信封
+  - 当前已开始支持 `chat.message` 和最小账号事件队列
 - `client_protocol.py`
   - 统一 action/response 的消息包装与基础校验
 - `web/api/views.py`
