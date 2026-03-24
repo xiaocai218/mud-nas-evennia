@@ -73,6 +73,7 @@ class SystemNoticeTests(unittest.TestCase):
             patch("systems.combat.get_stats", return_value={"stamina": 50, "hp": 100, "max_hp": 100, "max_stamina": 50}),
             patch("systems.combat.apply_exp", return_value=("炼气一层", "炼气一层", 15)),
             patch("systems.combat.mark_combat_kill"),
+            patch("systems.combat.notify_team_combat_kill"),
             patch("systems.combat.create_loot", return_value=SimpleNamespace(key="青木碎片")),
             patch("systems.combat.notify_player") as notify_mock,
         ):
@@ -81,6 +82,32 @@ class SystemNoticeTests(unittest.TestCase):
         self.assertEqual(result["result"], "kill")
         notify_mock.assert_called_once()
         self.assertIn("掉落：青木碎片", notify_mock.call_args.args[1])
+
+    def test_combat_kill_notifies_same_area_teammates(self):
+        caller = FakeCaller()
+        teammate = FakeCaller()
+        teammate.key = "队友"
+        target = FakeTarget()
+        with (
+            patch("systems.combat.get_same_area_team_members", return_value=[teammate]),
+            patch("systems.combat.notify_player") as notify_mock,
+        ):
+            result = combat.notify_team_combat_kill(caller, target)
+        self.assertTrue(result)
+        self.assertEqual(notify_mock.call_count, 2)
+        self.assertIn("协同战斗提示", notify_mock.call_args_list[0].args[1])
+        self.assertIn("奖励与掉落仍归击杀者个人所有", notify_mock.call_args_list[1].args[1])
+
+    def test_combat_kill_skips_team_notice_without_teammates(self):
+        caller = FakeCaller()
+        target = FakeTarget()
+        with (
+            patch("systems.combat.get_same_area_team_members", return_value=[]),
+            patch("systems.combat.notify_player") as notify_mock,
+        ):
+            result = combat.notify_team_combat_kill(caller, target)
+        self.assertFalse(result)
+        notify_mock.assert_not_called()
 
     def test_npc_route_start_main_stage_emits_system_notice(self):
         caller = FakeCaller()

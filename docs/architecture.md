@@ -119,6 +119,7 @@
 - `combat.py`
   - 训练目标战斗结算
   - 结合 `world/data/enemies.json` 处理怪物模板与掉落
+  - 当前第一版组队战斗联动也已挂在这里，同区域队友会收到击杀提示，但不共享奖励和掉落
 - `dialogues.py`
   - 从 `world/data/dialogues.json` 读取 NPC 对话文案
 - `areas.py`

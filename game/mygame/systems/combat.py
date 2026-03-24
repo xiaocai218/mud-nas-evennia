@@ -5,6 +5,7 @@ from .content_loader import load_content
 from .items import create_loot, get_item_definition, get_item_definition_by_id, resolve_item_key
 from .player_stats import apply_exp, get_stats
 from .quests import mark_combat_kill
+from .teams import get_same_area_team_members
 
 
 ENEMY_DEFINITIONS = load_content("enemies")
@@ -12,6 +13,24 @@ ENEMY_DEFINITIONS = load_content("enemies")
 
 def get_enemy_definition(enemy_id):
     return ENEMY_DEFINITIONS.get(enemy_id)
+
+
+def notify_team_combat_kill(caller, target):
+    teammates = get_same_area_team_members(caller, include_self=False)
+    if not teammates:
+        return False
+    notify_player(
+        caller,
+        f"同区域队友已收到你击败 {target.key} 的协同战斗提示。",
+        code="combat_team_notice_sent",
+    )
+    for teammate in teammates:
+        notify_player(
+            teammate,
+            f"队友 {caller.key} 击败了 {target.key}。本次奖励与掉落仍归击杀者个人所有。",
+            code="combat_team_notice",
+        )
+    return True
 
 
 def attack_training_target(caller, target):
@@ -39,6 +58,7 @@ def attack_training_target(caller, target):
         old_realm, new_realm, exp = apply_exp(caller, reward_exp)
         target.db.hp = target_max_hp
         mark_combat_kill(caller, target)
+        notify_team_combat_kill(caller, target)
         drop = None
         if drop_key and drop_desc:
             drop = create_loot(caller, key=drop_key, item_id=drop_item_id, desc=drop_desc)
