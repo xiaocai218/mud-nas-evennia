@@ -34,6 +34,47 @@
 
 这样重新拉代码或重建容器时，重要运行数据不会再和代码目录混在一起。
 
+## NAS 快捷脚本
+
+仓库里已经提供一组针对这台 QNAP 的运维脚本：
+
+- `scripts/nas/update.sh`
+- `scripts/nas/reload.sh`
+- `scripts/nas/start.sh`
+- `scripts/nas/stop.sh`
+- `scripts/nas/status.sh`
+- `scripts/nas/install_aliases.sh`
+
+脚本说明见：
+
+- [scripts/nas/README.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\scripts\nas\README.md)
+
+在 NAS 上安装命令别名：
+
+```sh
+cd /share/CACHEDEV1_DATA/Container/mud-nas-evennia
+sh scripts/nas/install_aliases.sh
+. "$HOME/.profile_mud_aliases"
+```
+
+之后可直接使用：
+
+```sh
+update
+reload
+start
+stop
+status
+```
+
+说明：
+
+- `start` 会先执行 `docker compose up -d`
+- 如果遇到 QNAP 当前这套环境里常见的“`Portal` 已启动但 `Server` 未启动”问题，
+  脚本会自动补一次 `evennia start`
+- 不要在 `start` 之后又手工重复执行 `evennia start`，否则可能看到内部端口
+  `4006` 的 `Address in use` 假报错
+
 ## 已有内容
 
 当前已经具备这些基础玩法：

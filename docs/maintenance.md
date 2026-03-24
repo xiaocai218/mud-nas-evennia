@@ -76,6 +76,52 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker logs --tail 100 ji
 sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-mud sh -lc "tail -n 100 server/logs/server.log; echo ====; tail -n 100 server/logs/portal.log"
 ```
 
+## NAS 快捷脚本
+
+仓库已提供一组 NAS 运维脚本：
+
+- `scripts/nas/update.sh`
+- `scripts/nas/reload.sh`
+- `scripts/nas/start.sh`
+- `scripts/nas/stop.sh`
+- `scripts/nas/status.sh`
+- `scripts/nas/install_aliases.sh`
+
+推荐在 NAS 项目目录执行一次：
+
+```sh
+cd /share/CACHEDEV1_DATA/Container/mud-nas-evennia
+sh scripts/nas/install_aliases.sh
+. "$HOME/.profile_mud_aliases"
+```
+
+之后直接使用：
+
+```sh
+update
+reload
+start
+stop
+status
+```
+
+当前脚本行为：
+
+- `update`
+  - 在项目目录执行 `git pull origin main`
+- `reload`
+  - 先检查 `Server` 是否运行
+  - 如果 `Server` 未运行，会补一次 `evennia start`
+  - 然后执行 `evennia reload`
+- `start`
+  - 执行 `docker compose up -d`
+  - 等待几秒
+  - 如果发现 `Portal` 正常但 `Server` 未启动，会自动补一次 `evennia start`
+- `stop`
+  - 执行 `docker compose stop`
+- `status`
+  - 执行 `evennia status`
+
 ## 首次初始化流程
 
 Evennia 项目目录已经初始化完成，目前不需要再重新执行以下步骤。
@@ -297,6 +343,39 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 
 - 后续不要再把数据库和私有配置只放在 `game/mygame/server/` 里
 - 重建容器前优先确认 `runtime/` 目录仍然完整
+
+### 2026-03-24: `docker compose up -d` 后 `Portal` 已启动，但 `Server` 未自动启动
+
+现象：
+
+- 容器已启动
+- `evennia status` 显示：
+  - `Portal: RUNNING`
+  - `Server: NOT RUNNING`
+- 手工执行一次 `evennia start` 后，`Server` 能正常起来
+
+根因：
+
+- 当前这套 QNAP + Container Station + Evennia 启动方式下，容器入口脚本偶发只能先把
+  `Portal` 拉起来，没有把 `Server` 一并成功拉起
+
+当前处理原则：
+
+- 检查服务状态时优先使用 `evennia status`
+- 只有在 `Server: NOT RUNNING` 时，才补一次 `evennia start`
+- 不要在 `Portal` 和 `Server` 都已运行时重复执行 `evennia start`
+
+原因：
+
+- 重复执行 `evennia start` 会尝试再次监听内部 AMP 端口 `127.0.0.1:4006`
+- 这会产生 `Address in use` 假报错，看起来像新故障，但本质上只是重复启动
+
+当前规避方式：
+
+- `scripts/nas/start.sh`
+- `scripts/nas/reload.sh`
+
+这两个脚本都已经内置一次 `status -> 必要时补起 Server` 的逻辑，后续优先用脚本，不再手工乱序操作
 
 ### 2026-03-24: 仓库中的 `server/conf/` 不完整，重建环境后启动报缺模块
 
