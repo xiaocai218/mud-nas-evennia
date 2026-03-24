@@ -473,6 +473,28 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 - 所有频道消息应只由系统层投递一次
 - 命令层成功时不再二次输出同一条消息
 
+## 2026-03-24 组队命令成功提示重复
+
+现象：
+
+- `建队`、`邀请`、`接受邀请`、`拒绝邀请`、`离队` 执行成功时
+- 玩家会同时看到 `[系统]` 提示和一条普通成功提示
+
+根因：
+
+- 组队系统层 `systems/teams.py` 已通过 `notify_player` / `send_system_message` 推送成功结果
+- 命令层 `commands/team.py` 成功后又额外执行了一次 `caller.msg(...)`
+
+修复：
+
+- 保留系统层单次通知
+- 删除组队命令层成功时的重复回显
+
+结论：
+
+- 需要通知玩家的成功结果，优先统一走系统层
+- 命令层只保留失败提示、用法提示和纯查询输出
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次

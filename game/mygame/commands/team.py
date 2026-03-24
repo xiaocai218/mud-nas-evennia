@@ -124,7 +124,6 @@ class CmdCreateTeam(Command):
         if not result["ok"]:
             _render_team_error(self.caller, result)
             return
-        self.caller.msg(f"你已创建队伍：{result['team']['name']}。现在可以使用 邀请 <玩家名>。")
 
 
 class CmdInviteTeam(Command):
@@ -142,7 +141,6 @@ class CmdInviteTeam(Command):
         if not result["ok"]:
             _render_team_error(self.caller, result)
             return
-        self.caller.msg(f"已向 {result['target']} 发出组队邀请。")
 
 
 class CmdAcceptTeamInvite(Command):
@@ -156,7 +154,6 @@ class CmdAcceptTeamInvite(Command):
         if not result["ok"]:
             _render_team_error(self.caller, result)
             return
-        self.caller.msg(f"你已加入队伍：{result['team']['name']}。现在可以使用 队伍 <内容>。")
 
 
 class CmdRejectTeamInvite(Command):
@@ -170,7 +167,6 @@ class CmdRejectTeamInvite(Command):
         if not result["ok"]:
             _render_team_error(self.caller, result)
             return
-        self.caller.msg(f"你已拒绝来自 {result['leader_name']} 的组队邀请。")
 
 
 class CmdLeaveTeam(Command):
@@ -184,7 +180,3 @@ class CmdLeaveTeam(Command):
         if not result["ok"]:
             _render_team_error(self.caller, result)
             return
-        if result.get("disbanded"):
-            self.caller.msg("你已离队，当前队伍已解散。")
-            return
-        self.caller.msg("你已离开当前队伍。")
