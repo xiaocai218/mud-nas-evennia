@@ -247,6 +247,29 @@ sudo /share/CACHEDEV1_DATA/.qpkg/container-station/bin/docker exec jiuzhou-like-
 - 优先先查页面是否依赖外部 CDN
 - 不要先假设是 DDNS、网关映射或 NAS 端口异常
 
+### 2026-03-24: NAS 同步后 `help_content.json` 被写成空文件，导致 `evennia reload` 失败
+
+现象：
+
+- 容器仍在运行
+- 执行 `evennia reload` 时抛出 `json.decoder.JSONDecodeError`
+- 远端 `game/mygame/world/data/help_content.json` 文件大小为 `0`
+
+根因：
+
+- 通过 `sudo tee` 直写远端文件时，`sudo -S` 占用了标准输入，实际文件内容没有写入，结果把目标 JSON 覆盖成空文件
+
+有效修复：
+
+- 先把本地文件通过 SSH 写到远端 `codex` 用户的当前 home 目录
+- 确认临时文件大小正常后，再用 `sudo cp` 覆盖项目文件
+- 最后执行 `docker exec jiuzhou-like-mud evennia reload`
+
+后续建议：
+
+- 远端需要 `sudo` 覆盖文件时，不要直接用 `sudo tee` 接本地文件内容
+- 优先采用“先写用户可写临时文件，再 `sudo cp` 到项目目录”的两段式同步
+
 ## 注意事项
 
 - `at_initial_setup.py` 只在首次成功初始化世界时运行一次
