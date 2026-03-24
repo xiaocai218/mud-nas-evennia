@@ -29,6 +29,7 @@ from .team import (
     CmdRejectTeamInvite,
     CmdTeamStatus,
 )
+from .trade import CmdAcceptTrade, CmdCancelTrade, CmdRejectTrade, CmdTrade
 
 
 class CharacterCmdSet(EvenniaCharacterCmdSet):
@@ -64,6 +65,10 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdRejectTeamInvite())
         self.add(CmdListTeamInvites())
         self.add(CmdLeaveTeam())
+        self.add(CmdTrade())
+        self.add(CmdAcceptTrade())
+        self.add(CmdRejectTrade())
+        self.add(CmdCancelTrade())
         self.add(CmdShop())
         self.add(CmdBuy())
         self.add(CmdQuest())
