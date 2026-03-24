@@ -43,6 +43,22 @@ def _render_team_error(caller, result):
     caller.msg("队伍操作失败。")
 
 
+def _format_pending_invites(result):
+    invites = result.get("pending_invites") or []
+    if not invites:
+        return ""
+    rows = ["待处理邀请："]
+    for invite in invites:
+        ttl_minutes = max(1, invite["expires_in"] // 60) if invite["expires_in"] else 0
+        rows.append(
+            f"- {invite['leader_name']} 邀请你加入“{invite['team_name']}”"
+            f"（约剩 {ttl_minutes} 分钟）"
+        )
+    if result.get("expired_invites_count"):
+        rows.append(f"- 已自动清理过期邀请 {result['expired_invites_count']} 条")
+    return "\n" + "\n".join(rows)
+
+
 class CmdTeamStatus(Command):
     key = "组队"
     aliases = ["teaminfo", "队伍信息"]
@@ -52,10 +68,17 @@ class CmdTeamStatus(Command):
     def func(self):
         result = list_team_status(self.caller)
         if not result["ok"]:
+            invite_count = len(result.get("pending_invites") or [])
             extra = ""
-            if result.get("pending_invites"):
-                extra = f" 当前有 {result['pending_invites']} 条待处理邀请，可用 接受邀请 或 拒绝邀请。"
-            self.caller.msg("你当前还没有加入队伍。可用命令：建队、邀请、接受邀请、拒绝邀请、离队。" + extra)
+            if invite_count:
+                extra = f" 当前有 {invite_count} 条待处理邀请，可用 接受邀请 或 拒绝邀请。"
+            if result.get("expired_invites_count"):
+                extra += f" 已自动清理过期邀请 {result['expired_invites_count']} 条。"
+            self.caller.msg(
+                "你当前还没有加入队伍。可用命令：建队、邀请、接受邀请、拒绝邀请、离队。"
+                + extra
+                + _format_pending_invites(result)
+            )
             return
         team = result["team"]
         rows = []
@@ -68,9 +91,26 @@ class CmdTeamStatus(Command):
         self.caller.msg(
             f"当前队伍：{team['name']}\n"
             f"队长：{team['leader_name']}\n"
-            f"待处理邀请：{result.get('pending_invites', 0)}\n"
+            f"待处理邀请：{len(result.get('pending_invites') or [])}\n"
             f"成员：\n" + "\n".join(rows)
         )
+
+
+class CmdListTeamInvites(Command):
+    key = "邀请列表"
+    aliases = ["队伍邀请", "teaminvites"]
+    locks = "cmd:all()"
+    help_category = "社交"
+
+    def func(self):
+        result = list_team_status(self.caller)
+        invites = result.get("pending_invites") or []
+        if not invites:
+            expired = result.get("expired_invites_count") or 0
+            suffix = f" 已自动清理过期邀请 {expired} 条。" if expired else ""
+            self.caller.msg("当前没有待处理的组队邀请。" + suffix)
+            return
+        self.caller.msg("当前可处理的组队邀请：" + _format_pending_invites(result))
 
 
 class CmdCreateTeam(Command):

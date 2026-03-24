@@ -222,6 +222,30 @@ class TeamSystemTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertEqual(result["reason"], "invite_expired")
 
+    def test_list_team_status_returns_invite_details(self):
+        teams_patch, chat_patch, conf_patch = self._patch_all()
+        with patch("systems.teams.time.time", return_value=1000), teams_patch, chat_patch, conf_patch:
+            teams.create_team(self.leader, "巡山小队")
+            teams.invite_to_team(self.leader, "乙")
+        with patch("systems.teams.time.time", return_value=1060), teams_patch, chat_patch, conf_patch:
+            result = teams.list_team_status(self.member)
+        self.assertFalse(result["ok"])
+        self.assertEqual(len(result["pending_invites"]), 1)
+        self.assertEqual(result["pending_invites"][0]["leader_name"], "甲")
+        self.assertEqual(result["pending_invites"][0]["team_name"], "巡山小队")
+        self.assertEqual(result["pending_invites"][0]["expires_in"], teams.INVITE_TTL_SECONDS - 60)
+
+    def test_list_team_status_reports_expired_invite_cleanup(self):
+        teams_patch, chat_patch, conf_patch = self._patch_all()
+        with patch("systems.teams.time.time", return_value=1000), teams_patch, chat_patch, conf_patch:
+            teams.create_team(self.leader, "巡山小队")
+            teams.invite_to_team(self.leader, "乙")
+        with patch("systems.teams.time.time", return_value=1000 + teams.INVITE_TTL_SECONDS + 1), teams_patch, chat_patch, conf_patch:
+            result = teams.list_team_status(self.member)
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["expired_invites_count"], 1)
+        self.assertEqual(result["pending_invites"], [])
+
 
 if __name__ == "__main__":
     unittest.main()

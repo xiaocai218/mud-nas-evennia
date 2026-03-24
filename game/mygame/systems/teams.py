@@ -16,11 +16,22 @@ INVITE_TTL_SECONDS = 1800
 
 
 def list_team_status(caller):
+    invites, expired_count = _split_invites(caller)
+    invite_rows = [_serialize_invite(entry) for entry in invites]
     team = get_team_snapshot(caller)
     if not team:
-        invites = _active_invites(caller)
-        return {"ok": False, "reason": "team_not_joined", "pending_invites": len(invites)}
-    return {"ok": True, "team": team, "pending_invites": len(_active_invites(caller))}
+        return {
+            "ok": False,
+            "reason": "team_not_joined",
+            "pending_invites": invite_rows,
+            "expired_invites_count": expired_count,
+        }
+    return {
+        "ok": True,
+        "team": team,
+        "pending_invites": invite_rows,
+        "expired_invites_count": expired_count,
+    }
 
 
 def create_team(caller, name=None):
@@ -245,6 +256,17 @@ def _split_invites(caller):
     if active != invites:
         caller.db.team_invites = active
     return active, expired_count
+
+
+def _serialize_invite(invite):
+    expires_in = max(0, int(invite.get("expires_at", 0)) - int(time.time()))
+    return {
+        "team_id": invite.get("team_id"),
+        "team_name": invite.get("team_name"),
+        "leader_id": invite.get("leader_id"),
+        "leader_name": invite.get("leader_name"),
+        "expires_in": expires_in,
+    }
 
 
 def _select_invite(invites, leader_name):
