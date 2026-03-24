@@ -1,5 +1,6 @@
 """Starter combat helpers."""
 
+from .chat import notify_player
 from .content_loader import load_content
 from .items import create_loot, get_item_definition, get_item_definition_by_id, resolve_item_key
 from .player_stats import apply_exp, get_stats
@@ -41,6 +42,10 @@ def attack_training_target(caller, target):
         drop = None
         if drop_key and drop_desc:
             drop = create_loot(caller, key=drop_key, item_id=drop_item_id, desc=drop_desc)
+        message = f"击败 {target.key}，获得修为 +{reward_exp}。"
+        if drop:
+            message += f" 掉落：{drop.key}。"
+        notify_player(caller, message, code="combat_reward")
         return {
             "ok": True,
             "result": "kill",

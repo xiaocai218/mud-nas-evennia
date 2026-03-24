@@ -1,5 +1,6 @@
 """Shop lookups and purchase helpers."""
 
+from .chat import notify_player
 from .content_loader import load_content
 from .items import create_reward_item, get_item_definition_by_id
 from .player_stats import get_currency, spend_currency
@@ -72,6 +73,11 @@ def buy_item(caller, item_name):
         }
 
     item = create_reward_item(caller, item_id=entry["item_id"])
+    notify_player(
+        caller,
+        f"购买成功：{item.key}，花费 {entry['price']} {shop.get('currency', '铜钱')}。",
+        code="shop_purchase",
+    )
     return {
         "ok": True,
         "item": item,

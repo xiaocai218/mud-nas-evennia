@@ -60,6 +60,7 @@
   - 统一处理实时聊天频道、私聊、系统消息和频道静音
   - 当前复用 Evennia channel 能力，不单独造底层广播
   - 当前已开始为 H5 输出结构化 `chat.message` 事件
+  - `系统` 消息当前已开始接入任务推进、购买成功和战斗掉落提示
 - `content_loader.py`
   - 统一加载 `world/data/*.json`
   - 当前 realms、items、quests、dialogues、npc_routes、help_content 等已开始共用这一层

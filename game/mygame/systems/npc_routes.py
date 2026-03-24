@@ -1,5 +1,6 @@
 """NPC talk route configuration helpers."""
 
+from systems.chat import notify_player
 from systems.content_loader import load_content
 from systems.dialogues import get_dialogue
 from systems.quests import (
@@ -78,6 +79,7 @@ def _handle_dialogue(caller, action):
 def _handle_start_main_stage(caller, action):
     set_main_quest_state(caller, action["stage"])
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+    notify_player(caller, f"主线已更新：{action['stage']}", code="quest_main_started")
     return True
 
 
@@ -87,12 +89,14 @@ def _handle_complete_main_stage(caller, action):
     reward = rewards["reward"]
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
     _send_reward_messages(caller, action, rewards)
+    notify_player(caller, f"主线已推进：{action['stage']}", code="quest_main_completed")
     return True
 
 
 def _handle_start_side_quest(caller, action):
     start_side_quest(caller, action["quest"])
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+    notify_player(caller, f"支线已接取：{action['quest']}", code="quest_side_started")
     return True
 
 
@@ -102,6 +106,7 @@ def _handle_complete_side_quest(caller, action):
     reward = rewards["reward"]
     caller.msg(get_dialogue(*action["dialogue"].split(".", 1), **_build_dialogue_kwargs(action, reward)))
     _send_reward_messages(caller, action, rewards)
+    notify_player(caller, f"支线已完成：{action['quest']}", code="quest_side_completed")
     return True
 
 

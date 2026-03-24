@@ -4,8 +4,8 @@ import time
 
 import evennia
 
+from systems.chat_payloads import serialize_chat_message
 from systems.event_bus import chat_message_event, enqueue_account_event
-from systems.serializers import serialize_chat_message
 
 
 CHANNEL_WORLD = "world"
@@ -200,6 +200,10 @@ def send_system_message(message, recipients=None, code=None, level="info"):
         "delivered": delivered,
         "text": formatted,
     }
+
+
+def notify_player(recipient, message, code=None, level="info"):
+    return send_system_message(message, recipients=[recipient], code=code, level=level)
 
 
 def _send_channel_message(channel_name, caller, text):
