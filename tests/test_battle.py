@@ -19,6 +19,7 @@ import django  # noqa: E402
 django.setup()
 
 from systems import battle  # noqa: E402
+from commands.combat import CmdPlayCard  # noqa: E402
 
 
 class FakeCaller:
@@ -195,6 +196,21 @@ class BattleTests(unittest.TestCase):
             logs = battle.get_battle_log(caller, limit=5)
         self.assertTrue(logs)
         self.assertEqual(logs[-1]["type"], "basic_attack")
+
+    def test_play_card_accepts_direct_card_command_alias(self):
+        caller = FakeCaller()
+        command = CmdPlayCard()
+        command.caller = caller
+        command.args = ""
+        command.cmdstring = "防御"
+
+        with (
+            patch("commands.combat.get_battle_snapshot", return_value={"battle_id": "battle_1", "available_cards": [], "participants": [], "status": "active", "turn_count": 1, "current_actor_name": caller.key, "log": []}),
+            patch("commands.combat.submit_action", return_value={"ok": True, "battle": {"battle_id": "battle_1", "available_cards": [], "participants": [], "status": "active", "turn_count": 1, "current_actor_name": caller.key, "log": [{"actor_name": caller.key, "card_id": "guard", "value": 8}]}}) as mock_submit,
+        ):
+            command.func()
+
+        mock_submit.assert_called_once_with(caller, "guard", target_id=None, item_id=None)
 
 
 if __name__ == "__main__":

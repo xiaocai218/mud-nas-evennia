@@ -87,7 +87,20 @@ class CmdBattleStatus(Command):
 
 class CmdPlayCard(Command):
     key = "出牌"
-    aliases = ["playcard", "play"]
+    aliases = [
+        "playcard",
+        "play",
+        "普通攻击",
+        "防御",
+        "使用战斗物品",
+        "物品",
+        "灵击",
+        "金锋术",
+        "回春诀",
+        "水幕诀",
+        "炽焰诀",
+        "岩甲诀",
+    ]
     locks = "cmd:all()"
     help_category = "战斗"
     battle_allowed = True
@@ -99,6 +112,10 @@ class CmdPlayCard(Command):
             caller.msg("你当前没有进入战斗。")
             return
         raw = self.args.strip()
+        invoked_as = (getattr(self, "cmdstring", "") or "").strip()
+        direct_card_invocation = invoked_as and invoked_as != self.key and invoked_as in self.aliases
+        if direct_card_invocation:
+            raw = f"{invoked_as} {raw}".strip()
         if not raw:
             caller.msg("用法：|w出牌 普通攻击 目标名|n、|w出牌 防御|n、|w出牌 灵击 目标名|n、|w出牌 物品 物品ID|n")
             return
@@ -148,7 +165,32 @@ def _render_battle_summary(battle):
         )
     if battle.get("log"):
         last = battle["log"][-1]
-        lines.append(f"|g最近行动|n: {last.get('actor_name', '系统')} -> {last.get('type')} ({last.get('value', 0)})")
+        action_name = _display_name_for_log_entry(last)
+        lines.append(f"|g最近行动|n: {last.get('actor_name', '系统')} -> {action_name} ({last.get('value', 0)})")
     if battle.get("current_actor_name"):
         lines.append("|g可用卡牌|n: " + "、".join(card["name"] for card in battle.get("available_cards", []) or []))
+        lines.append("|g出牌方式|n: 直接输入卡牌名，或使用 |w出牌 卡牌名 [目标]|n")
     return "\n".join(lines)
+
+
+def _display_name_for_log_entry(entry):
+    card_id = entry.get("card_id")
+    if card_id:
+        return {
+            "basic_attack": "普通攻击",
+            "guard": "防御",
+            "use_combat_item": "使用战斗物品",
+            "spirit_blast": "灵击",
+            "metal_edge": "金锋术",
+            "wood_rejuvenation": "回春诀",
+            "water_barrier": "水幕诀",
+            "fire_burst": "炽焰诀",
+            "earth_guard": "岩甲诀",
+            "recover_instinct": "兽性回生",
+        }.get(card_id, card_id)
+    return {
+        "basic_attack": "普通攻击",
+        "guard": "防御",
+        "use_combat_item": "使用战斗物品",
+        "skill_card": "技能",
+    }.get(entry.get("type"), entry.get("type", "unknown"))
