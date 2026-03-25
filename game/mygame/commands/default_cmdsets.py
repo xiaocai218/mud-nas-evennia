@@ -16,7 +16,16 @@ from .chat import (
 from .combat import CmdAttack, CmdBattleStatus, CmdPlayCard, CmdTrain
 from .core import CmdGather, CmdNewbie, CmdRead, CmdStatus, CmdTrigger
 from .cultivation import CmdCultivate, CmdRecoverHp, CmdRest
-from .devtools import CmdContent, CmdTestAddMoney, CmdTestChooseRoot, CmdTestGoto, CmdTestResetRoot
+from .devtools import (
+    CmdContent,
+    CmdTestAddMoney,
+    CmdTestBattleRoom,
+    CmdTestChooseRoot,
+    CmdTestGoto,
+    CmdTestRefreshEnemy,
+    CmdTestResetBattle,
+    CmdTestResetRoot,
+)
 from .inventory import CmdInventory, CmdRefine, CmdUseItem
 from .market import (
     CmdBuyMarketItem,
@@ -92,5 +101,8 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdContent())
         self.add(CmdTestGoto())
         self.add(CmdTestAddMoney())
+        self.add(CmdTestBattleRoom())
+        self.add(CmdTestRefreshEnemy())
+        self.add(CmdTestResetBattle())
         self.add(CmdTestChooseRoot())
         self.add(CmdTestResetRoot())

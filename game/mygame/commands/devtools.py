@@ -12,8 +12,9 @@ from systems.content_loader import (
     reload_content,
     validate_content,
 )
+from systems.enemy_model import ensure_enemy_model, get_enemy_definition, is_enemy
 from systems.object_index import get_object_by_content_id
-from systems.player_stats import add_currency
+from systems.player_stats import add_currency, get_stats
 from systems.quests import ROOT_CHOICE_READY, prepare_root_choice_state
 from systems.world_objects import trigger_object
 
@@ -24,6 +25,9 @@ TEST_DESTINATIONS = {
     "青云外门": "room_qingyun_outer_court",
     "升仙台": "room_shengxian_platform",
     "测灵石": "room_shengxian_platform",
+    "试战木场": "room_ferry_battle_yard",
+    "战斗房": "room_ferry_battle_yard",
+    "测试战斗房": "room_ferry_battle_yard",
 }
 
 class CmdContent(Command):
@@ -275,6 +279,92 @@ class CmdTestResetRoot(Command):
         target.msg("[系统] 管理员已将你恢复到升仙台测灵前的待选择状态。")
 
 
+class CmdTestBattleRoom(Command):
+    key = "测试战斗房"
+    aliases = ["testbattle", "devbattle"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        target = caller
+        if raw:
+            target = _find_test_target(raw)
+            if not target:
+                caller.msg("没有找到要传送到测试战斗房的目标玩家。")
+                return
+
+        room = _find_room_by_content_id("room_ferry_battle_yard")
+        if not room:
+            caller.msg("试战木场当前不存在。请先同步世界并重跑 start_area。")
+            return
+
+        target.move_to(room, quiet=True)
+        if target == caller:
+            caller.msg("你已被传送至试战木场。")
+            return
+        caller.msg(f"你已将 {target.key} 传送至试战木场。")
+        target.msg("[系统] 管理员已将你传送至试战木场。")
+
+
+class CmdTestRefreshEnemy(Command):
+    key = "测试刷新敌人"
+    aliases = ["testenemy", "refreshenemy", "devenemy"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        if raw:
+            enemy = _find_enemy_target(raw, caller.location)
+            if not enemy:
+                caller.msg("没有找到要刷新的测试敌人。可传入内容 id、enemy_id 或当前房间中的敌人名字。")
+                return
+            refreshed = [_refresh_enemy(enemy)]
+        else:
+            refreshed = []
+            for obj in _get_room_objects(caller.location):
+                if not is_enemy(obj):
+                    continue
+                refreshed.append(_refresh_enemy(obj))
+            if not refreshed:
+                caller.msg("当前房间没有可刷新的敌人。")
+                return
+
+        rows = [entry for entry in refreshed if entry]
+        caller.msg("测试刷新敌人完成：\n" + "\n".join(f"- {entry}" for entry in rows))
+
+
+class CmdTestResetBattle(Command):
+    key = "测试重置战斗"
+    aliases = ["resetbattle", "devresetbattle"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        target = caller
+        if raw:
+            target = _find_test_target(raw)
+            if not target:
+                caller.msg("没有找到要重置战斗状态的目标玩家。")
+                return
+
+        stats = get_stats(target)
+        target.db.battle_id = None
+        target.db.hp = stats["max_hp"]
+        target.db.mp = stats["max_mp"]
+        target.db.stamina = stats["max_stamina"]
+        if target == caller:
+            caller.msg("测试重置战斗完成：你的战斗状态、气血、灵力与体力已重置。")
+            return
+        caller.msg(f"测试重置战斗完成：已重置 {target.key} 的战斗状态。")
+        target.msg("[系统] 管理员已重置你的战斗状态、气血、灵力与体力。")
+
+
 def _find_test_target(target_name):
     matches = evennia.search_object(target_name)
     if matches:
@@ -291,3 +381,41 @@ def _find_room_by_content_id(content_id):
 
 def _find_object_by_content_id(content_id):
     return _find_room_by_content_id(content_id)
+
+
+def _get_room_objects(room):
+    if not room:
+        return []
+    contents = getattr(room, "contents", None)
+    if contents is not None:
+        return list(contents)
+    contents_get = getattr(room, "contents_get", None)
+    if callable(contents_get):
+        return list(contents_get())
+    return []
+
+
+def _find_enemy_target(raw, room=None):
+    direct = get_object_by_content_id(raw)
+    if direct and is_enemy(direct):
+        return direct
+    room_objects = _get_room_objects(room)
+    for obj in room_objects:
+        if not is_enemy(obj):
+            continue
+        if getattr(obj.db, "enemy_id", None) == raw or obj.key == raw:
+            return obj
+    return None
+
+
+def _refresh_enemy(enemy):
+    enemy_id = getattr(enemy.db, "enemy_id", None) or getattr(enemy.db, "template_id", None)
+    definition = get_enemy_definition(enemy_id)
+    if not definition:
+        return None
+    enemy.db.battle_id = None
+    sheet = ensure_enemy_model(enemy)
+    enemy.db.max_hp = sheet["combat_stats"]["max_hp"]
+    enemy.db.hp = sheet["combat_stats"]["max_hp"]
+    enemy.db.combat_stats = {**sheet["combat_stats"], "hp": sheet["combat_stats"]["max_hp"]}
+    return f"{enemy.key} -> HP {enemy.db.hp}/{enemy.db.max_hp}"

@@ -43,6 +43,12 @@
       "key": "临溪村舍",
       "desc": "几张旧木凳和矮桌挤在不大的屋里，窗边挂着还没完全干透的蓑衣。这里没有什么机缘与试炼，只让人想起山下凡居的安稳日子。"
     },
+    "battle_yard": {
+      "content_id": "room_ferry_battle_yard",
+      "area_id": "qingyundu_village",
+      "key": "试战木场",
+      "desc": "一片被旧木栅围起来的空场藏在松影之后，地上铺着被反复踩实的黄土，四角插着褪色的布旗。这里显然是专门留给新人试验拳脚与战斗流程的地方，既不会扰乱村口，也方便随时重置目标继续测试。"
+    },
     "valley": {
       "content_id": "room_valley_walk",
       "area_id": "qingyun_outer_gate",
@@ -146,6 +152,18 @@
       "to": "general_store",
       "key": "北",
       "aliases": ["north", "n"]
+    },
+    {
+      "from": "pine",
+      "to": "battle_yard",
+      "key": "北",
+      "aliases": ["north", "n"]
+    },
+    {
+      "from": "battle_yard",
+      "to": "pine",
+      "key": "南",
+      "aliases": ["south", "s"]
     },
     {
       "from": "stair",

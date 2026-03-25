@@ -311,5 +311,105 @@
       "drop_desc": null,
       "tags": ["beast"]
     }
+  },
+  "battle_yard_ruffian": {
+    "id": "enemy_battle_yard_ruffian",
+    "room_id": "battle_yard",
+    "identity": {
+      "name": "试战恶徒",
+      "kind": "enemy",
+      "enemy_type": "mortal_enemy",
+      "faction": "rogue_mortal",
+      "is_boss": false,
+      "tags": ["mortal", "test_enemy", "battle_yard"]
+    },
+    "progression": {
+      "stage": "mortal",
+      "realm": "凡人",
+      "rank_tier": "common",
+      "spawn_profile": {
+        "room_id": "battle_yard"
+      },
+      "kill_credit_flags": []
+    },
+    "primary_stats": {
+      "physique": 6,
+      "aether": 1,
+      "spirit": 2,
+      "agility": 4,
+      "bone": 5
+    },
+    "combat_stats": {
+      "hp": 60,
+      "max_hp": 60,
+      "mp": 0,
+      "max_mp": 0,
+      "stamina": 50,
+      "max_stamina": 50,
+      "attack_power": 14,
+      "spell_power": 0,
+      "defense": 8,
+      "speed": 10,
+      "crit_rate": 0,
+      "crit_damage": 150,
+      "healing_power": 0,
+      "shield_power": 0,
+      "control_power": 0,
+      "control_resist": 0,
+      "threat_modifier": 100
+    },
+    "affinities": {
+      "element": null,
+      "damage_tags": ["physical"],
+      "resist_tags": [],
+      "drop_theme": []
+    },
+    "reserves": {
+      "resources": {}
+    },
+    "enemy_meta": {
+      "loot_table_id": null,
+      "respawn_policy": {
+        "mode": "reset_on_kill"
+      },
+      "quest_hooks": {},
+      "boss_modifiers": {
+        "damage_reduction_pct": 0,
+        "penetration_pct": 0,
+        "bonus_max_hp_pct": 0,
+        "bonus_defense_pct": 0,
+        "control_resist_bonus": 0,
+        "phase_shield": 0,
+        "pressure_tags": []
+      },
+      "ai_profile": {
+        "mode": "basic"
+      },
+      "engage_rules": {},
+      "presentation": {
+        "desc": "一个被安排来反复试战的凡俗恶徒拎着旧木棍站在场边，步子虚浮却还算凶狠。他显然不是什么真正的强敌，更像是给管理员和开发流程专门留出的标准测试单位。"
+      },
+      "core_type": null,
+      "battle_ai_profile": {
+        "mode": "basic"
+      },
+      "battle_card_pool": ["basic_attack", "guard"],
+      "decision_rules": [
+        {
+          "when": {
+            "self_hp_lte_pct": 40
+          },
+          "use_card": "guard"
+        }
+      ],
+      "reward_exp": 0,
+      "damage_taken": 10,
+      "counter_damage": 4,
+      "stamina_cost": 5,
+      "drop_item_id": null,
+      "drop_key": null,
+      "drop_desc": null,
+      "tags": ["test_enemy"]
+    }
   }
 }
