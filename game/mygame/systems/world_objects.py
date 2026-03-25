@@ -1,4 +1,30 @@
-"""Helpers for configured world objects."""
+"""配置驱动的场景对象交互层。
+
+负责内容：
+- 根据对象上的 `read_config` / `gather_config` / `trigger_effect` 解释交互行为。
+- 为 `阅读`、`采集`、`触发` 三类入口提供统一 helper。
+- 兼容旧对象散字段，并逐步收口到配置驱动模型。
+
+不负责内容：
+- 不负责对象的创建与铺设；那部分在 world/start_area 与内容数据层。
+- 不负责具体 buff / restore 数值结算；这些交给 effect_executor。
+
+主要输入 / 输出：
+- 输入：玩家对象 `caller`、live object `target`、可选触发参数 `option`。
+- 输出：统一的 `{"ok": bool, ...}` 结果字典，供命令层和 action router 复用。
+
+上游调用者：
+- `commands/core.py`
+- `action_router.py`
+- 需要按 `content_id` 驱动对象行为的其他系统模块
+
+排错优先入口：
+- `get_readable_text`
+- `gather_from_object`
+- `trigger_object`
+- `teleport_via_object`
+- `awaken_root_via_object`
+"""
 
 from systems.character_model import ROOT_CHOICES, awaken_spiritual_root, get_root_label, normalize_root_choice
 from systems.effect_executor import execute_effect
@@ -40,12 +66,15 @@ TELEPORT_CONFIG_FALLBACK_KEYS = [
 BUFF_CONFIG_FALLBACK_KEYS = ["buff_key", "buff_bonus", "buff_duration", "buff_label", "buff_text"]
 SPIRITUAL_ROOT_CONFIG_FALLBACK_KEYS = ["text", "confirm_text", "already_awakened_text"]
 
+
 def _get_config(target, attr_name, fallback_keys=None):
     config = getattr(target.db, attr_name, None)
     if config:
         return config
     if not fallback_keys:
         return None
+    # 旧对象还可能把配置散落在单独 db 字段上。
+    # 这里保留 fallback，是为了让内容逐步迁移到统一 config 结构时不必一次性重建所有 live object。
     data = {}
     for key in fallback_keys:
         value = getattr(target.db, key, None)
@@ -172,6 +201,8 @@ def teleport_via_object(caller, target):
 
     legacy_required_main_state = (trigger_config or {}).get("required_main_state")
     if legacy_required_main_state and not requirements:
+        # 兼容早期仅用 trigger_effect.required_main_state 描述门禁的对象配置。
+        # 新配置优先使用 trigger_requirements，避免 teleport/buff/spiritual_root 重复发明条件字段。
         requirements = {"main_state_is": legacy_required_main_state, "fail_text": (trigger_config or {}).get("locked_text")}
     requirement_result = _check_requirements(caller, requirements)
     if not requirement_result["ok"]:
@@ -261,6 +292,7 @@ def trigger_object(caller, target, option=None):
         return {"ok": False, "reason": "not_triggerable", "text": f"{target.key} 看起来并不会回应你的触碰。"}
 
     effect_type = _resolve_trigger_type(target, trigger_config)
+    # 触发类型统一走 handler 映射，避免后续新增对象效果时把条件分支继续堆回单个函数。
     handler = TRIGGER_HANDLERS.get(effect_type)
     if handler:
         return handler(caller, target, trigger_config=trigger_config, option=option)

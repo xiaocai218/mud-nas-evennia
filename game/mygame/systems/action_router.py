@@ -1,4 +1,29 @@
-"""Structured action routing layer for future H5/API clients."""
+"""H5/API 动作分发入口。
+
+负责内容：
+- 作为结构化客户端的统一 action -> handler 入口。
+- 约束 payload 的最小读取方式，并把各子系统结果包装成统一 response。
+- 在战斗中执行动作门禁，避免客户端绕过回合制限制直接改世界状态。
+
+不负责内容：
+- 不实现任务、战斗、聊天、物品等具体规则。
+- 不承担 HTTP 鉴权、请求解包与路由注册；这些在 web/api 层处理。
+
+主要输入 / 输出：
+- 输入：角色对象 `caller`、动作名 `action`、可选 `payload` 字典。
+- 输出：`build_response(...)` 生成的结构化响应，失败时统一返回 error code。
+
+上游调用者：
+- 主要由 `web/api/views.py` 的 H5 接口调用。
+- 也可被未来 WebSocket / 其他客户端协议层复用。
+
+排错优先入口：
+- `dispatch_action`
+- `_handle_move`
+- `_handle_trigger_object`
+- `_handle_attack`
+- `_handle_battle_*`
+"""
 
 from systems.battle import (
     get_battle_snapshot,
@@ -24,6 +49,9 @@ from systems.quests import get_quest_status_text
 from systems.serializers import (
     build_bootstrap_payload,
     serialize_inventory,
+    serialize_chat_status,
+    serialize_person_detail,
+    serialize_ui_preferences,
     serialize_market_in_room,
     serialize_my_market_status,
     serialize_room,
@@ -72,7 +100,9 @@ def dispatch_action(caller, action, payload=None):
         "chat_world": _handle_chat_world,
         "chat_team": _handle_chat_team,
         "chat_private": _handle_chat_private,
+        "chat_status": _handle_chat_status,
         "talk": _handle_talk,
+        "inspect_person": _handle_inspect_person,
         "attack": _handle_attack,
         "battle_status": _handle_battle_status,
         "battle_play_card": _handle_battle_play_card,
@@ -82,12 +112,15 @@ def dispatch_action(caller, action, payload=None):
     handler = handlers.get(action)
     if not handler:
         return build_response(False, error={"code": "unknown_action"})
+    # 战斗中的 world state 必须只通过战斗动作推进。
+    # 如果这里放开，H5 客户端可以在回合外执行移动/交互/购买，导致战斗快照和真实世界状态脱节。
     if is_character_in_battle(caller) and action not in {
         "attack",
         "battle_status",
         "battle_play_card",
         "battle_available_cards",
         "battle_targets",
+        "chat_status",
         "chat_team",
         "bootstrap",
     }:
@@ -107,6 +140,8 @@ def _handle_move(caller, payload):
     direction = payload.get("direction")
     exit_obj = caller.search(direction, candidates=caller.location.exits, quiet=True)
     if not exit_obj:
+        # action_router 统一返回结构化 error code，方便 H5 直接映射文案和埋点，
+        # 不要求前端再去解析 MUD 终端文本。
         return build_response(False, error={"code": "exit_not_found", "message": f"没有 '{direction}' 这个出口"})
 
     target = exit_obj[0] if isinstance(exit_obj, list) else exit_obj
@@ -347,6 +382,18 @@ def _handle_chat_private(caller, payload):
     )
 
 
+def _handle_chat_status(caller, payload):
+    chat_status = serialize_chat_status(caller)
+    return build_response(
+        True,
+        {
+            "channels": chat_status["channels"],
+            "recent_messages": chat_status["recent_messages"],
+            "ui_preferences": serialize_ui_preferences(caller),
+        },
+    )
+
+
 def _handle_talk(caller, payload):
     target = caller.search(payload.get("target"), location=caller.location)
     if not target:
@@ -363,6 +410,16 @@ def _handle_talk(caller, payload):
             "quests_text": get_quest_status_text(caller),
         },
     )
+
+
+def _handle_inspect_person(caller, payload):
+    target = caller.search(payload.get("target"), location=caller.location)
+    if not target:
+        return build_response(False, error={"code": "target_not_found"})
+    detail = serialize_person_detail(target)
+    if not detail:
+        return build_response(False, error={"code": "target_not_person"})
+    return build_response(True, {"target": target.key, "person": detail})
 
 
 def _handle_attack(caller, payload):

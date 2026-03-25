@@ -1,4 +1,31 @@
-"""Player consignment market helpers."""
+"""玩家寄售坊市系统。
+
+负责内容：
+- 管理坊市挂牌、购买、下架 / 取回、收益待领取和过期状态。
+- 维护 ServerConfig 中的寄售 registry，并把 live item 暂时托管出玩家背包。
+- 为命令层和 H5 提供统一的坊市列表、个人状态和结算结果。
+
+不负责内容：
+- 不负责房间设施发现规则；坊市是否存在于当前房间由 `commerce.py` 处理。
+- 不做拍卖、议价、批量挂牌或复杂订单撮合。
+
+主要输入 / 输出：
+- 输入：玩家对象、挂牌 id、物品名、价格、页码、关键字。
+- 输出：统一 commerce success/error 结构和 listing 摘要。
+
+上游调用者：
+- `commands/market.py`
+- `serializers.py`
+- `action_router.py`
+
+排错优先入口：
+- `list_market_goods`
+- `list_my_market_status`
+- `create_market_listing`
+- `buy_market_listing`
+- `cancel_market_listing`
+- `claim_market_earnings`
+"""
 
 from __future__ import annotations
 
@@ -118,6 +145,8 @@ def create_market_listing(caller, item_name, price):
         listing["item_object_id"] == item_id and listing["status"] in {"active", "expired"}
         for listing in state["listings"].values()
     ):
+        # expired 但未 reclaim 的物品仍视为“占用中的挂牌”。
+        # 否则同一个 live item 会在 registry 里出现多条记录，后续取回 / 售出时很难判断归属。
         return build_commerce_error("item_already_listed", item_name=item.key)
 
     listing_id = _next_listing_id(state)
@@ -174,6 +203,8 @@ def buy_market_listing(caller, listing_id):
 
     item = _get_object_by_id(listing["item_object_id"])
     if not item:
+        # registry 里有挂牌，但物品实体已丢失时，直接把挂牌降级为 canceled。
+        # 继续保留 active 只会让玩家反复点到一个永远买不到的脏 listing。
         listing["status"] = "canceled"
         listing["updated_at"] = int(time.time())
         _save_state(state)
@@ -184,6 +215,8 @@ def buy_market_listing(caller, listing_id):
     listing["buyer_id"] = _get_character_id(caller)
     listing["buyer_name"] = caller.key
     listing["sold_at"] = int(time.time())
+    # 收益先进入 pending_earnings，而不是直接打给卖家。
+    # 这样卖家离线时也不会丢账，并且能保持“领取坊市”这条显式反馈链路。
     state["pending_earnings"][str(listing["seller_id"])] = (
         int(state["pending_earnings"].get(str(listing["seller_id"]), 0)) + int(listing["price"])
     )
@@ -230,13 +263,16 @@ def cancel_market_listing(caller, listing_id):
         return build_commerce_error("item_unavailable", listing_id=str(listing_id))
 
     _release_item(item, caller)
-    if listing["status"] == "active":
+    was_active = listing["status"] == "active"
+    if was_active:
         listing["status"] = "canceled"
         listing["canceled_at"] = int(time.time())
     else:
         listing["reclaimed_at"] = int(time.time())
     _save_state(state)
-    verb = "下架" if listing["status"] == "canceled" else "取回"
+    # 这里根据取消前状态决定提示文案，而不是根据写回后的 status。
+    # expired 物品取回后本身仍保留 expired 状态，只是多了 reclaimed_at，方便区分“已过期且已处理”。
+    verb = "下架" if was_active else "取回"
     notify_player(
         caller,
         f"你已从 {market['key']}{verb} {listing['item_name']}。",
@@ -319,6 +355,8 @@ def _expire_listings(state):
     changed = False
     for listing in state["listings"].values():
         if listing["status"] == "active" and listing.get("expires_at", 0) <= now:
+            # 过期不会自动把物品塞回背包，只是转成 reclaimable。
+            # 这样可以避免玩家离线或背包状态复杂时发生隐式移动。
             listing["status"] = "expired"
             listing["expired_at"] = now
             changed = True
@@ -363,6 +401,8 @@ def _get_status_label(status):
 def _store_item(item, listing_id):
     if hasattr(item, "db"):
         item.db.market_listing_id = listing_id
+    # 挂牌时先把物品脱离玩家 location，视为进入坊市托管。
+    # 后续一切售出 / 取回都以 registry 和 market_listing_id 为准，不再依赖背包遍历。
     item.location = None
     if hasattr(item, "save"):
         item.save()

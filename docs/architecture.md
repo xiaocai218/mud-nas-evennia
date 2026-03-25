@@ -1,5 +1,11 @@
 # Architecture
 
+配套阅读：
+
+- [开发文档索引](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\README.md)
+- [代码阅读与排错入口](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\code_reading_and_troubleshooting.md)
+- [内容配置字段参考](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\content_schema_reference.md)
+
 ## 目标
 
 当前项目进入了“可以持续扩展”的阶段，所以代码结构按两层拆分：

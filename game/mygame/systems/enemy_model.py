@@ -1,9 +1,38 @@
-"""Unified enemy model helpers."""
+"""统一敌人模型入口。
+
+负责内容：
+- 把结构化敌人定义、旧式散字段敌人和运行态 live object 归一到统一 enemy sheet。
+- 维护 identity / progression / combat_stats / enemy_meta 等正式字段。
+- 把统一敌人模型写回旧系统仍在使用的兼容字段。
+
+不负责内容：
+- 不负责实际战斗结算；那部分在 `battle.py` / `battle_effects.py`。
+- 不负责刷新策略执行；这里只保存 respawn_policy 等元数据。
+
+主要输入 / 输出：
+- 输入：enemy 定义 id、live enemy object、可能存在的旧字段。
+- 输出：统一 enemy definition / enemy sheet / runtime enemy object。
+
+上游调用者：
+- `battle.py`
+- `serializers.py`
+- `quests.py`
+- 内容铺设和测试刷怪逻辑
+
+排错优先入口：
+- `get_enemy_definition`
+- `ensure_enemy_model`
+- `get_enemy_sheet`
+- `_resolve_definition_for_target`
+- `_normalize_structured_enemy`
+- `_write_compatibility_fields`
+"""
 
 import uuid
 from copy import deepcopy
 
 from .content_loader import load_content
+from .entity_gender import GENDER_UNKNOWN, normalize_gender
 
 
 MORTAL_ENEMY = "mortal_enemy"
@@ -85,6 +114,7 @@ def ensure_enemy_model(target):
     target.db.reserves = sheet["reserves"]
     target.db.enemy_meta = sheet["enemy_meta"]
 
+    # 统一模型写回后，再同步旧字段，保证 battle / serializer / 旧命令层看到的是同一份运行态。
     _write_compatibility_fields(target, sheet)
     return {
         "identity": deepcopy(sheet["identity"]),
@@ -164,6 +194,8 @@ def _resolve_definition_for_target(target):
     runtime_combat = getattr(target.db, "combat_stats", None) or {}
     runtime_meta = getattr(target.db, "enemy_meta", None) or {}
     if runtime_identity.get("kind") == "enemy" and runtime_combat:
+        # 如果 live object 已经带有结构化 enemy 字段，优先信运行态对象而不是静态模板。
+        # 这样战斗中的 hp、动态 spawn content_id、临时改过的 meta 不会被模板回刷覆盖。
         return _normalize_structured_enemy(
             enemy_id or runtime_identity.get("template_id") or runtime_identity.get("content_id") or getattr(target, "key", "enemy"),
             {
@@ -188,6 +220,8 @@ def _normalize_enemy_definition(enemy_id, raw, target=None):
     raw = dict(raw or {})
     if raw.get("identity"):
         return _normalize_structured_enemy(enemy_id, raw)
+    # 老 enemy 配置和早期 live object 仍可能只有散字段。
+    # 统一先桥接成 structured enemy，再让后续系统只面对一种数据形状。
     return _normalize_legacy_enemy(enemy_id, raw, target=target)
 
 
@@ -207,6 +241,7 @@ def _normalize_structured_enemy(enemy_id, raw):
     identity.setdefault("template_id", enemy_id)
     identity.setdefault("content_id", raw.get("id", enemy_id))
     identity.setdefault("faction", "wild")
+    identity["gender"] = normalize_gender(identity.get("gender"), default=GENDER_UNKNOWN)
     identity["is_boss"] = bool(identity.get("is_boss"))
     identity["tags"] = list(identity.get("tags", []))
 
@@ -310,6 +345,7 @@ def _normalize_legacy_enemy(enemy_id, raw, target=None):
         "identity": {
             "kind": "enemy",
             "name": key,
+            "gender": normalize_gender(raw.get("gender") or getattr(getattr(target, "db", None), "gender", None), default=GENDER_UNKNOWN),
             "enemy_type": enemy_type,
             "faction": raw.get("faction", "wild"),
             "is_boss": bool(raw.get("is_boss")),
@@ -345,6 +381,8 @@ def _build_enemy_sheet(target, definition):
     has_structured_runtime = bool((getattr(target.db, "identity", None) or {}).get("kind") == "enemy" and getattr(target.db, "combat_stats", None))
     runtime_hp = getattr(target.db, "hp", None)
     runtime_max_hp = getattr(target.db, "max_hp", None)
+    # 对 structured runtime enemy，优先保留 combat_stats 自己维护的上限；
+    # 对 legacy enemy，则继续兼容读取旧的 hp/max_hp 散字段。
     if runtime_max_hp is not None and not has_structured_runtime:
         combat_stats["max_hp"] = int(runtime_max_hp)
     if runtime_hp is not None:
@@ -366,6 +404,7 @@ def _write_compatibility_fields(target, sheet):
     target.db.content_id = identity.get("content_id")
     target.db.enemy_type = identity.get("enemy_type")
     target.db.faction = identity.get("faction")
+    target.db.gender = identity.get("gender")
     target.db.is_boss = identity.get("is_boss")
     target.db.tags = list(identity.get("tags", []))
     target.db.realm = progression.get("realm")

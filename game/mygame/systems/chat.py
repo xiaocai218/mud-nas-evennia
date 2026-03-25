@@ -1,4 +1,31 @@
-"""Realtime chat helpers built on top of Evennia channels."""
+"""基于 Evennia channel 的实时聊天层。
+
+负责内容：
+- 统一世界 / 队伍 / 系统 / 私聊四类消息发送入口。
+- 维护受管频道的创建、归一化、静音状态和历史消息缓存。
+- 把文本消息同步写入账号事件流，供 H5 与终端共用。
+
+不负责内容：
+- 不负责队伍成员关系；那部分在 `teams.py`。
+- 不负责前端展示样式；这里只产出标准文本和结构化 chat event。
+
+主要输入 / 输出：
+- 输入：发送者、频道名、目标玩家名、消息文本、系统消息 recipients。
+- 输出：统一 `{"ok": bool, ...}` 结果、格式化文本、结构化事件和投递数量。
+
+上游调用者：
+- `commands/chat.py`
+- `quests.py`、`teams.py`、`battle.py` 等需要发送系统提示的模块
+- H5 事件消费链路
+
+排错优先入口：
+- `send_world_message`
+- `send_team_message`
+- `send_private_message`
+- `send_system_message`
+- `_ensure_channel`
+- `_deliver_chat_event`
+"""
 
 import time
 
@@ -62,6 +89,15 @@ MANAGED_CHANNEL_ALIASES = {
     "chat_system",
 }
 
+CHAT_HISTORY_LIMIT = 80
+
+CHAT_OUTPUT_TYPES = {
+    CHANNEL_WORLD: "chat.world",
+    CHANNEL_TEAM: "chat.team",
+    CHANNEL_SYSTEM: "chat.system",
+    "private": "chat.private",
+}
+
 
 def get_channel_lockstring(channel_name):
     if channel_name == CHANNEL_SYSTEM:
@@ -107,6 +143,19 @@ def list_channel_status(caller):
         }
     )
     return statuses
+
+
+def get_recent_chat_messages(caller_or_account, limit=40):
+    account = _get_account(caller_or_account)
+    if not account:
+        return []
+    history = list(getattr(getattr(account, "db", None), "chat_message_history", []) or [])
+    resolved_limit = max(1, min(int(limit or 40), CHAT_HISTORY_LIMIT))
+    return history[-resolved_limit:]
+
+
+def get_chat_output_type(channel_name):
+    return CHAT_OUTPUT_TYPES.get(channel_name, "chat")
 
 
 def mute_channel(caller, raw_name):
@@ -198,6 +247,8 @@ def send_system_message(message, recipients=None, code=None, level="info"):
     event = chat_message_event(dto)
     formatted = f"[系统] {message}"
 
+    # 系统频道仍尊重静音设置。
+    # 这样系统提示、任务推进和掉落消息共享同一套用户偏好；如果后续有“强制送达”告警，应另起独立通道而不是绕过这里。
     delivered = _deliver_chat_event(recipients, formatted, event, muted_accounts=channel.mutelist)
 
     return {
@@ -274,6 +325,8 @@ def _ensure_channel(channel_name):
         matches = evennia.search_channel(legacy_name)
         if matches:
             channel = matches[0]
+            # 这里优先接管旧频道，而不是直接新建一个同义频道。
+            # 否则历史环境里可能同时存在 `世界` 和 `chat_world` 两个频道，导致静音、别名和监听状态分裂。
             _normalize_channel_identity(channel, channel_name)
             _apply_channel_configuration(channel, channel_name)
             return channel
@@ -307,13 +360,31 @@ def _normalize_channel_identity(channel, channel_name):
 def _deliver_chat_event(accounts, formatted, event, muted_accounts=None):
     delivered = 0
     muted = set(muted_accounts or [])
+    payload = event.get("payload", {}) if isinstance(event, dict) else {}
+    message_type = get_chat_output_type(payload.get("channel"))
     for account in accounts:
         if account in muted:
             continue
-        account.msg(formatted)
+        account.msg(text=(formatted, {"type": message_type}))
+        _append_account_chat_history(account, payload, formatted, message_type)
         enqueue_account_event(account, event)
         delivered += 1
     return delivered
+
+
+def _append_account_chat_history(account, payload, formatted, message_type):
+    if not account:
+        return
+    history = list(getattr(getattr(account, "db", None), "chat_message_history", []) or [])
+    history.append(
+        {
+            "channel": payload.get("channel"),
+            "formatted": formatted,
+            "type": message_type,
+            "message": dict(payload or {}),
+        }
+    )
+    account.db.chat_message_history = history[-CHAT_HISTORY_LIMIT:]
 
 
 def _get_online_accounts():

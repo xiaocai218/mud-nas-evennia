@@ -5,6 +5,15 @@
 仓库地址：
 - [GitHub](https://github.com/xiaocai218/mud-nas-evennia)
 
+## 阅读与排错入口
+
+如果目标是快速理解代码或排查故障，优先看这几份文档：
+
+- [docs/README.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\README.md)
+- [docs/code_reading_and_troubleshooting.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\code_reading_and_troubleshooting.md)
+- [docs/content_schema_reference.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\content_schema_reference.md)
+- [docs/architecture.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\architecture.md)
+
 ## 当前状态
 
 项目已经跑通在威联通 NAS 上，当前运行信息如下：
@@ -391,6 +400,7 @@ H5 视觉和布局参考也已经留档：
 - 新增 `area_exits.json`
 - 现有房间已开始补 `area_id`
 - `状态` 已开始显示当前区域
+- 为联调方便，当前已补 `青云外门前坪 <-> 溪谷栈道` 的临时返程出口，便于从外门回到新手村继续测试
 
 最新一轮设施与商店示例：
 

@@ -1,4 +1,30 @@
-"""Minimal persistent team system for text gameplay."""
+"""最小持久化组队系统。
+
+负责内容：
+- 维护最小队伍 registry、成员关系、队长转移和邀请有效期。
+- 为文本命令层和系统联动提供统一组队状态查询。
+- 支撑队伍聊天、任务协同进度和同区域队友筛选。
+
+不负责内容：
+- 不负责队伍频道广播实现；消息发送在 `chat.py`。
+- 不做副本、分配战利品、复杂权限或跨服组队。
+
+主要输入 / 输出：
+- 输入：玩家对象、目标玩家名、可选队伍名。
+- 输出：统一 `{"ok": bool, ...}` 结果和队伍快照。
+
+上游调用者：
+- `commands/team.py`
+- `chat.py`
+- `quests.py` / `battle.py` 的最小队伍联动逻辑
+
+排错优先入口：
+- `create_team`
+- `invite_to_team`
+- `accept_team_invite`
+- `leave_team`
+- `get_team_snapshot`
+"""
 
 from __future__ import annotations
 
@@ -109,6 +135,8 @@ def accept_team_invite(caller, leader_name=None):
     registry = _load_registry()
     team = registry.get(invite["team_id"])
     if not team:
+        # 邀请保存在角色 db，队伍本体保存在 ServerConfig registry。
+        # 一旦队伍已经解散，这里必须顺手清掉悬空邀请，否则玩家会反复看到“可接受但永远进不去”的脏状态。
         caller.db.team_invites = [entry for entry in invites if entry["team_id"] != invite["team_id"]]
         return {"ok": False, "reason": "team_not_found"}
 
@@ -182,6 +210,8 @@ def leave_team(caller):
         return {"ok": True, "disbanded": True}
 
     if is_leader:
+        # 当前默认把队长移交给 members[0]，保持规则简单且稳定。
+        # 如果后续改成按在线状态、加入时间或战力选新队长，需要同步检查命令层提示和队伍通知文案。
         new_leader = team["members"][0]
         team["leader_id"] = new_leader["id"]
         team["leader_name"] = new_leader["name"]
@@ -277,6 +307,7 @@ def _split_invites(caller):
     now = int(time.time())
     active = [entry for entry in invites if entry.get("expires_at", 0) > now]
     expired_count = len(invites) - len(active)
+    # 在读取时就清理过期邀请，避免“邀请列表”和“接受邀请”对同一批脏数据给出不同结果。
     if active != invites:
         caller.db.team_invites = active
     return active, expired_count

@@ -1,4 +1,29 @@
-"""Shared JSON content loading helpers."""
+"""JSON 内容加载与校验入口。
+
+负责内容：
+- 从 `world/data/*.json` 读取静态内容。
+- 提供按内容类型列举、按 key/id 查找、缓存重载与一致性校验。
+- 为 commands / systems / devtools 提供统一内容入口，减少各模块自己拼路径。
+
+不负责内容：
+- 不承担业务语义解释；任务、敌人、对象等规则仍在各自系统模块中。
+- 不做运行态对象刷新；重载缓存之后，live object 是否同步由上层决定。
+
+主要输入 / 输出：
+- 输入：内容名、可选 lookup。
+- 输出：原始 JSON 数据、平铺记录列表、摘要信息、校验问题列表。
+
+上游调用者：
+- `quests.py`、`help_content.py`、`npc_routes.py` 等系统模块。
+- `devtools.py` 的内容查看 / 重载 / 校验命令。
+
+排错优先入口：
+- `load_content`
+- `reload_content`
+- `get_content_records`
+- `find_content_record`
+- `validate_content`
+"""
 
 import json
 from pathlib import Path
@@ -49,6 +74,8 @@ def reload_content(name=None):
     if name is None:
         _CONTENT_CACHE.clear()
         return
+    # 某些逻辑层暴露的是“逻辑视图名”，例如 main_stages/side_quests 实际都来自 quests.json。
+    # 这里先折回 source，避免调用方误以为自己只重载了视图片段。
     if name in CONTENT_SPECS:
         name = CONTENT_SPECS[name]["source"]
     _CONTENT_CACHE.pop(name, None)
@@ -92,6 +119,8 @@ def get_content_summary():
 
 def validate_content():
     issues = []
+    # 校验保持“跨文件引用完整性”优先，不尝试复刻全部业务规则。
+    # 目标是快速发现坏引用、坏 key、坏 schema，而不是替代运行时测试。
 
     rooms_data = load_content("rooms").get("rooms", {})
     areas_data = load_content("areas")
@@ -164,14 +193,24 @@ def validate_content():
 
     for npc in load_content("npcs").get("npcs", []):
         room_id = npc.get("room_id")
-        if room_id and room_id not in room_keys:
+        if room_id and room_id not in room_keys and room_id not in room_content_ids:
             issues.append(f"npcs.{npc.get('id') or npc.get('key')}: room_id '{room_id}' 不存在")
-        talk_route = ((npc.get("attrs") or {}).get("talk_route"))
+        attrs = npc.get("attrs") or {}
+        npc_meta = npc.get("npc_meta") or {}
+        identity = npc.get("identity") or {}
+        progression = npc.get("progression") or {}
+        talk_route = attrs.get("talk_route") or npc_meta.get("talk_route")
         if talk_route and talk_route not in load_content("npc_routes"):
             issues.append(f"npcs.{npc.get('id') or npc.get('key')}: talk_route '{talk_route}' 不存在")
-        shop_id = ((npc.get("attrs") or {}).get("shop_id"))
+        shop_id = attrs.get("shop_id") or npc_meta.get("shop_id")
         if shop_id and shop_id not in shop_ids:
             issues.append(f"npcs.{npc.get('id') or npc.get('key')}: shop_id '{shop_id}' 不存在")
+        if identity and identity.get("kind") not in {None, "npc"}:
+            issues.append(f"npcs.{npc.get('id') or npc.get('key')}: identity.kind 必须为 'npc'")
+        if progression and (progression.get("spawn_profile") or {}).get("room_id") not in {None, room_id}:
+            issues.append(
+                f"npcs.{npc.get('id') or npc.get('key')}: progression.spawn_profile.room_id 与 room_id 不一致"
+            )
 
     for obj in load_content("objects").get("objects", []):
         obj_name = obj.get("id") or obj.get("key")

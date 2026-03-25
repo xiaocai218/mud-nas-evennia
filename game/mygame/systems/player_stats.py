@@ -1,4 +1,31 @@
-"""Helpers for reading and updating player stats."""
+"""玩家运行态数值与临时效果层。
+
+负责内容：
+- 基于统一角色模型输出便于其他系统消费的 stats 视图。
+- 处理经验增长、气血 / 体力夹取、临时效果、主货币增减等运行态变化。
+- 在不破坏角色模型结构的前提下，对旧字段进行最小写回。
+
+不负责内容：
+- 不定义角色基础模板和属性成长；这些在 `character_model.py`。
+- 不实现具体物品 / 对象效果；这里只负责承接效果结果与查询状态。
+
+主要输入 / 输出：
+- 输入：玩家对象、经验变化、货币变化、effect key、duration。
+- 输出：结构化 stats、境界变化结果、当前货币余额和效果文本。
+
+上游调用者：
+- `items.py`
+- `effect_executor.py`
+- `battle.py`
+- `serializers.py`
+
+排错优先入口：
+- `get_stats`
+- `apply_exp`
+- `prune_expired_effects`
+- `get_effect_modifier`
+- `spend_currency`
+"""
 
 import time
 
@@ -27,6 +54,7 @@ def get_stats(caller):
         "stage": identity["stage"],
         "root": identity["root"],
         "sect": identity.get("sect"),
+        "gender": identity.get("gender"),
         "realm": progression["realm"],
         "hp": combat["hp"],
         "max_hp": combat["max_hp"],
@@ -57,6 +85,8 @@ def apply_exp(caller, gain):
     old_realm = resolve_character_realm(stage, exp, current_realm=current_realm, root=root)
     if gain <= 0:
         normalized_realm = old_realm
+        # 0 或负向经验变化不推进境界，但会顺手把旧号的 realm 标准化一次。
+        # 这样只要读到 stats，就能逐步把历史脏值纠正到当前境界规则。
         if stage == CULTIVATOR_STAGE and current_realm not in (None, "", MORTAL_REALM) and not is_awakened_realm(current_realm):
             normalized_realm = get_realm_from_exp(exp)
         caller.db.realm = normalized_realm
@@ -95,6 +125,7 @@ def prune_expired_effects(caller):
     effects = _get_temp_effects(caller)
     now = time.time()
     active = {key: value for key, value in effects.items() if value.get("expires_at", 0) > now}
+    # 读取时即时清理过期效果，避免“面板已消失但数值仍生效”或相反的分裂状态。
     if active != effects:
         _set_temp_effects(caller, active)
     return active
@@ -180,6 +211,8 @@ def spend_currency(caller, amount):
 def _set_primary_currency_balance(caller, sheet, amount):
     amount = int(amount)
     primary_currency = sheet["currencies"]["primary_currency"]
+    # 当前货币入口始终跟随主货币类型走，凡人默认铜钱，修士默认灵石。
+    # 如果后续要支持混合扣费，需要在更高层显式指定币种，而不是改这个 helper 的语义。
     if primary_currency == PRIMARY_CURRENCY_COPPER:
         caller.db.copper = amount
         caller.db.currencies["copper"] = amount

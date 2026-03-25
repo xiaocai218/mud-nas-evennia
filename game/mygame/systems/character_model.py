@@ -1,8 +1,37 @@
-"""Unified player character model helpers."""
+"""统一玩家角色模型入口。
+
+负责内容：
+- 把角色的 identity / progression / primary_stats / combat_stats / currencies 等字段收口成统一角色模型。
+- 在新模型字段与旧系统依赖的兼容字段之间做双向桥接。
+- 处理灵根觉醒、阶段切换、境界解析和根骨偏置。
+
+不负责内容：
+- 不直接处理经验加成、临时 buff、货币消费等运行时变化；这些由 `player_stats.py` 负责。
+- 不处理任务推进；这里只提供角色状态基础骨架。
+
+主要输入 / 输出：
+- 输入：玩家对象 `caller`、root choice、当前 db 中的旧字段和新字段。
+- 输出：统一角色 sheet，并把关键兼容字段写回 caller.db。
+
+上游调用者：
+- `player_stats.py`
+- `serializers.py`
+- `world_objects.py`
+- 任务、战斗、聊天等所有读取角色状态的系统
+
+排错优先入口：
+- `ensure_character_model`
+- `resolve_character_realm`
+- `awaken_spiritual_root`
+- `promote_awakened_realm`
+- `_build_combat_stats`
+"""
 
 from copy import deepcopy
 
 from .character_profiles import get_character_profile
+from .entity_gender import GENDER_UNKNOWN, normalize_gender
+from .npc_relationships import ensure_npc_relationships
 from .realms import get_default_realm, get_realm_from_exp
 
 
@@ -147,6 +176,7 @@ def ensure_character_model(caller):
 
     identity = dict(getattr(caller.db, "identity", None) or {})
     identity.setdefault("name", getattr(caller, "key", None))
+    identity["gender"] = normalize_gender(identity.get("gender"), default=GENDER_UNKNOWN)
     identity["stage"] = stage
     identity["is_cultivator"] = stage == CULTIVATOR_STAGE
     identity["sect"] = identity.get("sect")
@@ -193,8 +223,10 @@ def ensure_character_model(caller):
     caller.db.affinities = affinities
     caller.db.currencies = currencies
     caller.db.reserves = reserves
+    ensure_npc_relationships(caller)
 
-    # Compatibility fields for existing systems.
+    # 当前仓库仍有不少旧逻辑直接读 `caller.db.hp / realm / copper` 这类散字段。
+    # 这里集中写回兼容字段，目的是让新模型逐步落地时，不必一次性改完所有调用点。
     caller.db.realm = progression["realm"]
     caller.db.exp = progression["cultivation_exp"]
     caller.db.hp = combat_stats["hp"]
@@ -220,6 +252,8 @@ def resolve_character_realm(stage, exp, current_realm=None, root=None):
     if stage != CULTIVATOR_STAGE:
         return MORTAL_REALM
 
+    # 一旦已经进入正式修行境界，优先尊重当前 realm，
+    # 避免旧角色在只改 exp 时被错误回退到“启灵”或默认炼气一层。
     if current_realm and current_realm not in (MORTAL_REALM, AWAKENED_REALM):
         return current_realm
     if is_awakened_realm(current_realm):
@@ -259,6 +293,8 @@ def awaken_spiritual_root(caller, root_key, sect=None):
     progression = dict(caller.db.progression or {})
     progression["root_choice_completed"] = True
     current_realm = getattr(caller.db, "realm", None)
+    # 灵根刚觉醒时先进入“启灵”，而不是立刻按 exp 映射正式境界。
+    # 这样任务链还能显式承接“引气入体”这一步，而不会因为已有经验值直接跳段。
     progression["realm"] = AWAKENED_REALM if current_realm in (None, "", MORTAL_REALM) else current_realm
     caller.db.progression = progression
     caller.db.realm = progression["realm"]
@@ -349,6 +385,8 @@ def _build_combat_stats(caller, stage, root, primary_stats, profile):
     if stage == CULTIVATOR_STAGE:
         _apply_root_bias(stats, root)
 
+    # 先按模板和属性重算上限，再把运行态 hp/mp/stamina 夹回新区间。
+    # 这样角色升级、换阶段或重建模型时既能应用新上限，也不会平白把当前资源重置满。
     stats["hp"] = int(getattr(caller.db, "hp", None) if getattr(caller.db, "hp", None) is not None else stats["max_hp"])
     stats["max_hp"] = int(stats["max_hp"])
     stats["hp"] = max(0, min(stats["hp"], stats["max_hp"]))

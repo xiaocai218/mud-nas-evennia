@@ -1,4 +1,29 @@
-"""Quest metadata and state helpers for the starter quest chain."""
+"""任务状态与奖励收口层。
+
+负责内容：
+- 读取 `quests.json` 后提供主线 / 支线状态查询与摘要。
+- 维护主线阶段推进、支线通用状态字段、奖励发放与少量 helper。
+- 处理战斗击杀驱动的任务进度，以及最小队伍协同推进提示。
+
+不负责内容：
+- 不负责 NPC 对话路由决策；那部分在 `npc_routes.py`。
+- 不负责 UI 展示格式化以外的客户端协议包装；那部分由 serializer / action router 处理。
+
+主要输入 / 输出：
+- 输入：玩家对象 `caller`、阶段 state、支线 key、战斗目标等。
+- 输出：任务状态字符串、阶段 key、奖励对象、进度同步结果。
+
+上游调用者：
+- `social.py` / `core.py` 等命令层。
+- `npc_routes.py`、`battle.py`、`world_objects.py`。
+
+排错优先入口：
+- `get_quest_state`
+- `get_side_quest_state`
+- `mark_combat_kill`
+- `complete_main_stage`
+- `complete_side_quest`
+"""
 
 from systems.chat import send_system_message
 from systems.content_loader import load_content
@@ -32,6 +57,9 @@ COMPATIBILITY_RULES = QUEST_DATA.get("compatibility", {}).get("main_state_overri
 
 def get_quest_state(caller):
     state = caller.db.guide_quest or NOT_STARTED
+    # 旧存档曾直接把主线写成 completed，但奖励 flag 可能并未全部落库。
+    # 这里优先用兼容规则把“旧状态 + 新 flag”折回当前阶段，避免玩家表面完成、
+    # 实际还卡在测灵或引气流程时无法继续推进。
     for rule in COMPATIBILITY_RULES:
         if state != rule["when_state"]:
             continue
@@ -99,6 +127,8 @@ def get_side_quest_state(caller, quest_key=None):
         state_attr = quest.get("state_attr")
         if not state_attr:
             return NOT_STARTED
+        # 支线统一走 state_attr / start_state / completed_state，
+        # 后续新增支线尽量只改 JSON，不再为单条支线扩散专用 db 字段逻辑。
         return getattr(caller.db, state_attr, NOT_STARTED) or NOT_STARTED
 
     for quest_key in SIDE_QUEST_DATA:
@@ -360,6 +390,8 @@ def mark_combat_kill(caller, target):
     shared = []
     teammates = get_same_area_team_members(caller, include_self=False)
     for teammate in teammates:
+        # 当前只同步“同区域、同阶段、尚未完成”的击杀进度。
+        # 这样能支持最小组队协同，又避免跨区域代打或把后续阶段错误推进给队友。
         if get_quest_state(teammate) != state:
             continue
         if bool(getattr(teammate.db, progress_attr, False)):
@@ -409,6 +441,8 @@ def complete_main_stage(caller, state):
 
     next_state = stage["complete_to"]
     reward_flag = stage.get("reward_flag")
+    # 主线阶段完成时先切状态，再写奖励 flag。
+    # 这样兼容层在读取 guide_quest=completed 的旧号时，仍能依赖 reward flag 反推出正确阶段。
     caller.db.guide_quest = next_state
     if reward_flag:
         setattr(caller.db, reward_flag, True)

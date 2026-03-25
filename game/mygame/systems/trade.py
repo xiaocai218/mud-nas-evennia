@@ -1,4 +1,31 @@
-"""Minimal player-to-player trade offers for text gameplay."""
+"""玩家间最小交易邀约系统。
+
+负责内容：
+- 维护文本 MUD 内的单物品交易邀约、接受、拒绝、取消和过期清理。
+- 使用 ServerConfig 保存挂起 offer，并在成交时完成货币结算与物品转移。
+- 为命令层和 H5 提供统一的交易状态与摘要结构。
+
+不负责内容：
+- 不实现多物品、多阶段确认、担保、拍卖或跨房间交易。
+- 不托管物品；交易挂起期间物品仍留在发起方身上，成交时再校验是否仍可用。
+
+主要输入 / 输出：
+- 输入：玩家对象、目标名、物品名、价格。
+- 输出：统一 commerce success/error 结构和 offer 摘要。
+
+上游调用者：
+- `commands/trade.py`
+- `action_router.py`
+- `serializers.py`
+
+排错优先入口：
+- `list_trade_status`
+- `create_trade_offer`
+- `accept_trade_offer`
+- `reject_trade_offer`
+- `cancel_trade_offer`
+- `_load_active_offers`
+"""
 
 from __future__ import annotations
 
@@ -53,6 +80,8 @@ def create_trade_offer(caller, target_name, item_name, price=0):
         offer["sender_id"] == _get_character_id(caller) and offer["item_object_id"] == _get_object_id(item)
         for offer in active_offers
     ):
+        # 同一个 live item 只允许挂一条待处理交易。
+        # 否则 A、B 两个人都可能看到自己能接受同一件物品，最终成交顺序会变得不可预测。
         return build_commerce_error("item_already_offered", item_name=item.key)
 
     offer = {
@@ -101,6 +130,7 @@ def accept_trade_offer(caller, sender_name=None):
 
     sender = _get_character_by_id(offer["sender_id"])
     if not sender:
+        # 发起方已不存在时，顺手清掉悬空 offer，避免目标玩家反复看到一条永远无法完成的邀约。
         _remove_offer(offer["id"], active_offers)
         return build_commerce_error("sender_not_found", sender_name=offer["sender_name"])
     if getattr(sender, "location", None) != getattr(caller, "location", None):
@@ -108,6 +138,8 @@ def accept_trade_offer(caller, sender_name=None):
 
     item = _get_object_by_id(offer["item_object_id"])
     if not item or getattr(item, "location", None) != sender:
+        # 交易期间物品并未托管，发起方可能已使用、丢弃或转移该物品。
+        # 这里必须在成交前做最终校验，否则会出现扣了钱但没有物品的严重脏状态。
         _remove_offer(offer["id"], active_offers)
         return build_commerce_error("item_unavailable", item_name=offer["item_name"])
 
@@ -210,6 +242,7 @@ def _load_active_offers():
     now = int(time.time())
     active = [offer for offer in offers if offer.get("expires_at", 0) > now]
     expired_count = len(offers) - len(active)
+    # 读取时就做过期清理，确保“状态面板”和“接受/拒绝”共用同一批有效 offers。
     if expired_count:
         _save_registry({offer["id"]: offer for offer in active})
     return active, expired_count

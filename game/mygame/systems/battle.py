@@ -1,14 +1,46 @@
-"""ATB battle system for turn-based combat."""
+"""ATB 战斗调度层。
+
+负责内容：
+- 维护内存态 battle registry、参战者快照、ATB 时间轴和回合推进。
+- 在玩家输入、AI 自动行动、超时自动出手之间切换，并生成战斗事件与终端战报。
+- 在战斗结束后统一发放奖励、写回角色状态、清理 battle_id。
+
+不负责内容：
+- 不定义卡牌配置；卡牌元数据来自 `battle_cards.py` / `battle_cards.json`。
+- 不承载所有数值结算细节；通用 effect 结算已下沉到 `battle_effects.py`。
+- 不直接决定 H5 如何展示；外部只消费序列化后的 battle snapshot 和事件。
+
+主要输入 / 输出：
+- 输入：玩家对象、敌人对象、card id、target id、战斗内 item id。
+- 输出：battle snapshot、回合日志、账号事件、胜负奖励结果。
+
+上游调用者：
+- `combat.py` 文本命令层。
+- `action_router.py` 的 H5 动作入口。
+- 管理 / 调试命令和未来的实时客户端事件流。
+
+排错优先入口：
+- `start_battle`
+- `submit_action`
+- `_settle_battle_until_player_input`
+- `_check_battle_finished`
+- `_resolve_battle_result`
+- `_handle_timeout_deadline`
+"""
 
 from __future__ import annotations
 
 import time
 import uuid
 
+from evennia.utils.utils import delay
+
 from .battle_ai import choose_card as choose_ai_card
 from .battle_cards import build_card_payload
 from .battle_effects import apply_damage, apply_guard_effect, apply_heal_effect, apply_shield_effect, spend_card_costs
 from .battle_results import build_basic_attack_result, build_item_result, build_round_report, build_spell_damage_result, snapshot_battle_state
+from .battle_summary import render_battle_summary
+from .battle_text import format_battle_finished_summary, format_battle_log_entry, format_disengaged_notice, format_turn_ready_entry
 from .chat import notify_player
 from .enemy_model import get_enemy_sheet, is_enemy
 from .event_bus import (
@@ -30,6 +62,7 @@ ATB_THRESHOLD = 100
 ACTION_TIMEOUT_SECONDS = 30
 MIN_FAILURE_HP = 1
 MIN_FAILURE_STAMINA = 5
+COMBAT_LOG_HISTORY_LIMIT = 80
 
 _BATTLE_REGISTRY = {}
 
@@ -63,6 +96,15 @@ def get_battle_log(caller_or_battle_id, limit=10):
     return list((battle.get("log") or [])[-max(0, int(limit)):])
 
 
+def get_recent_combat_logs(caller_or_account, limit=20):
+    account = _get_account(caller_or_account)
+    if not account:
+        return []
+    history = list(getattr(getattr(account, "db", None), "combat_log_history", []) or [])
+    resolved_limit = max(1, min(int(limit or 20), COMBAT_LOG_HISTORY_LIMIT))
+    return history[-resolved_limit:]
+
+
 def clear_battle(caller_or_battle_id, *, reset_players=False, reset_enemies=False):
     battle = _resolve_battle(caller_or_battle_id)
     if not battle:
@@ -72,6 +114,7 @@ def clear_battle(caller_or_battle_id, *, reset_players=False, reset_enemies=Fals
     battle["result"] = "cancelled"
     battle["action_deadline_ts"] = None
     battle["_result_resolved"] = True
+    _cancel_timeout_task(battle)
 
     for combatant in battle["participants"]:
         ref = combatant["entity_ref"]
@@ -141,6 +184,9 @@ def start_battle(caller, targets, team_mode=False):
         "result": None,
         "log": [],
         "round_reports": [],
+        "_finished_log_sent": False,
+        "_disengage_log_sent": False,
+        "_timeout_task": None,
     }
     for ally in allies:
         combatant = _create_player_combatant(ally)
@@ -155,6 +201,7 @@ def start_battle(caller, targets, team_mode=False):
 
     _BATTLE_REGISTRY[battle["battle_id"]] = battle
     _settle_battle_until_player_input(battle)
+    _emit_terminal_battle_summary(battle)
     _emit_battle_event(battle, combat_started(_serialize_battle(battle)))
     return {"ok": True, "result": "battle_started", "battle": _serialize_battle(battle)}
 
@@ -176,9 +223,11 @@ def submit_action(caller, card_id, target_id=None, item_id=None):
     if battle["status"] != "finished":
         _advance_battle_to_next_actor(battle)
         _settle_battle_until_player_input(battle)
+        _emit_terminal_battle_summary(battle)
         _emit_battle_event(battle, combat_updated(_serialize_battle(battle)))
     else:
         _resolve_battle_result(battle)
+        _emit_terminal_battle_summary(battle)
     return {"ok": True, "result": result, "battle": _serialize_battle(battle)}
 
 
@@ -282,6 +331,10 @@ def _get_same_room_teammates(caller):
 
 
 def _settle_battle_until_player_input(battle):
+    # 这个循环是战斗推进的总枢纽：
+    # - 敌人回合会一路自动跑到下一个“需要玩家输入”的时刻；
+    # - 玩家超时也会在这里回退成默认普攻；
+    # - 所有查询 battle snapshot 的入口都先经过这里，保证客户端看到的是已结算后的稳定状态。
     while battle["status"] == "active":
         actor = _get_current_actor(battle)
         if not actor:
@@ -327,6 +380,7 @@ def _advance_battle_to_next_actor(battle):
         battle["turn_state"]["current_actor_id"] = actor["combatant_id"]
         battle["turn_state"]["turn_count"] += 1
         battle["action_deadline_ts"] = time.time() + ACTION_TIMEOUT_SECONDS if actor["entity_type"] == "player" else None
+        _schedule_timeout_task(battle, actor)
         _emit_battle_event(
             battle,
             combat_turn_ready(
@@ -338,10 +392,18 @@ def _advance_battle_to_next_actor(battle):
                 }
             ),
         )
+        if actor["entity_type"] == "player":
+            _emit_terminal_combat_log(
+                battle,
+                format_turn_ready_entry(actor["name"], battle["turn_state"]["turn_count"]),
+                entry_kind="turn_ready",
+                turn_count=battle["turn_state"]["turn_count"],
+            )
         return
 
 
 def _resolve_action(battle, actor, card_id, target_id=None, item_id=None, auto=False):
+    turn_count = battle["turn_state"]["turn_count"]
     before_snapshot = snapshot_battle_state(battle)
     actor["available_cards"] = _build_available_cards(battle, actor)
     cards = {card["card_id"]: card for card in actor["available_cards"]}
@@ -357,12 +419,20 @@ def _resolve_action(battle, actor, card_id, target_id=None, item_id=None, auto=F
     else:
         result = _resolve_card_action(battle, actor, card, target_id)
 
+    result["log"]["turn_count"] = turn_count
     _write_back_combatant_state(actor)
     _sync_battle_targets(battle)
     battle["log"].append(result["log"])
     after_snapshot = snapshot_battle_state(battle)
-    battle["round_reports"].append(build_round_report(battle, actor, result["log"], before_snapshot, after_snapshot, auto=auto))
+    report = build_round_report(battle, actor, result["log"], before_snapshot, after_snapshot, auto=auto)
+    battle["round_reports"].append(report)
     battle["action_deadline_ts"] = None
+    _cancel_timeout_task(battle)
+    _emit_terminal_combat_log(
+        battle,
+        format_battle_log_entry(result["log"]),
+        turn_count=report.get("turn_count"),
+    )
     _emit_battle_event(battle, combat_action_resolved({"battle_id": battle["battle_id"], "entry": result["log"], "auto": auto}))
     return result
 
@@ -479,8 +549,11 @@ def _check_battle_finished(battle):
         return False
     battle["status"] = "finished"
     battle["result"] = "victory" if player_alive else "defeat"
+    # 一旦判定结束，必须立刻清空 current_actor。
+    # 否则客户端可能还会拿到一个可操作 actor，继续提交旧回合动作。
     battle["turn_state"]["current_actor_id"] = None
     battle["action_deadline_ts"] = None
+    _cancel_timeout_task(battle)
     return True
 
 
@@ -488,6 +561,8 @@ def _resolve_battle_result(battle):
     if battle.get("_result_resolved"):
         return
     battle["_result_resolved"] = True
+    _cancel_timeout_task(battle)
+    _emit_finished_battle_logs(battle)
     if battle["result"] == "victory":
         _grant_victory_rewards(battle)
     else:
@@ -496,6 +571,7 @@ def _resolve_battle_result(battle):
         ref = combatant["entity_ref"]
         if getattr(getattr(ref, "db", None), "battle_id", None) == battle["battle_id"]:
             ref.db.battle_id = None
+    # 结束事件在 battle_id 清理之后再广播，避免客户端收到 finished 事件时服务端仍判定“角色在战斗中”。
     _emit_battle_event(battle, combat_finished(_serialize_battle(battle)))
 
 
@@ -637,11 +713,108 @@ def _find_first_combat_item(caller):
 
 
 def _emit_battle_event(battle, event):
+    # 同一场 battle 的事件同时发给所有参战账号，文本端和 H5 端共享这套事件源。
+    # 后续如果调整事件粒度，通常也要同步检查 event_bus 和前端消费逻辑。
     for combatant in battle["participants"]:
         ref = combatant["entity_ref"]
         account = getattr(ref, "account", None) or getattr(ref, "db", None) and getattr(ref.db, "account", None)
         if account:
             enqueue_account_event(account, event)
+
+
+def _emit_terminal_combat_log(battle, message, entry_kind="action", turn_count=None):
+    if not message:
+        return
+    for combatant in battle["participants"]:
+        ref = combatant["entity_ref"]
+        account = getattr(ref, "account", None) or getattr(ref, "db", None) and getattr(ref.db, "account", None)
+        if account:
+            account.msg(text=(message, {"type": "combat.log"}))
+            _append_account_combat_history(account, message, entry_kind=entry_kind, turn_count=turn_count)
+
+
+def _emit_terminal_battle_summary(battle):
+    for combatant in battle["participants"]:
+        if combatant.get("entity_type") != "player":
+            continue
+        ref = combatant["entity_ref"]
+        account = getattr(ref, "account", None) or getattr(ref, "db", None) and getattr(ref.db, "account", None)
+        if account:
+            summary = render_battle_summary(_serialize_battle(battle), viewer_name=ref.key)
+            account.msg(summary)
+
+
+def _schedule_timeout_task(battle, actor):
+    _cancel_timeout_task(battle)
+    if actor.get("entity_type") != "player" or not battle.get("action_deadline_ts"):
+        return
+    # 用 turn_count 作为额外护栏，避免旧的 delay 任务在下一回合误触发。
+    battle["_timeout_task"] = delay(
+        ACTION_TIMEOUT_SECONDS,
+        _handle_timeout_deadline,
+        battle["battle_id"],
+        battle["turn_state"]["turn_count"],
+        persistent=False,
+    )
+
+
+def _cancel_timeout_task(battle):
+    task = battle.get("_timeout_task")
+    if not task:
+        battle["_timeout_task"] = None
+        return
+    try:
+        if hasattr(task, "active") and task.active():
+            task.cancel()
+    except Exception:
+        pass
+    battle["_timeout_task"] = None
+
+
+def _handle_timeout_deadline(battle_id, turn_count):
+    battle = _resolve_battle(battle_id)
+    if not battle or battle.get("status") != "active":
+        return
+    if battle["turn_state"].get("turn_count") != turn_count:
+        return
+    actor = _get_current_actor(battle)
+    if not actor or actor.get("entity_type") != "player":
+        return
+    deadline = battle.get("action_deadline_ts")
+    if not deadline or time.time() < deadline:
+        return
+    battle["_timeout_task"] = None
+    # 超时后不直接在这里硬编码执行动作，而是回到统一的结算循环。
+    # 这样玩家超时、AI 行动、胜负判定与事件广播仍复用同一套路径，避免分叉逻辑。
+    _settle_battle_until_player_input(battle)
+    _emit_terminal_battle_summary(battle)
+    if battle.get("status") != "finished":
+        _emit_battle_event(battle, combat_updated(_serialize_battle(battle)))
+
+
+def _emit_finished_battle_logs(battle):
+    if not battle.get("_finished_log_sent"):
+        _emit_terminal_combat_log(battle, format_battle_finished_summary(battle))
+        battle["_finished_log_sent"] = True
+    if not battle.get("_disengage_log_sent"):
+        _emit_terminal_combat_log(battle, format_disengaged_notice())
+        battle["_disengage_log_sent"] = True
+
+
+def _append_account_combat_history(account, formatted, entry_kind="action", turn_count=None):
+    if not account:
+        return
+    history = list(getattr(getattr(account, "db", None), "combat_log_history", []) or [])
+    history.append({"formatted": formatted, "type": "combat.log", "entry_kind": entry_kind, "turn_count": turn_count})
+    account.db.combat_log_history = history[-COMBAT_LOG_HISTORY_LIMIT:]
+
+
+def _get_account(entity):
+    if not entity:
+        return None
+    if hasattr(entity, "username") and getattr(entity, "is_authenticated", True):
+        return entity
+    return getattr(entity, "account", None)
 
 
 def _card_is_available(actor, card):
@@ -685,4 +858,3 @@ def _prepare_enemy_for_battle(enemy):
     enemy.db.max_hp = max_hp
     if getattr(enemy.db, "combat_stats", None):
         enemy.db.combat_stats = {**enemy.db.combat_stats, "hp": max_hp, "max_hp": max_hp}
-

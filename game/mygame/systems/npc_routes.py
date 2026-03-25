@@ -1,4 +1,28 @@
-"""NPC talk route configuration helpers."""
+"""NPC 交谈路由收口层。
+
+负责内容：
+- 从 `npc_routes.json` 读取 NPC 对话步骤，并按条件顺序匹配可执行动作。
+- 把“交谈 -> 对话 / 接任务 / 交付 / 奖励 / 境界推进”收口到统一 handler 映射。
+- 让 NPC 交互尽量走配置驱动，而不是把分支逻辑写死在命令层。
+
+不负责内容：
+- 不维护任务状态本体；主线 / 支线状态仍由 `quests.py` 负责。
+- 不保存 NPC live object 状态；这里只消费 route key 和玩家当前状态。
+
+主要输入 / 输出：
+- 输入：玩家对象 `caller`、route key、route action 配置。
+- 输出：是否成功命中并执行某条 route。
+
+上游调用者：
+- 主要由 `action_router.py` 和 `commands/social.py` 的交谈逻辑调用。
+
+排错优先入口：
+- `run_npc_route`
+- `_match_condition`
+- `_perform_action`
+- `_handle_complete_main_stage`
+- `_handle_complete_side_quest`
+"""
 
 from systems.chat import notify_player
 from systems.character_model import promote_awakened_realm
@@ -140,6 +164,9 @@ def run_npc_route(caller, route_key):
     if not route:
         return False
 
+    # route.steps 按顺序命中，前面的规则优先级更高。
+    # 因此新增分支时应把“更具体、更窄”的条件放前面，fallback 或宽条件放后面，
+    # 否则很容易出现玩家总是命中旧对话、无法进入交付分支的表象故障。
     for step in route.get("steps", []):
         if _match_condition(caller, step["condition"]):
             return _perform_action(caller, step["action"])
