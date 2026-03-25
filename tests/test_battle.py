@@ -116,6 +116,34 @@ class BattleTests(unittest.TestCase):
         self.assertEqual(result["result"]["type"], "basic_attack")
         self.assertLess(result["battle"]["participants"][1]["hp"], 30)
 
+    def test_attack_or_start_battle_does_not_auto_submit_first_basic_attack(self):
+        caller = FakeCaller()
+        enemy = FakeEnemy(key="试战恶徒")
+        with (
+            patch("systems.battle.get_stats", return_value={
+                "combat_stats": {"hp": 100, "max_hp": 100, "mp": 12, "max_mp": 12, "stamina": 50, "max_stamina": 50, "attack_power": 12, "spell_power": 10, "defense": 6, "speed": 14},
+                "hp": 100,
+                "max_hp": 100,
+                "mp": 12,
+                "max_mp": 12,
+                "stamina": 50,
+                "max_stamina": 50,
+            }),
+            patch("systems.battle.get_player_battle_card_pool", return_value=["basic_attack", "guard"]),
+            patch("systems.battle.get_enemy_sheet", return_value={
+                "identity": {"name": "试战恶徒"},
+                "combat_stats": {"hp": 60, "max_hp": 60, "mp": 0, "max_mp": 0, "stamina": 50, "max_stamina": 50, "attack_power": 8, "spell_power": 0, "defense": 4, "speed": 8},
+                "enemy_meta": {},
+            }),
+        ):
+            result = battle.attack_or_start_battle(caller, enemy)
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["result"], "battle_started")
+        self.assertEqual(result["battle"]["participants"][1]["hp"], 60)
+        self.assertFalse(result["battle"]["log"])
+        self.assertEqual(result["battle"]["current_actor_name"], caller.key)
+
     def test_enemy_ai_uses_configured_recovery_rule(self):
         caller = FakeCaller()
         enemy = FakeEnemy(key="雾行山魈")

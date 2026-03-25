@@ -201,14 +201,7 @@ def attack_or_start_battle(caller, target):
     battle = _get_battle_for_character(caller)
     if battle:
         return submit_action(caller, "basic_attack", target_id=_combatant_id_for_entity(battle, target))
-    started = start_battle(caller, [target], team_mode=True)
-    if not started.get("ok"):
-        return started
-    battle = _get_battle_for_character(caller)
-    actor = _get_current_actor(battle)
-    if actor and actor["entity_ref"] == caller:
-        return submit_action(caller, "basic_attack", target_id=_combatant_id_for_entity(battle, target))
-    return started
+    return start_battle(caller, [target], team_mode=True)
 
 
 def _create_player_combatant(caller):
