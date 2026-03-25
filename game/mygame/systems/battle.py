@@ -54,6 +54,42 @@ def get_battle_snapshot(caller_or_battle_id):
     return _serialize_battle(battle)
 
 
+def get_battle_log(caller_or_battle_id, limit=10):
+    battle = _resolve_battle(caller_or_battle_id)
+    if not battle:
+        return []
+    return list((battle.get("log") or [])[-max(0, int(limit)):])
+
+
+def clear_battle(caller_or_battle_id, *, reset_players=False, reset_enemies=False):
+    battle = _resolve_battle(caller_or_battle_id)
+    if not battle:
+        return None
+
+    battle["status"] = "finished"
+    battle["result"] = "cancelled"
+    battle["action_deadline_ts"] = None
+    battle["_result_resolved"] = True
+
+    for combatant in battle["participants"]:
+        ref = combatant["entity_ref"]
+        if combatant["entity_type"] == "player" and reset_players:
+            stats = get_stats(ref)
+            ref.db.hp = stats["max_hp"]
+            ref.db.mp = stats["max_mp"]
+            ref.db.stamina = stats["max_stamina"]
+        if combatant["entity_type"] == "enemy" and reset_enemies:
+            ref.db.hp = combatant["max_hp"]
+            ref.db.max_hp = combatant["max_hp"]
+            if getattr(ref.db, "combat_stats", None):
+                ref.db.combat_stats = {**ref.db.combat_stats, "hp": combatant["max_hp"], "max_hp": combatant["max_hp"]}
+        if getattr(getattr(ref, "db", None), "battle_id", None) == battle["battle_id"]:
+            ref.db.battle_id = None
+
+    _BATTLE_REGISTRY.pop(battle["battle_id"], None)
+    return _serialize_battle(battle)
+
+
 def list_available_cards(caller):
     battle = _get_battle_for_character(caller)
     if not battle:

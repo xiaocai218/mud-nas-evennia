@@ -1,5 +1,6 @@
 """Unified enemy model helpers."""
 
+import uuid
 from copy import deepcopy
 
 from .content_loader import load_content
@@ -123,6 +124,38 @@ def get_loot_table(target):
 def get_enemy_quest_flag(target):
     meta = get_enemy_sheet(target)["enemy_meta"]
     return ((meta.get("quest_hooks") or {}).get("quest_flag")) or getattr(target.db, "quest_flag", None)
+
+
+def spawn_enemy_instance(enemy_id, location, *, content_id=None, key=None):
+    definition = get_enemy_definition(enemy_id)
+    if not definition or not location:
+        return None
+
+    from evennia.utils.create import create_object
+
+    identity = deepcopy(definition["identity"])
+    runtime_content_id = content_id or f"{identity['content_id']}__spawn_{uuid.uuid4().hex[:8]}"
+    identity["content_id"] = runtime_content_id
+    if key:
+        identity["name"] = key
+
+    enemy_obj = create_object("typeclasses.objects.Object", key=identity["name"], location=location)
+    enemy_obj.key = identity["name"]
+    enemy_obj.location = location
+    enemy_obj.db.desc = (
+        definition["enemy_meta"].get("presentation", {}).get("desc")
+        or definition["enemy_meta"].get("presentation", {}).get("description")
+        or ""
+    )
+    enemy_obj.db.identity = identity
+    enemy_obj.db.progression = deepcopy(definition["progression"])
+    enemy_obj.db.primary_stats = deepcopy(definition["primary_stats"])
+    enemy_obj.db.combat_stats = deepcopy(definition["combat_stats"])
+    enemy_obj.db.affinities = deepcopy(definition["affinities"])
+    enemy_obj.db.reserves = deepcopy(definition["reserves"])
+    enemy_obj.db.enemy_meta = deepcopy(definition["enemy_meta"])
+    ensure_enemy_model(enemy_obj)
+    return enemy_obj
 
 
 def _resolve_definition_for_target(target):

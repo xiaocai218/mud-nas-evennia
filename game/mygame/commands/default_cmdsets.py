@@ -20,8 +20,13 @@ from .devtools import (
     CmdContent,
     CmdTestAddMoney,
     CmdTestBattleRoom,
+    CmdTestBattleLog,
     CmdTestChooseRoot,
+    CmdTestClearBattle,
+    CmdTestForceBattle,
     CmdTestGoto,
+    CmdTestSpawnBeast,
+    CmdTestSpawnCultivatorEnemy,
     CmdTestRefreshEnemy,
     CmdTestResetBattle,
     CmdTestResetRoot,
@@ -102,6 +107,11 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdTestGoto())
         self.add(CmdTestAddMoney())
         self.add(CmdTestBattleRoom())
+        self.add(CmdTestSpawnBeast())
+        self.add(CmdTestSpawnCultivatorEnemy())
+        self.add(CmdTestForceBattle())
+        self.add(CmdTestClearBattle())
+        self.add(CmdTestBattleLog())
         self.add(CmdTestRefreshEnemy())
         self.add(CmdTestResetBattle())
         self.add(CmdTestChooseRoot())

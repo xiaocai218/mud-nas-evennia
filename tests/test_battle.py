@@ -143,6 +143,59 @@ class BattleTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertTrue(any(entry.get("card_id") == "recover_instinct" for entry in result["battle"]["log"]))
 
+    def test_clear_battle_resets_ids_and_returns_cancelled_snapshot(self):
+        caller = FakeCaller()
+        enemy = FakeEnemy()
+        with (
+            patch("systems.battle.get_stats", return_value={
+                "combat_stats": {"hp": 100, "max_hp": 100, "mp": 12, "max_mp": 12, "stamina": 50, "max_stamina": 50, "attack_power": 12, "spell_power": 10, "defense": 6, "speed": 14},
+                "hp": 100,
+                "max_hp": 100,
+                "mp": 12,
+                "max_mp": 12,
+                "stamina": 50,
+                "max_stamina": 50,
+            }),
+            patch("systems.battle.get_player_battle_card_pool", return_value=["basic_attack", "guard"]),
+            patch("systems.battle.get_enemy_sheet", return_value={
+                "identity": {"name": "青木傀儡"},
+                "combat_stats": {"hp": 30, "max_hp": 30, "mp": 0, "max_mp": 0, "stamina": 30, "max_stamina": 30, "attack_power": 8, "spell_power": 0, "defense": 4, "speed": 8},
+                "enemy_meta": {},
+            }),
+        ):
+            started = battle.start_battle(caller, [enemy], team_mode=False)
+            snapshot = battle.clear_battle(caller, reset_players=True, reset_enemies=True)
+        self.assertEqual(started["battle"]["battle_id"], snapshot["battle_id"])
+        self.assertEqual(snapshot["result"], "cancelled")
+        self.assertEqual(caller.db.battle_id, None)
+        self.assertEqual(enemy.db.battle_id, None)
+
+    def test_get_battle_log_returns_latest_entries(self):
+        caller = FakeCaller()
+        enemy = FakeEnemy()
+        with (
+            patch("systems.battle.get_stats", return_value={
+                "combat_stats": {"hp": 100, "max_hp": 100, "mp": 12, "max_mp": 12, "stamina": 50, "max_stamina": 50, "attack_power": 12, "spell_power": 10, "defense": 6, "speed": 14},
+                "hp": 100,
+                "max_hp": 100,
+                "mp": 12,
+                "max_mp": 12,
+                "stamina": 50,
+                "max_stamina": 50,
+            }),
+            patch("systems.battle.get_player_battle_card_pool", return_value=["basic_attack", "guard", "spirit_blast"]),
+            patch("systems.battle.get_enemy_sheet", return_value={
+                "identity": {"name": "青木傀儡"},
+                "combat_stats": {"hp": 30, "max_hp": 30, "mp": 0, "max_mp": 0, "stamina": 30, "max_stamina": 30, "attack_power": 8, "spell_power": 0, "defense": 4, "speed": 8},
+                "enemy_meta": {},
+            }),
+        ):
+            battle.start_battle(caller, [enemy], team_mode=False)
+            battle.submit_action(caller, "basic_attack")
+            logs = battle.get_battle_log(caller, limit=5)
+        self.assertTrue(logs)
+        self.assertEqual(logs[-1]["type"], "basic_attack")
+
 
 if __name__ == "__main__":
     unittest.main()

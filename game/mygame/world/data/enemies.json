@@ -411,5 +411,105 @@
       "drop_desc": null,
       "tags": ["test_enemy"]
     }
+  },
+  "battle_yard_renegade_disciple": {
+    "id": "enemy_battle_yard_renegade_disciple",
+    "room_id": "battle_yard",
+    "identity": {
+      "name": "试战散修",
+      "kind": "enemy",
+      "enemy_type": "cultivator_enemy",
+      "faction": "rogue_cultivator",
+      "is_boss": false,
+      "tags": ["cultivator", "test_enemy", "battle_yard"]
+    },
+    "progression": {
+      "stage": "cultivator",
+      "realm": "炼气一层",
+      "rank_tier": "common",
+      "spawn_profile": {
+        "room_id": "battle_yard"
+      },
+      "kill_credit_flags": []
+    },
+    "primary_stats": {
+      "physique": 5,
+      "aether": 6,
+      "spirit": 5,
+      "agility": 5,
+      "bone": 4
+    },
+    "combat_stats": {
+      "hp": 72,
+      "max_hp": 72,
+      "mp": 24,
+      "max_mp": 24,
+      "stamina": 45,
+      "max_stamina": 45,
+      "attack_power": 10,
+      "spell_power": 16,
+      "defense": 7,
+      "speed": 11,
+      "crit_rate": 2,
+      "crit_damage": 155,
+      "healing_power": 0,
+      "shield_power": 0,
+      "control_power": 0,
+      "control_resist": 4,
+      "threat_modifier": 100
+    },
+    "affinities": {
+      "element": "fire",
+      "damage_tags": ["fire", "spell"],
+      "resist_tags": [],
+      "drop_theme": ["fire", "cultivator"]
+    },
+    "reserves": {
+      "resources": {}
+    },
+    "enemy_meta": {
+      "loot_table_id": null,
+      "respawn_policy": {
+        "mode": "reset_on_kill"
+      },
+      "quest_hooks": {},
+      "boss_modifiers": {
+        "damage_reduction_pct": 0,
+        "penetration_pct": 0,
+        "bonus_max_hp_pct": 0,
+        "bonus_defense_pct": 0,
+        "control_resist_bonus": 0,
+        "phase_shield": 0,
+        "pressure_tags": []
+      },
+      "ai_profile": {
+        "mode": "basic"
+      },
+      "engage_rules": {},
+      "presentation": {
+        "desc": "一名被专门拉来做战斗测试的散修站在木场一侧，指尖时不时跃起一缕灼红灵光。他的境界并不高，却足够拿来验证入道后敌人的最小战斗模板。"
+      },
+      "core_type": null,
+      "battle_ai_profile": {
+        "mode": "basic"
+      },
+      "battle_card_pool": ["basic_attack", "guard", "fire_burst"],
+      "decision_rules": [
+        {
+          "when": {
+            "self_hp_lte_pct": 45
+          },
+          "use_card": "guard"
+        }
+      ],
+      "reward_exp": 0,
+      "damage_taken": 12,
+      "counter_damage": 6,
+      "stamina_cost": 6,
+      "drop_item_id": null,
+      "drop_key": null,
+      "drop_desc": null,
+      "tags": ["test_enemy"]
+    }
   }
 }

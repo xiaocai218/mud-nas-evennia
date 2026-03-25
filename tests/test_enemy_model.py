@@ -3,6 +3,7 @@ import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,7 +18,7 @@ import django  # noqa: E402
 
 django.setup()
 
-from systems.enemy_model import BEAST_ENEMY, MORTAL_ENEMY, ensure_enemy_model, get_enemy_definition, is_enemy  # noqa: E402
+from systems.enemy_model import BEAST_ENEMY, MORTAL_ENEMY, ensure_enemy_model, get_enemy_definition, is_enemy, spawn_enemy_instance  # noqa: E402
 
 
 class FakeTarget:
@@ -124,6 +125,18 @@ class EnemyModelTests(unittest.TestCase):
     def test_is_enemy_accepts_template_backed_target(self):
         target = FakeTarget(key="青木傀儡", enemy_id="qingmu_dummy")
         self.assertTrue(is_enemy(target))
+
+    def test_spawn_enemy_instance_creates_runtime_content_id(self):
+        created = FakeTarget(key="占位对象")
+        location = SimpleNamespace(key="试战木场")
+
+        with patch("evennia.utils.create.create_object", return_value=created):
+            enemy = spawn_enemy_instance("mist_ape", location)
+
+        self.assertIs(enemy, created)
+        self.assertEqual(enemy.key, "雾行山魈")
+        self.assertEqual(enemy.db.enemy_id, "mist_ape")
+        self.assertTrue(enemy.db.content_id.startswith("enemy_mist_ape__spawn_"))
 
 
 if __name__ == "__main__":

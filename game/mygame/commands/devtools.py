@@ -4,6 +4,7 @@ import evennia
 from evennia.utils import evtable
 
 from .command import Command
+from systems.battle import clear_battle, get_battle_log, start_battle
 from systems.character_model import ROOT_CHOICES, get_root_label, normalize_root_choice, reset_spiritual_root
 from systems.content_loader import (
     find_content_record,
@@ -12,7 +13,7 @@ from systems.content_loader import (
     reload_content,
     validate_content,
 )
-from systems.enemy_model import ensure_enemy_model, get_enemy_definition, is_enemy
+from systems.enemy_model import ensure_enemy_model, get_enemy_definition, is_enemy, spawn_enemy_instance
 from systems.object_index import get_object_by_content_id
 from systems.player_stats import add_currency, get_stats
 from systems.quests import ROOT_CHOICE_READY, prepare_root_choice_state
@@ -365,6 +366,154 @@ class CmdTestResetBattle(Command):
         target.msg("[系统] 管理员已重置你的战斗状态、气血、灵力与体力。")
 
 
+class CmdTestSpawnBeast(Command):
+    key = "测试生成妖兽"
+    aliases = ["testbeast", "spawnbeast"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        location = caller.location
+        if not location:
+            caller.msg("你当前不在任何房间，无法生成测试敌人。")
+            return
+
+        enemy_id = self.args.strip() or "mist_ape"
+        enemy = spawn_enemy_instance(enemy_id, location)
+        if not enemy:
+            caller.msg("没有找到对应的妖兽模板。")
+            return
+        caller.msg(f"测试生成妖兽完成：已在 {location.key} 生成 {enemy.key}。")
+
+
+class CmdTestSpawnCultivatorEnemy(Command):
+    key = "测试生成修士敌人"
+    aliases = ["testcultivator", "spawncultivator"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        location = caller.location
+        if not location:
+            caller.msg("你当前不在任何房间，无法生成测试敌人。")
+            return
+
+        enemy_id = self.args.strip() or "battle_yard_renegade_disciple"
+        enemy = spawn_enemy_instance(enemy_id, location)
+        if not enemy:
+            caller.msg("没有找到对应的修士敌人模板。")
+            return
+        caller.msg(f"测试生成修士敌人完成：已在 {location.key} 生成 {enemy.key}。")
+
+
+class CmdTestForceBattle(Command):
+    key = "测试强制开始战斗"
+    aliases = ["forcebattle", "testforcebattle"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        room = caller.location
+        if not room:
+            caller.msg("你当前不在任何房间，无法开始测试战斗。")
+            return
+
+        raw = self.args.strip()
+        if raw:
+            enemy = _find_enemy_target(raw, room)
+            if not enemy:
+                caller.msg("没有找到要强制开战的目标敌人。")
+                return
+            targets = [enemy]
+        else:
+            targets = [obj for obj in _get_room_objects(room) if is_enemy(obj)]
+            if not targets:
+                caller.msg("当前房间没有可用于测试的敌人。")
+                return
+
+        result = start_battle(caller, targets, team_mode=True)
+        if not result.get("ok"):
+            caller.msg("测试强制开始战斗失败。")
+            return
+        battle = result.get("battle") or {}
+        caller.msg(
+            f"测试强制开始战斗完成：battle_id={battle.get('battle_id')}，"
+            f"参战人数 {len(battle.get('participants') or [])}。"
+        )
+
+
+class CmdTestClearBattle(Command):
+    key = "测试清空当前战斗"
+    aliases = ["clearbattle", "testclearbattle"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        target = caller
+        if raw:
+            target = _find_test_target(raw)
+            if not target:
+                caller.msg("没有找到要清空战斗的目标玩家。")
+                return
+
+        snapshot = clear_battle(target, reset_players=True, reset_enemies=True)
+        if not snapshot:
+            target.db.battle_id = None
+            stats = get_stats(target)
+            target.db.hp = stats["max_hp"]
+            target.db.mp = stats["max_mp"]
+            target.db.stamina = stats["max_stamina"]
+            if target == caller:
+                caller.msg("当前没有 active battle，已直接重置你的战斗状态。")
+                return
+            caller.msg(f"{target.key} 当前没有 active battle，已直接重置其战斗状态。")
+            target.msg("[系统] 管理员已直接重置你的战斗状态。")
+            return
+
+        if target == caller:
+            caller.msg(f"测试清空当前战斗完成：已结束 {snapshot.get('battle_id')}。")
+            return
+        caller.msg(f"测试清空当前战斗完成：已结束 {target.key} 所在的战斗 {snapshot.get('battle_id')}。")
+        target.msg("[系统] 管理员已清空你当前所在的战斗。")
+
+
+class CmdTestBattleLog(Command):
+    key = "测试战斗日志"
+    aliases = ["battlelog", "testbattlelog"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        target = caller
+        if raw:
+            target = _find_test_target(raw)
+            if not target:
+                caller.msg("没有找到要查看战斗日志的目标玩家。")
+                return
+
+        battle_id = getattr(getattr(target, "db", None), "battle_id", None)
+        if not battle_id:
+            caller.msg("目标当前没有处于战斗中。")
+            return
+
+        logs = get_battle_log(target, limit=10)
+        if not logs:
+            caller.msg(f"战斗 {battle_id} 当前还没有日志。")
+            return
+
+        lines = [f"战斗日志 {battle_id}:"]
+        for index, entry in enumerate(logs, start=1):
+            lines.append(_format_battle_log_entry(index, entry))
+        caller.msg("\n".join(lines))
+
+
 def _find_test_target(target_name):
     matches = evennia.search_object(target_name)
     if matches:
@@ -419,3 +568,24 @@ def _refresh_enemy(enemy):
     enemy.db.hp = sheet["combat_stats"]["max_hp"]
     enemy.db.combat_stats = {**sheet["combat_stats"], "hp": sheet["combat_stats"]["max_hp"]}
     return f"{enemy.key} -> HP {enemy.db.hp}/{enemy.db.max_hp}"
+
+
+def _format_battle_log_entry(index, entry):
+    actor_name = entry.get("actor_name", "未知")
+    target_name = entry.get("target_name")
+    value = entry.get("value", 0)
+    card_id = entry.get("card_id")
+    entry_type = entry.get("type")
+
+    if entry_type == "basic_attack":
+        return f"{index}. {actor_name} 对 {target_name} 造成 {value} 点伤害。"
+    if entry_type == "use_combat_item":
+        item_text = entry.get("text") or "使用了战斗物品"
+        return f"{index}. {actor_name}{item_text}，效果值 {value}。"
+    if entry_type == "skill_card":
+        if target_name:
+            return f"{index}. {actor_name} 使用 {card_id} 命中 {target_name}，效果值 {value}。"
+        return f"{index}. {actor_name} 使用 {card_id}，效果值 {value}。"
+    if entry_type == "guard":
+        return f"{index}. {actor_name} 使用 {card_id or 'guard'}，获得 {value} 点护盾。"
+    return f"{index}. {actor_name} 执行了 {entry_type or 'unknown'}。"

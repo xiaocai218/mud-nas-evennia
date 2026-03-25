@@ -20,7 +20,12 @@ django.setup()
 
 from commands.devtools import (  # noqa: E402
     CmdTestBattleRoom,
+    CmdTestBattleLog,
     CmdTestChooseRoot,
+    CmdTestClearBattle,
+    CmdTestForceBattle,
+    CmdTestSpawnBeast,
+    CmdTestSpawnCultivatorEnemy,
     CmdTestRefreshEnemy,
     CmdTestResetBattle,
     CmdTestResetRoot,
@@ -170,6 +175,89 @@ class DevtoolsCommandTests(unittest.TestCase):
         self.assertEqual(caller.db.mp, 20)
         self.assertEqual(caller.db.stamina, 50)
         self.assertIn("测试重置战斗完成", "".join(caller.messages))
+
+    def test_test_spawn_beast_creates_enemy_in_current_room(self):
+        caller = FakeCaller()
+        caller.location = SimpleNamespace(key="试战木场")
+        command = CmdTestSpawnBeast()
+        command.caller = caller
+        command.args = ""
+
+        with patch("commands.devtools.spawn_enemy_instance", return_value=SimpleNamespace(key="雾行山魈")) as mock_spawn:
+            command.func()
+
+        mock_spawn.assert_called_once_with("mist_ape", caller.location)
+        self.assertIn("雾行山魈", "".join(caller.messages))
+
+    def test_test_spawn_cultivator_creates_enemy_in_current_room(self):
+        caller = FakeCaller()
+        caller.location = SimpleNamespace(key="试战木场")
+        command = CmdTestSpawnCultivatorEnemy()
+        command.caller = caller
+        command.args = ""
+
+        with patch("commands.devtools.spawn_enemy_instance", return_value=SimpleNamespace(key="试战散修")) as mock_spawn:
+            command.func()
+
+        mock_spawn.assert_called_once_with("battle_yard_renegade_disciple", caller.location)
+        self.assertIn("试战散修", "".join(caller.messages))
+
+    def test_test_force_battle_starts_battle_against_room_enemies(self):
+        caller = FakeCaller()
+        enemy = SimpleNamespace(key="试战恶徒")
+        caller.location = SimpleNamespace(key="试战木场", contents=[enemy])
+        command = CmdTestForceBattle()
+        command.caller = caller
+        command.args = ""
+
+        with (
+            patch("commands.devtools.is_enemy", side_effect=lambda obj: obj is enemy),
+            patch(
+                "commands.devtools.start_battle",
+                return_value={"ok": True, "battle": {"battle_id": "battle_1", "participants": [caller, enemy]}},
+            ) as mock_start,
+        ):
+            command.func()
+
+        mock_start.assert_called_once_with(caller, [enemy], team_mode=True)
+        self.assertIn("battle_1", "".join(caller.messages))
+
+    def test_test_clear_battle_ends_active_battle(self):
+        caller = FakeCaller()
+        caller.db.battle_id = "battle_1"
+        command = CmdTestClearBattle()
+        command.caller = caller
+        command.args = ""
+
+        with patch(
+            "commands.devtools.clear_battle",
+            return_value={"battle_id": "battle_1", "status": "finished"},
+        ) as mock_clear:
+            command.func()
+
+        mock_clear.assert_called_once_with(caller, reset_players=True, reset_enemies=True)
+        self.assertIn("battle_1", "".join(caller.messages))
+
+    def test_test_battle_log_formats_entries(self):
+        caller = FakeCaller()
+        caller.db.battle_id = "battle_1"
+        command = CmdTestBattleLog()
+        command.caller = caller
+        command.args = ""
+
+        with patch(
+            "commands.devtools.get_battle_log",
+            return_value=[
+                {"type": "basic_attack", "actor_name": "测试者", "target_name": "试战恶徒", "value": 12},
+                {"type": "guard", "actor_name": "试战恶徒", "card_id": "guard", "value": 8},
+            ],
+        ):
+            command.func()
+
+        text = "".join(caller.messages)
+        self.assertIn("战斗日志 battle_1", text)
+        self.assertIn("造成 12 点伤害", text)
+        self.assertIn("获得 8 点护盾", text)
 
 
 if __name__ == "__main__":
