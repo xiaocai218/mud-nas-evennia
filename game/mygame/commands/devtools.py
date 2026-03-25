@@ -576,6 +576,7 @@ def _format_battle_log_entry(index, entry):
     value = entry.get("value", 0)
     card_id = entry.get("card_id")
     entry_type = entry.get("type")
+    card_name = _display_battle_card_name(card_id)
 
     if entry_type == "basic_attack":
         return f"{index}. {actor_name} 对 {target_name} 造成 {value} 点伤害。"
@@ -584,8 +585,23 @@ def _format_battle_log_entry(index, entry):
         return f"{index}. {actor_name}{item_text}，效果值 {value}。"
     if entry_type == "skill_card":
         if target_name:
-            return f"{index}. {actor_name} 使用 {card_id} 命中 {target_name}，效果值 {value}。"
-        return f"{index}. {actor_name} 使用 {card_id}，效果值 {value}。"
+            return f"{index}. {actor_name} 使用 {card_name} 命中 {target_name}，效果值 {value}。"
+        return f"{index}. {actor_name} 使用 {card_name}，效果值 {value}。"
     if entry_type == "guard":
-        return f"{index}. {actor_name} 使用 {card_id or 'guard'}，获得 {value} 点护盾。"
+        return f"{index}. {actor_name} 使用 {card_name or '防御'}，获得 {value} 点护盾。"
     return f"{index}. {actor_name} 执行了 {entry_type or 'unknown'}。"
+
+
+def _display_battle_card_name(card_id):
+    return {
+        "basic_attack": "普通攻击",
+        "guard": "防御",
+        "use_combat_item": "使用战斗物品",
+        "spirit_blast": "灵击",
+        "metal_edge": "金锋术",
+        "wood_rejuvenation": "回春诀",
+        "water_barrier": "水幕诀",
+        "fire_burst": "炽焰诀",
+        "earth_guard": "岩甲诀",
+        "recover_instinct": "兽性回生",
+    }.get(card_id, card_id)

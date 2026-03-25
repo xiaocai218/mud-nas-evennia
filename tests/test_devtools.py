@@ -257,6 +257,7 @@ class DevtoolsCommandTests(unittest.TestCase):
         text = "".join(caller.messages)
         self.assertIn("战斗日志 battle_1", text)
         self.assertIn("造成 12 点伤害", text)
+        self.assertIn("使用 防御", text)
         self.assertIn("获得 8 点护盾", text)
 
 
