@@ -203,6 +203,48 @@ class BattleTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertTrue(any(entry.get("card_id") == "recover_instinct" for entry in result["battle"]["log"]))
 
+    def test_apply_damage_clears_guard_effect_when_shield_is_spent(self):
+        target = {"shield": 9, "effects": [{"type": "water_barrier", "shield": 9}], "hp": 30, "alive": True}
+
+        damage = battle._apply_damage(target, 12)
+
+        self.assertEqual(damage["damage"], 3)
+        self.assertEqual(target["shield"], 0)
+        self.assertEqual(target["effects"], [])
+
+    def test_guard_reduces_next_basic_attack_and_is_consumed(self):
+        target = {
+            "shield": 0,
+            "effects": [{"type": "guard", "damage_reduction_pct": 60, "block_chance_pct": 5}],
+            "hp": 30,
+            "alive": True,
+        }
+
+        with patch("systems.battle_effects.random.random", return_value=0.99):
+            damage = battle._apply_damage(target, 10, attack_type="basic_attack")
+
+        self.assertEqual(damage["damage"], 4)
+        self.assertEqual(damage["guard_reduced"], 6)
+        self.assertFalse(damage["guard_blocked"])
+        self.assertEqual(target["hp"], 26)
+        self.assertEqual(target["effects"], [])
+
+    def test_guard_can_fully_block_basic_attack(self):
+        target = {
+            "shield": 0,
+            "effects": [{"type": "guard", "damage_reduction_pct": 60, "block_chance_pct": 5}],
+            "hp": 30,
+            "alive": True,
+        }
+
+        with patch("systems.battle_effects.random.random", return_value=0.0):
+            damage = battle._apply_damage(target, 10, attack_type="basic_attack")
+
+        self.assertEqual(damage["damage"], 0)
+        self.assertTrue(damage["guard_blocked"])
+        self.assertEqual(target["hp"], 30)
+        self.assertEqual(target["effects"], [])
+
     def test_test_enemy_is_reset_to_full_hp_when_battle_starts(self):
         caller = FakeCaller()
         enemy = FakeEnemy(key="试战恶徒")
@@ -383,7 +425,9 @@ class BattleTests(unittest.TestCase):
                         "stamina": 40,
                         "max_stamina": 50,
                         "shield": 8,
+                        "resources": {"hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "stamina": 40, "max_stamina": 50, "shield": 8},
                         "cooldowns": {},
+                        "effects": [{"type": "guard", "damage_reduction_pct": 60, "block_chance_pct": 5}],
                     },
                     {
                         "name": "试战恶徒",
@@ -396,40 +440,56 @@ class BattleTests(unittest.TestCase):
                         "stamina": 30,
                         "max_stamina": 30,
                         "shield": 0,
+                        "resources": {"hp": 30, "max_hp": 60, "mp": 0, "max_mp": 0, "stamina": 30, "max_stamina": 30, "shield": 0},
                         "cooldowns": {},
+                        "effects": [],
                     },
                 ],
                 "log": [
                     {"type": "basic_attack", "actor_name": "试战恶徒", "target_name": "测试者", "value": 7},
-                    {"type": "guard", "actor_name": "测试者", "card_id": "guard", "value": 8},
+                    {"type": "guard", "actor_name": "测试者", "card_id": "guard", "value": 60, "block_chance_pct": 5},
                 ],
                 "round_reports": [
                     {
                         "turn_count": 3,
                         "actor_name": "试战恶徒",
                         "actor_side": "enemy",
-                        "entry": {"type": "basic_attack", "actor_name": "试战恶徒", "target_name": "测试者", "value": 7},
+                        "entry": {
+                            "type": "basic_attack",
+                            "actor_name": "试战恶徒",
+                            "target_name": "测试者",
+                            "value": 7,
+                            "action_result": {
+                                "action_type": "basic_attack",
+                                "result": {"damage": 7},
+                                "modifiers": {"guard_blocked": False, "guard_reduced": 0, "shield_absorbed": 0},
+                            },
+                        },
                         "before": {
-                            "player": [{"name": "测试者", "hp": 97, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0}],
-                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0}],
+                            "player": [{"name": "测试者", "hp": 97, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0, "resources": {"hp": 97, "max_hp": 100, "mp": 12, "max_mp": 20, "stamina": 40, "max_stamina": 50, "shield": 0}, "effects": []}],
+                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0, "resources": {"hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "stamina": 30, "max_stamina": 30, "shield": 0}, "effects": []}],
+                            "meta": {"alive_player_count": 1, "alive_enemy_count": 1},
                         },
                         "after": {
-                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0}],
-                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0}],
+                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0, "resources": {"hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "stamina": 40, "max_stamina": 50, "shield": 0}, "effects": []}],
+                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0, "resources": {"hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "stamina": 30, "max_stamina": 30, "shield": 0}, "effects": []}],
+                            "meta": {"alive_player_count": 1, "alive_enemy_count": 1},
                         },
                     },
                     {
                         "turn_count": 4,
                         "actor_name": "测试者",
                         "actor_side": "player",
-                        "entry": {"type": "guard", "actor_name": "测试者", "card_id": "guard", "value": 8},
+                        "entry": {"type": "guard", "actor_name": "测试者", "card_id": "guard", "value": 60, "block_chance_pct": 5, "action_result": {"action_type": "guard", "result": {"damage": 0, "heal": 0, "shield_gain": 0}}},
                         "before": {
-                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0}],
-                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0}],
+                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0, "resources": {"hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "stamina": 40, "max_stamina": 50, "shield": 0}, "effects": []}],
+                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0, "resources": {"hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "stamina": 30, "max_stamina": 30, "shield": 0}, "effects": []}],
+                            "meta": {"alive_player_count": 1, "alive_enemy_count": 1},
                         },
                         "after": {
-                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 8}],
-                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0}],
+                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0, "resources": {"hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "stamina": 40, "max_stamina": 50, "shield": 0}, "effects": [{"type": "guard", "damage_reduction_pct": 60, "block_chance_pct": 5}]}],
+                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0, "resources": {"hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "stamina": 30, "max_stamina": 30, "shield": 0}, "effects": []}],
+                            "meta": {"alive_player_count": 1, "alive_enemy_count": 1},
                         },
                     },
                 ],
@@ -439,14 +499,17 @@ class BattleTests(unittest.TestCase):
 
         self.assertIn("我方状态", summary)
         self.assertIn("敌方状态", summary)
+        self.assertIn("战场摘要", summary)
+        self.assertIn("我方存活 1 人 / 敌方存活 1 人", summary)
         self.assertIn("当前对阵", summary)
-        self.assertIn("测试者(气血 90/100, 灵力 12/20, 护盾 8, 体力 40/50)", summary)
+        self.assertIn("测试者(气血 90/100, 灵力 12/20, 护盾 8, 体力 40/50, 状态 防御(减普攻60%, 格挡5%))", summary)
         self.assertIn("试战恶徒(气血 30/60, 灵力 0/0, 护盾 0, 体力 30/30)", summary)
         self.assertIn("轮到你方行动", summary)
         self.assertIn("最近回合战报", summary)
         self.assertIn("敌方回合", summary)
         self.assertIn("我方回合", summary)
-        self.assertIn("测试者 使用 防御，获得 8 点护盾。", summary)
+        self.assertIn("[存活 我方 1 / 敌方 1]", summary)
+        self.assertIn("测试者 使用 防御，进入防御架势：普通攻击减伤 60%，并有 5% 概率完全格挡。", summary)
 
 
 if __name__ == "__main__":

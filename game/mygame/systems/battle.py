@@ -5,8 +5,11 @@ from __future__ import annotations
 import time
 import uuid
 
+from .battle_ai import choose_card as choose_ai_card
+from .battle_cards import build_card_payload
+from .battle_effects import apply_damage, apply_guard_effect, apply_heal_effect, apply_shield_effect, spend_card_costs
+from .battle_results import build_basic_attack_result, build_item_result, build_round_report, build_spell_damage_result, snapshot_battle_state
 from .chat import notify_player
-from .content_loader import load_content
 from .enemy_model import get_enemy_sheet, is_enemy
 from .event_bus import (
     combat_action_resolved,
@@ -29,7 +32,6 @@ MIN_FAILURE_HP = 1
 MIN_FAILURE_STAMINA = 5
 
 _BATTLE_REGISTRY = {}
-CARD_DEFINITIONS = load_content("battle_cards")
 
 
 def reset_battle_registry():
@@ -298,7 +300,8 @@ def _settle_battle_until_player_input(battle):
                 _advance_battle_to_next_actor(battle)
                 continue
             break
-        selected = _select_ai_card(battle, actor)
+        actor["available_cards"] = _build_available_cards(battle, actor)
+        selected = choose_ai_card(battle, actor)
         _resolve_action(battle, actor, selected["card_id"], target_id=selected.get("target_id"), auto=True)
         _check_battle_finished(battle)
         if battle["status"] == "finished":
@@ -339,13 +342,13 @@ def _advance_battle_to_next_actor(battle):
 
 
 def _resolve_action(battle, actor, card_id, target_id=None, item_id=None, auto=False):
-    before_snapshot = _snapshot_battle_state(battle)
+    before_snapshot = snapshot_battle_state(battle)
     actor["available_cards"] = _build_available_cards(battle, actor)
     cards = {card["card_id"]: card for card in actor["available_cards"]}
     card = cards.get(card_id)
     if not card:
         if card_id == "basic_attack":
-            card = _build_card_payload("basic_attack")
+            card = build_card_payload("basic_attack")
         else:
             return {"ok": False, "reason": "card_unavailable"}
 
@@ -357,8 +360,8 @@ def _resolve_action(battle, actor, card_id, target_id=None, item_id=None, auto=F
     _write_back_combatant_state(actor)
     _sync_battle_targets(battle)
     battle["log"].append(result["log"])
-    after_snapshot = _snapshot_battle_state(battle)
-    battle["round_reports"].append(_build_round_report(battle, actor, result["log"], before_snapshot, after_snapshot, auto=auto))
+    after_snapshot = snapshot_battle_state(battle)
+    battle["round_reports"].append(build_round_report(battle, actor, result["log"], before_snapshot, after_snapshot, auto=auto))
     battle["action_deadline_ts"] = None
     _emit_battle_event(battle, combat_action_resolved({"battle_id": battle["battle_id"], "entry": result["log"], "auto": auto}))
     return result
@@ -367,100 +370,36 @@ def _resolve_action(battle, actor, card_id, target_id=None, item_id=None, auto=F
 def _resolve_basic_attack(battle, actor, target_id=None):
     target = _resolve_target_for_actor(battle, actor, target_id)
     damage = max(1, int(actor["combat_stats_snapshot"].get("attack_power", 10) - target["combat_stats_snapshot"].get("defense", 0) / 2))
-    applied = _apply_damage(target, damage)
+    applied = apply_damage(target, damage, attack_type="basic_attack")
     if actor["entity_type"] == "player":
         actor["stamina"] = max(0, actor["stamina"] - 3)
-    return {
-        "type": "basic_attack",
-        "target_id": target["combatant_id"],
-        "log": {
-            "type": "basic_attack",
-            "actor_id": actor["combatant_id"],
-            "actor_name": actor["name"],
-            "target_id": target["combatant_id"],
-            "target_name": target["name"],
-            "value": applied,
-            "target_hp": target["hp"],
-        },
-    }
+    return build_basic_attack_result(actor, target, damage, applied)
 
 
 def _resolve_guard_action(battle, actor, card=None):
-    params = dict((card or {}).get("effect_params") or {})
-    costs = dict((card or {}).get("costs") or {})
-    if card and card.get("card_type") == "skill_card":
-        actor["mp"] = max(0, actor["mp"] - int(costs.get("mp", 0) or 0))
-        actor["cooldowns"][card["card_id"]] = int((card or {}).get("cooldown", 0) or 0)
-    shield = max(
-        int(params.get("min_shield", 6) or 6),
-        int(params.get("base_shield", 0) or 0)
-        + int(actor["combat_stats_snapshot"].get("defense", 5) * float(params.get("defense_ratio", 1.2) or 1.2)),
-    )
-    actor["shield"] += shield
-    actor["effects"] = [effect for effect in actor["effects"] if effect.get("type") != "guard"]
-    effect_type = card["card_id"] if card and card["card_type"] == "skill_card" else "guard"
-    actor["effects"].append({"type": effect_type, "shield": shield})
-    return {
-        "type": card["card_type"] if card else "guard",
-        "log": {
-            "type": card["card_type"] if card else "guard",
-            "card_id": card["card_id"] if card else "guard",
-            "actor_id": actor["combatant_id"],
-            "actor_name": actor["name"],
-            "value": shield,
-        },
-    }
+    return apply_guard_effect(actor, card=card)
+
+
+def _resolve_shield_action(battle, actor, card=None):
+    return apply_shield_effect(actor, card=card)
 
 
 def _resolve_spell_damage_card(battle, actor, target_id=None, card=None):
     target = _resolve_target_for_actor(battle, actor, target_id)
-    costs = dict((card or {}).get("costs") or {})
     params = dict((card or {}).get("effect_params") or {})
-    actor["mp"] = max(0, actor["mp"] - int(costs.get("mp", 0) or 0))
-    actor["cooldowns"][card["card_id"]] = int((card or {}).get("cooldown", 0) or 0)
+    spend_card_costs(actor, card)
     damage = max(
         int(params.get("min_damage", 4) or 4),
         int(params.get("base_damage", 8) or 8)
         + int(actor["combat_stats_snapshot"].get("attack_power", 8) * float(params.get("attack_ratio", 0.5) or 0))
         + int(actor["combat_stats_snapshot"].get("spell_power", 0) * float(params.get("spell_ratio", 1.0) or 0)),
     )
-    applied = _apply_damage(target, damage)
-    return {
-        "type": "skill_card",
-        "log": {
-            "type": "skill_card",
-            "card_id": card["card_id"],
-            "actor_id": actor["combatant_id"],
-            "actor_name": actor["name"],
-            "target_id": target["combatant_id"],
-            "target_name": target["name"],
-            "value": applied,
-            "target_hp": target["hp"],
-        },
-    }
+    applied = apply_damage(target, damage)
+    return build_spell_damage_result(actor, target, card, damage, applied)
 
 
 def _resolve_recover_instinct(battle, actor, card=None):
-    params = dict((card or {}).get("effect_params") or {})
-    costs = dict((card or {}).get("costs") or {})
-    actor["mp"] = max(0, actor["mp"] - int(costs.get("mp", 0) or 0))
-    actor["cooldowns"][card["card_id"]] = int((card or {}).get("cooldown", 3) or 3)
-    heal = max(
-        int(params.get("min_heal", 8) or 8),
-        int(params.get("base_heal", 8) or 8) + int(actor["max_hp"] * float(params.get("max_hp_ratio", 0.25) or 0)),
-    )
-    actor["hp"] = min(actor["max_hp"], actor["hp"] + heal)
-    return {
-        "type": "skill_card",
-        "log": {
-            "type": "skill_card",
-            "card_id": card["card_id"],
-            "actor_id": actor["combatant_id"],
-            "actor_name": actor["name"],
-            "value": heal,
-            "target_hp": actor["hp"],
-        },
-    }
+    return apply_heal_effect(actor, card=card, default_cooldown=3)
 
 
 def _resolve_item_action(battle, actor, item_id):
@@ -470,27 +409,14 @@ def _resolve_item_action(battle, actor, item_id):
     if not item:
         item = _find_first_combat_item(caller)
     if not item:
-        return {
-            "type": "use_combat_item",
-            "log": {"type": "use_combat_item", "actor_id": actor["combatant_id"], "actor_name": actor["name"], "value": 0},
-        }
+        return build_item_result(actor, heal=0, text=None)
     result = use_item(caller, item)
     after = get_stats(caller)
     actor["hp"] = after["hp"]
     actor["mp"] = after["mp"]
     actor["stamina"] = after["stamina"]
     heal = max(0, after["hp"] - before["hp"])
-    return {
-        "type": "use_combat_item",
-        "log": {
-            "type": "use_combat_item",
-            "actor_id": actor["combatant_id"],
-            "actor_name": actor["name"],
-            "item_id": getattr(getattr(item, "db", None), "item_id", None),
-            "value": heal,
-            "text": result.get("text"),
-        },
-    }
+    return build_item_result(actor, item=item, heal=heal, text=result.get("text"))
 
 
 def _resolve_target_for_actor(battle, actor, target_id=None):
@@ -507,7 +433,7 @@ def _resolve_target_for_actor(battle, actor, target_id=None):
 def _build_available_cards(battle, actor):
     cards = []
     for card_id in actor.get("battle_card_pool") or []:
-        card = _build_card_payload(card_id)
+        card = build_card_payload(card_id)
         if not card:
             continue
         if not _card_is_available(actor, card):
@@ -524,26 +450,8 @@ def _decrement_cooldowns(actor):
     }
 
 
-def _select_ai_card(battle, actor):
-    actor["available_cards"] = _build_available_cards(battle, actor)
-    for rule in actor.get("decision_rules") or []:
-        if _ai_rule_matches(battle, actor, rule):
-            chosen = _find_available_card(actor, rule.get("use_card"))
-            if chosen:
-                return {"card_id": chosen["card_id"], "target_id": _resolve_ai_target_id(battle, actor, chosen)}
-    for card in actor["available_cards"]:
-        if card["card_type"] == "skill_card" and card["target_rule"] == "enemy_single":
-            return {"card_id": card["card_id"], "target_id": _resolve_ai_target_id(battle, actor, card)}
-    return {"card_id": "basic_attack", "target_id": _resolve_target_for_actor(battle, actor)["combatant_id"]}
-
-
-def _apply_damage(target, damage):
-    shield_absorbed = min(target.get("shield", 0), damage)
-    damage -= shield_absorbed
-    target["shield"] = max(0, target.get("shield", 0) - shield_absorbed)
-    target["hp"] = max(0, target["hp"] - damage)
-    target["alive"] = target["hp"] > 0
-    return damage
+def _apply_damage(target, damage, attack_type=None):
+    return apply_damage(target, damage, attack_type=attack_type)
 
 
 def _sync_battle_targets(battle):
@@ -736,22 +644,6 @@ def _emit_battle_event(battle, event):
             enqueue_account_event(account, event)
 
 
-def _build_card_payload(card_id):
-    data = CARD_DEFINITIONS.get(card_id)
-    if not data:
-        return None
-    return {
-        "card_id": card_id,
-        "card_type": data.get("card_type", "basic_attack"),
-        "name": data.get("name", card_id),
-        "target_rule": data.get("target_rule", "enemy_single"),
-        "costs": dict(data.get("costs", {})),
-        "cooldown": int(data.get("cooldown", 0) or 0),
-        "source": data.get("source", "basic"),
-        "effects": [{"type": effect_type} for effect_type in data.get("effects", [])],
-    }
-
-
 def _card_is_available(actor, card):
     if not card:
         return False
@@ -775,37 +667,10 @@ def _resolve_card_action(battle, actor, card, target_id=None):
     if any(effect.get("type") == "heal" for effect in card.get("effects", [])):
         return _resolve_recover_instinct(battle, actor, card=card)
     if any(effect.get("type") == "shield" for effect in card.get("effects", [])):
-        return _resolve_guard_action(battle, actor, card=card)
+        return _resolve_shield_action(battle, actor, card=card)
     if any(effect.get("type") in {"spell_damage", "damage"} for effect in card.get("effects", [])):
         return _resolve_spell_damage_card(battle, actor, target_id, card=card) if card["card_type"] == "skill_card" else _resolve_basic_attack(battle, actor, target_id)
     return _resolve_basic_attack(battle, actor, target_id)
-
-
-def _ai_rule_matches(battle, actor, rule):
-    when = dict(rule.get("when") or {})
-    hp_pct = int(100 * actor["hp"] / max(1, actor["max_hp"]))
-    if "self_hp_lte_pct" in when and hp_pct > int(when["self_hp_lte_pct"]):
-        return False
-    if "card_ready" in when and actor["cooldowns"].get(when["card_ready"], 0) > 0:
-        return False
-    if "has_effect" in when and not any(effect.get("type") == when["has_effect"] for effect in actor.get("effects") or []):
-        return False
-    return True
-
-
-def _find_available_card(actor, card_id):
-    for card in actor.get("available_cards") or []:
-        if card["card_id"] == card_id:
-            return card
-    return None
-
-
-def _resolve_ai_target_id(battle, actor, card):
-    target_rule = card.get("target_rule")
-    if target_rule == "self":
-        return actor["combatant_id"]
-    target = _resolve_target_for_actor(battle, actor)
-    return target["combatant_id"] if target else None
 
 
 def _prepare_enemy_for_battle(enemy):
@@ -821,39 +686,3 @@ def _prepare_enemy_for_battle(enemy):
     if getattr(enemy.db, "combat_stats", None):
         enemy.db.combat_stats = {**enemy.db.combat_stats, "hp": max_hp, "max_hp": max_hp}
 
-
-def _snapshot_battle_state(battle):
-    players = []
-    enemies = []
-    for combatant in battle["participants"]:
-        entry = {
-            "name": combatant["name"],
-            "side": combatant["side"],
-            "alive": combatant["alive"],
-            "hp": combatant["hp"],
-            "max_hp": combatant["max_hp"],
-            "mp": combatant["mp"],
-            "max_mp": combatant["max_mp"],
-            "stamina": combatant["stamina"],
-            "max_stamina": combatant["max_stamina"],
-            "shield": combatant.get("shield", 0),
-        }
-        if combatant["side"] == "player":
-            players.append(entry)
-        else:
-            enemies.append(entry)
-    return {"player": players, "enemy": enemies}
-
-
-def _build_round_report(battle, actor, log_entry, before_snapshot, after_snapshot, auto=False):
-    return {
-        "turn_count": battle["turn_state"]["turn_count"],
-        "actor_name": actor["name"],
-        "actor_side": actor["side"],
-        "card_id": log_entry.get("card_id") or log_entry.get("type"),
-        "target_name": log_entry.get("target_name"),
-        "entry": dict(log_entry),
-        "before": before_snapshot,
-        "after": after_snapshot,
-        "auto": auto,
-    }

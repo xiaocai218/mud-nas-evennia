@@ -172,6 +172,20 @@
 - `battle.py`
   - 统一战斗实例、ATB 时间轴、卡牌式动作与战斗结果结算
   - 当前最小支持普通攻击、防御、战斗物品、基础技能卡与规则式敌人 AI
+  - 当前已开始收口为“战斗调度层”，第一阶段已把部分效果结算迁到 `battle_effects.py`
+- `battle_effects.py`
+  - 承载战斗效果处理器
+  - 当前已接管伤害、防御、护盾、治疗与卡牌资源消耗这类通用效果结算
+  - 后续继续扩展时，优先在这里新增 effect handler，而不是继续把数值细节堆回 `battle.py`
+- `battle_cards.py`
+  - 承载战斗卡适配层
+  - 当前已接管卡牌配置读取、payload 构造、显示名解析与命令输入别名映射
+  - 后续新增卡牌时，优先改配置与这里的适配规则，不再让 `battle.py` 和 `combat.py` 各维护一套卡牌认知
+- `battle_results.py`
+  - 承载战斗结果适配层
+  - 当前已接管 action log、基础结果对象、状态快照与回合战报构造
+  - 当前已开始统一产出 `action_result`、`resources` 与 `snapshot.meta`
+  - 后续 battle DTO、H5 战斗快照与文本战报应继续基于这一层收口
 - `enemy_model.py`
   - 统一敌对实体模型入口
   - 负责敌人模板标准化、运行态对象兼容桥接和 enemy sheet 输出
@@ -258,6 +272,32 @@
 - 新角色默认处于 `凡人` 阶段
 - 第四段只确认灵根，不立即入宗
 - 测灵后先进入 `启灵`
+
+## 战斗后续演进
+
+当前战斗模型已进入“可玩但仍需收口”的阶段。  
+后续优先级不是继续往 `battle.py` 堆更多技能，而是先完成这三层拆分：
+
+1. `battle.py`
+只保留 battle instance、ATB 推进、提交动作与胜负判定。
+
+2. `battle_effects.py`
+承载伤害、防御、护盾、治疗与后续 buff/debuff 的统一 effect handler。
+
+3. `battle_ai.py`
+承载基于配置的规则匹配与敌人选牌逻辑。
+
+对应设计草案见：
+
+- `docs/battle_effect_refactor_v1.md`
+
+当前进度：
+
+- `battle_effects.py` 已落地并接管第一批通用效果结算
+- `battle_ai.py` 已落地并接管规则匹配、AI 选牌与目标选择
+- `battle_cards.py` 已落地并接管卡牌适配、显示名与输入别名解析
+- `battle_results.py` 已落地并接管动作结果、快照与回合战报构造
+- `docs/battle_schema_v1.md` 已落地，开始正式定义 effect / action result / snapshot schema
 - 完成 `引气入体` 后才进入 `炼气一层`
 - 新手村与正式外门之间新增 `升仙台` 作为候测过渡场景
 - 已确认灵根后才进入 `cultivator` 阶段

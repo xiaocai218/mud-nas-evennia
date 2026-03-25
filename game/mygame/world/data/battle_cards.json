@@ -17,7 +17,11 @@
     "costs": {},
     "cooldown": 0,
     "source": "basic",
-    "effects": ["shield"]
+    "effects": ["guard"],
+    "effect_params": {
+      "damage_reduction_pct": 60,
+      "block_chance_pct": 5
+    }
   },
   "use_combat_item": {
     "id": "card_use_combat_item",

@@ -138,6 +138,12 @@ class EnemyModelTests(unittest.TestCase):
         self.assertEqual(enemy.db.enemy_id, "mist_ape")
         self.assertTrue(enemy.db.content_id.startswith("enemy_mist_ape__spawn_"))
 
+    def test_battle_yard_ruffian_prefers_attack_after_guard(self):
+        enemy = get_enemy_definition("battle_yard_ruffian")
+
+        self.assertEqual(enemy["enemy_meta"]["decision_rules"][0]["use_card"], "basic_attack")
+        self.assertEqual(enemy["enemy_meta"]["decision_rules"][0]["when"]["has_effect"], "guard")
+
 
 if __name__ == "__main__":
     unittest.main()
