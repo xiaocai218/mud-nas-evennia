@@ -611,10 +611,13 @@ def _grant_victory_rewards(battle):
         target.db.hp = getattr(target.db, "max_hp", enemy["max_hp"])
         if getattr(target.db, "combat_stats", None):
             target.db.combat_stats = {**target.db.combat_stats, "hp": target.db.hp}
-        message = f"你在战斗中击败 {target.key}，获得修为 +{reward_exp}。"
+        if reward_exp > 0:
+            message = f"你在战斗中击败 {target.key}，获得修为 +{reward_exp}。"
+        else:
+            message = f"你在战斗中击败 {target.key}。"
         if drop:
             message += f" 掉落：{drop.key}。"
-        if new_realm != old_realm:
+        if reward_exp > 0 and new_realm != old_realm:
             message += f" 境界提升至 {new_realm}。"
         notify_player(caller, message, code="combat_reward")
 

@@ -4,6 +4,7 @@ import time
 
 from .character_model import (
     CULTIVATOR_STAGE,
+    MORTAL_REALM,
     PRIMARY_CURRENCY_COPPER,
     ensure_character_model,
     is_awakened_realm,
@@ -48,10 +49,18 @@ def get_stats(caller):
 
 def apply_exp(caller, gain):
     ensure_character_model(caller)
+    gain = int(gain or 0)
     exp = 0 if caller.db.exp is None else caller.db.exp
     stage = getattr(caller.db, "character_stage", None)
     root = getattr(caller.db, "spiritual_root", None)
-    old_realm = resolve_character_realm(stage, exp, current_realm=getattr(caller.db, "realm", None), root=root)
+    current_realm = getattr(caller.db, "realm", None)
+    old_realm = resolve_character_realm(stage, exp, current_realm=current_realm, root=root)
+    if gain <= 0:
+        normalized_realm = old_realm
+        if stage == CULTIVATOR_STAGE and current_realm not in (None, "", MORTAL_REALM) and not is_awakened_realm(current_realm):
+            normalized_realm = get_realm_from_exp(exp)
+        caller.db.realm = normalized_realm
+        return normalized_realm, normalized_realm, exp
     exp += gain
     if stage == CULTIVATOR_STAGE:
         new_realm = old_realm if is_awakened_realm(old_realm) else get_realm_from_exp(exp)

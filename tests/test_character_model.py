@@ -112,6 +112,20 @@ class CharacterModelTests(unittest.TestCase):
         self.assertEqual(new_realm, AWAKENED_REALM)
         self.assertEqual(exp, 0)
 
+    def test_apply_exp_zero_does_not_promote_stale_realm(self):
+        caller = FakeCaller()
+        caller.db.character_stage = CULTIVATOR_STAGE
+        caller.db.spiritual_root = ROOT_WATER
+        caller.db.exp = 90
+        caller.db.realm = "炼气四层"
+
+        old_realm, new_realm, exp = apply_exp(caller, 0)
+
+        self.assertEqual(old_realm, "炼气三层")
+        self.assertEqual(new_realm, "炼气三层")
+        self.assertEqual(exp, 90)
+        self.assertEqual(caller.db.realm, "炼气三层")
+
     def test_promote_awakened_realm_enters_default_realm_progression(self):
         caller = FakeCaller()
 

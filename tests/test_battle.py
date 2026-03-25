@@ -212,6 +212,28 @@ class BattleTests(unittest.TestCase):
 
         mock_submit.assert_called_once_with(caller, "guard", target_id=None, item_id=None)
 
+    def test_victory_with_zero_exp_does_not_emit_false_realm_up_message(self):
+        caller = FakeCaller()
+        enemy = FakeEnemy(key="试战恶徒")
+        enemy.db.reward_exp = 0
+        battle_state = {
+            "participants": [
+                {"side": "player", "entity_ref": caller},
+                {"side": "enemy", "entity_ref": enemy, "max_hp": 60},
+            ]
+        }
+
+        with (
+            patch("systems.battle.apply_exp", return_value=("炼气三层", "炼气四层", 90)),
+            patch("systems.battle.mark_combat_kill"),
+            patch("systems.battle.notify_player") as mock_notify,
+        ):
+            battle._grant_victory_rewards(battle_state)
+
+        message = mock_notify.call_args.args[1]
+        self.assertNotIn("修为 +0", message)
+        self.assertNotIn("境界提升至", message)
+
 
 if __name__ == "__main__":
     unittest.main()

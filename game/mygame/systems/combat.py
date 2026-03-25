@@ -70,7 +70,10 @@ def attack_training_target(caller, target):
         drop = None
         if drop_key and drop_desc:
             drop = create_loot(caller, key=drop_key, item_id=drop_item_id, desc=drop_desc)
-        message = f"击败 {target.key}，获得修为 +{reward_exp}。"
+        if reward_exp > 0:
+            message = f"击败 {target.key}，获得修为 +{reward_exp}。"
+        else:
+            message = f"击败 {target.key}。"
         if drop:
             message += f" 掉落：{drop.key}。"
         notify_player(caller, message, code="combat_reward")
