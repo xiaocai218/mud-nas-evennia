@@ -153,21 +153,32 @@ class CmdPlayCard(Command):
 
 
 def _render_battle_summary(battle):
+    current_actor = battle.get("current_actor_name") or "无"
+    participants = battle.get("participants", []) or []
+    player_side = [combatant for combatant in participants if combatant.get("side") == "player"]
+    enemy_side = [combatant for combatant in participants if combatant.get("side") == "enemy"]
+    current_actor_side = _resolve_current_actor_side(battle)
+    turn_hint = _render_turn_hint(current_actor, current_actor_side)
+
     lines = [
         f"|g战斗状态|n: {battle['status']} / 回合数 {battle['turn_count']}",
-        f"|g当前行动者|n: {battle.get('current_actor_name') or '无'}",
-        "|g参战单位|n:",
+        f"|g当前行动者|n: {current_actor}",
+        f"|g当前节奏|n: {turn_hint}",
+        "|g我方状态|n:",
     ]
-    for combatant in battle.get("participants", []):
-        state = "存活" if combatant["alive"] else "倒下"
-        lines.append(
-            f"- {combatant['name']} [{combatant['side']}] HP {combatant['hp']}/{combatant['max_hp']} MP {combatant['mp']}/{combatant['max_mp']} 护盾 {combatant.get('shield', 0)} [{state}]"
-        )
-    if battle.get("log"):
-        last = battle["log"][-1]
-        action_name = _display_name_for_log_entry(last)
-        lines.append(f"|g最近行动|n: {last.get('actor_name', '系统')} -> {action_name} ({last.get('value', 0)})")
-    if battle.get("current_actor_name"):
+    for combatant in player_side:
+        lines.append(_render_combatant_line(combatant, highlight=combatant["name"] == current_actor))
+    lines.append("|g敌方状态|n:")
+    for combatant in enemy_side:
+        lines.append(_render_combatant_line(combatant, highlight=combatant["name"] == current_actor))
+    if player_side or enemy_side:
+        lines.append("|g当前对阵|n: " + _render_battle_state_overview(player_side, enemy_side))
+    recent_logs = battle.get("log")[-3:] if battle.get("log") else []
+    if recent_logs:
+        lines.append("|g最近战报|n:")
+        for entry in recent_logs:
+            lines.append(f"- {_format_battle_log_entry(entry)}")
+    if battle.get("current_actor_name") and battle["status"] == "active":
         lines.append("|g可用卡牌|n: " + "、".join(card["name"] for card in battle.get("available_cards", []) or []))
         lines.append("|g出牌方式|n: 直接输入卡牌名，或使用 |w出牌 卡牌名 [目标]|n")
     return "\n".join(lines)
@@ -194,3 +205,75 @@ def _display_name_for_log_entry(entry):
         "use_combat_item": "使用战斗物品",
         "skill_card": "技能",
     }.get(entry.get("type"), entry.get("type", "unknown"))
+
+
+def _render_turn_hint(current_actor_name, current_actor_side):
+    if current_actor_name == "无":
+        return "当前没有可行动单位。"
+    if current_actor_side == "player":
+        return f"轮到你方行动，由 {current_actor_name} 出手。"
+    if current_actor_side == "enemy":
+        return f"轮到敌方行动，由 {current_actor_name} 出手。"
+    return f"当前由 {current_actor_name} 行动。"
+
+
+def _resolve_current_actor_side(battle):
+    current_actor = battle.get("current_actor_name")
+    for combatant in battle.get("participants", []) or []:
+        if combatant.get("name") == current_actor:
+            return combatant.get("side")
+    return None
+
+
+def _render_combatant_line(combatant, highlight=False):
+    state = "存活" if combatant["alive"] else "倒下"
+    marker = ">> " if highlight else "- "
+    parts = [
+        f"{marker}{combatant['name']}",
+        f"气血 {combatant['hp']}/{combatant['max_hp']}",
+        f"灵力 {combatant['mp']}/{combatant['max_mp']}",
+        f"体力 {combatant['stamina']}/{combatant['max_stamina']}",
+        f"护盾 {combatant.get('shield', 0)}",
+        state,
+    ]
+    cooldowns = combatant.get("cooldowns") or {}
+    if cooldowns:
+        parts.append("冷却 " + "、".join(f"{name}:{value}" for name, value in cooldowns.items()))
+    return " / ".join(parts)
+
+
+def _format_battle_log_entry(entry):
+    actor_name = entry.get("actor_name", "未知")
+    target_name = entry.get("target_name")
+    value = entry.get("value", 0)
+    action_name = _display_name_for_log_entry(entry)
+    entry_type = entry.get("type")
+
+    if entry_type == "basic_attack":
+        return f"{actor_name} 对 {target_name} 造成 {value} 点伤害。"
+    if entry_type == "guard":
+        return f"{actor_name} 使用 {action_name}，获得 {value} 点护盾。"
+    if entry_type == "use_combat_item":
+        text = entry.get("text") or "使用了战斗物品"
+        return f"{actor_name}{text}，效果值 {value}。"
+    if entry_type == "skill_card":
+        if target_name:
+            return f"{actor_name} 使用 {action_name} 命中 {target_name}，效果值 {value}。"
+        return f"{actor_name} 使用 {action_name}，效果值 {value}。"
+    return f"{actor_name} 执行了 {action_name}。"
+
+
+def _render_battle_state_overview(player_side, enemy_side):
+    left = "；".join(_render_state_chip(combatant) for combatant in player_side) or "我方无可行动单位"
+    right = "；".join(_render_state_chip(combatant) for combatant in enemy_side) or "敌方无可行动单位"
+    return f"我方 {left} / 敌方 {right}"
+
+
+def _render_state_chip(combatant):
+    return (
+        f"{combatant['name']}("
+        f"气血 {combatant['hp']}/{combatant['max_hp']}, "
+        f"灵力 {combatant['mp']}/{combatant['max_mp']}, "
+        f"护盾 {combatant.get('shield', 0)}"
+        f")"
+    )

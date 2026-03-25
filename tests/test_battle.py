@@ -19,7 +19,7 @@ import django  # noqa: E402
 django.setup()
 
 from systems import battle  # noqa: E402
-from commands.combat import CmdPlayCard  # noqa: E402
+from commands.combat import CmdPlayCard, _render_battle_summary  # noqa: E402
 
 
 class FakeCaller:
@@ -233,6 +233,56 @@ class BattleTests(unittest.TestCase):
         message = mock_notify.call_args.args[1]
         self.assertNotIn("修为 +0", message)
         self.assertNotIn("境界提升至", message)
+
+    def test_render_battle_summary_groups_sides_and_recent_report(self):
+        summary = _render_battle_summary(
+            {
+                "status": "active",
+                "turn_count": 4,
+                "current_actor_name": "测试者",
+                "participants": [
+                    {
+                        "name": "测试者",
+                        "side": "player",
+                        "alive": True,
+                        "hp": 90,
+                        "max_hp": 100,
+                        "mp": 12,
+                        "max_mp": 20,
+                        "stamina": 40,
+                        "max_stamina": 50,
+                        "shield": 8,
+                        "cooldowns": {},
+                    },
+                    {
+                        "name": "试战恶徒",
+                        "side": "enemy",
+                        "alive": True,
+                        "hp": 30,
+                        "max_hp": 60,
+                        "mp": 0,
+                        "max_mp": 0,
+                        "stamina": 30,
+                        "max_stamina": 30,
+                        "shield": 0,
+                        "cooldowns": {},
+                    },
+                ],
+                "log": [
+                    {"type": "basic_attack", "actor_name": "试战恶徒", "target_name": "测试者", "value": 7},
+                    {"type": "guard", "actor_name": "测试者", "card_id": "guard", "value": 8},
+                ],
+                "available_cards": [{"name": "普通攻击"}, {"name": "防御"}],
+            }
+        )
+
+        self.assertIn("我方状态", summary)
+        self.assertIn("敌方状态", summary)
+        self.assertIn("当前对阵", summary)
+        self.assertIn("测试者(气血 90/100, 灵力 12/20, 护盾 8)", summary)
+        self.assertIn("试战恶徒(气血 30/60, 灵力 0/0, 护盾 0)", summary)
+        self.assertIn("轮到你方行动", summary)
+        self.assertIn("测试者 使用 防御，获得 8 点护盾。", summary)
 
 
 if __name__ == "__main__":
