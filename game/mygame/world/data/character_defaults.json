@@ -3,14 +3,15 @@
   "profiles": {
     "starter": {
       "id": "char_profile_starter",
-      "label": "初入九州",
-      "realm": "炼气一层",
+      "label": "凡俗初行",
+      "realm": "凡人",
       "hp": 100,
       "max_hp": 100,
       "stamina": 50,
       "max_stamina": 50,
       "exp": 0,
-      "copper": 80
+      "copper": 80,
+      "spirit_stone": 0
     }
   }
 }

@@ -29,6 +29,8 @@ class FakeCaller:
             guide_quest_mist_kill=True,
             guide_quest_stage_two_rewarded=True,
             guide_quest_stage_three_rewarded=True,
+            guide_quest_root_awakened=True,
+            guide_quest_qi_guided=True,
             side_herb_quest="side_herb_completed",
             side_dewgrass_quest="side_dewgrass_started",
         )
@@ -46,8 +48,20 @@ class QuestResetTests(unittest.TestCase):
         self.assertFalse(caller.db.guide_quest_mist_kill)
         self.assertFalse(caller.db.guide_quest_stage_two_rewarded)
         self.assertFalse(caller.db.guide_quest_stage_three_rewarded)
+        self.assertFalse(caller.db.guide_quest_root_awakened)
+        self.assertFalse(caller.db.guide_quest_qi_guided)
         self.assertEqual(caller.db.side_herb_quest, quests.NOT_STARTED)
         self.assertEqual(caller.db.side_dewgrass_quest, quests.NOT_STARTED)
+
+    def test_root_choice_helpers_reflect_intro_progress(self):
+        caller = FakeCaller()
+
+        self.assertTrue(quests.has_completed_trial_rewards(caller))
+        self.assertTrue(quests.has_awakened_spiritual_root(caller))
+        self.assertTrue(quests.has_completed_qi_guidance(caller))
+        self.assertFalse(quests.is_waiting_for_root_choice(caller))
+        self.assertTrue(quests.has_completed_intro_trials(caller))
+        self.assertTrue(quests.can_access_ascension_platform(caller))
 
 
 if __name__ == "__main__":

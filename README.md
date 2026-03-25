@@ -88,6 +88,7 @@ status
   - `溪谷栈道`
   - `青云外门前坪`
   - `听泉药圃`
+  - `外门坊市`
   - `村口杂货摊`
   - `小药铺`
   - `铁匠铺`
@@ -128,6 +129,12 @@ status
   - `背包`
   - `炼化`
   - `使用`
+  - `坊市`
+  - `上架`
+  - `购买坊市`
+  - `下架`
+  - `我的坊市`
+  - `领取坊市`
   - `商店`
   - `购买`
 - 内容流程：
@@ -136,6 +143,7 @@ status
   - 掉落、背包、炼化、可使用物品
   - 公告牌、任务碑、基础采集点、回渡石、增益点、恢复点与山门入口
   - 新手村基础设施房间与最小商店
+  - 外门坊市一口价寄售
 
 ## 项目结构
 
@@ -194,6 +202,8 @@ status
   - NPC 交谈触发条件与路由步骤
 - `shops.json`
   - 商店模板、所在房间、售卖物品与价格
+- `markets.json`
+  - 坊市模板、所在房间、挂牌可见数量与寄售有效期
 
 当前效果执行已开始统一收口：
 
@@ -228,6 +238,22 @@ status
   - `接受邀请 [队长名]`
   - `离队`
 - `队伍 <内容>` 现在会在真实加入队伍后生效，不再只是占位
+
+当前外门坊市也已落地：
+
+- `systems/market.py`
+  - 统一处理玩家寄售、购买、下架、收益领取与过期清理
+- 文本命令：
+  - `坊市`
+  - `上架 <物品名> <价格>`
+  - `购买坊市 <挂牌编号>`
+  - `下架 <挂牌编号>`
+  - `我的坊市`
+  - `领取坊市`
+- 当前规则：
+  - 只在 `外门坊市` 地点开放
+  - 只做一口价寄售，不做竞价拍卖
+  - 商品售出后收益进入待领取，不自动发到账
 
 当前 NPC 路由也已开始进一步收口：
 
@@ -276,6 +302,12 @@ H5 视觉和布局参考也已经留档：
   - 记录 HTTP / WebSocket 草案
   - 记录 action 列表
   - 记录 QuestDTO / ShopDTO / RoomDTO / CharacterDTO 草案
+- [h5_frontend_api_checklist.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\h5_frontend_api_checklist.md)
+  - 面向 `Vue 3 + Vite + TypeScript` 前端联调
+  - 汇总当前可直接接入的 HTTP 路由、action、DTO、错误码与建议接入顺序
+- [h5_error_codes.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\h5_error_codes.md)
+  - 汇总当前 H5 协议层常见错误码
+  - 便于前端提示映射、联调排查与测试编写
 
 当前 H5 接入基础设施也已开始落地：
 
@@ -296,9 +328,33 @@ H5 视觉和布局参考也已经留档：
 - `GET /api/h5/bootstrap/`
 - `GET /api/h5/quests/`
 - `GET /api/h5/shops/<shop_id>/`
+- `GET /api/h5/markets/<market_id>/`
 - `POST /api/h5/action/`
 - `GET /api/h5/ws-meta/`
 - `GET /api/h5/events/poll/`
+
+当前 H5 商品设施接口已经开始按统一 DTO 方向收口：
+
+- `serializers.py` 现在同时提供 `ShopDTO` 与 `MarketDTO`
+- `shops.py` 与 `market.py` 开始共用 `systems/commerce.py` 的房间设施解析与分页辅助
+- `market_detail` 当前先做只读详情接口，便于后续 H5 坊市页直接消费
+- `action_router.py` 与 `client_protocol.py` 现在也已预留坊市动作：
+  - `market_listings`
+  - `market_status`
+  - `market_create_listing`
+  - `market_buy_listing`
+  - `market_cancel_listing`
+  - `market_claim_earnings`
+- 玩家交易动作现在也已接入同一套 H5 action 协议：
+  - `trade_status`
+  - `trade_create_offer`
+  - `trade_accept_offer`
+  - `trade_reject_offer`
+  - `trade_cancel_offer`
+- `shop / market / trade` 的系统层返回现在也开始统一：
+  - 失败时带 `error.code`
+  - 成功时补 `summary`
+  - 这样命令层可继续读旧字段，H5 则能直接消费结构化结果
 
 当前 H5 action 已额外补上聊天预留：
 
@@ -350,6 +406,19 @@ H5 视觉和布局参考也已经留档：
   - `购买 渡口药包`
   - `购买 粗布水囊`
   - `购买 止血散`
+
+最新一轮坊市示例：
+
+- `青云外门` 已新增房间：
+  - `外门坊市`
+- 新增 `world/data/markets.json`
+- 当前坊市已支持：
+  - `坊市`
+  - `上架 青木碎片 12`
+  - `购买坊市 1`
+  - `下架 1`
+  - `我的坊市`
+  - `领取坊市`
 
 ## 内容 ID 规范
 
@@ -453,6 +522,7 @@ docker compose up -d
 - 可持续加内容
 - 不容易演变成巨型硬编码文件
 - 逐步具备聊天、组队、交易等多人互动骨架
+- 已具备外门坊市一口价寄售
 
 下一阶段最适合继续做的是：
 

@@ -40,7 +40,11 @@ def resolve_item_key(item_key=None, item_id=None):
 
 
 def get_inventory_items(caller):
-    return [obj for obj in caller.contents_get(content_type="object") if getattr(obj.db, "is_item", False)]
+    return [
+        obj
+        for obj in caller.contents_get(content_type="object")
+        if getattr(obj.db, "is_item", False) and getattr(obj, "location", None) == caller
+    ]
 
 
 def find_item(caller, item_name=None, item_id=None):

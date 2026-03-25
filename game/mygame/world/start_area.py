@@ -18,8 +18,10 @@ import django
 
 django.setup()
 
-from evennia.objects.models import ObjectDB
 from evennia.utils.create import create_object
+from evennia.objects.models import ObjectDB
+from systems.enemy_model import get_enemy_definition
+from systems.object_index import get_object_by_content_id
 
 
 ROOM_TYPECLASS = "typeclasses.rooms.Room"
@@ -82,11 +84,18 @@ def ensure_exit(location, destination, key, aliases):
 
 
 def ensure_object(location, key, desc, attrs=None):
-    obj = ObjectDB.objects.filter(db_location=location, db_key=key).first()
+    attrs = dict(attrs or {})
+    content_id = attrs.get("content_id")
+    obj = get_object_by_content_id(content_id)
+    if not obj:
+        obj = ObjectDB.objects.filter(db_location=location, db_key=key).first()
     if not obj:
         obj = create_object(OBJECT_TYPECLASS, key=key, location=location)
+    else:
+        obj.key = key
+        obj.location = location
     obj.db.desc = desc
-    for attr_key, attr_value in (attrs or {}).items():
+    for attr_key, attr_value in attrs.items():
         setattr(obj.db, attr_key, attr_value)
     obj.save()
     return obj
@@ -138,24 +147,44 @@ def build_objects(rooms, object_defs):
 
 
 def build_enemies(rooms, enemy_defs):
-    for enemy_id, enemy in enemy_defs.items():
-        room_id = enemy.get("room_id") or enemy.get("room")
+    for enemy_id in enemy_defs:
+        enemy = get_enemy_definition(enemy_id)
+        if not enemy:
+            continue
+        room_id = enemy.get("room_id")
+        identity = enemy["identity"]
+        combat_stats = enemy["combat_stats"]
+        enemy_meta = enemy["enemy_meta"]
         ensure_object(
             rooms[room_id],
-            enemy["key"],
-            enemy["desc"],
+            identity["name"],
+            enemy_meta.get("presentation", {}).get("desc") or enemy_meta.get("presentation", {}).get("description") or "",
             {
                 "combat_target": True,
-                "content_id": enemy.get("id", enemy_id),
-                "enemy_id": enemy_id,
-                "hp": enemy["hp"],
-                "max_hp": enemy["max_hp"],
-                "reward_exp": enemy["reward_exp"],
-                "counter_damage": enemy["counter_damage"],
-                "damage_taken": enemy["damage_taken"],
-                "drop_item_id": enemy.get("drop_item_id"),
-                "drop_key": enemy.get("drop_key"),
-                "quest_flag": enemy["quest_flag"],
+                "content_id": identity["content_id"],
+                "enemy_id": identity["template_id"],
+                "template_id": identity["template_id"],
+                "identity": identity,
+                "progression": enemy["progression"],
+                "primary_stats": enemy["primary_stats"],
+                "combat_stats": combat_stats,
+                "affinities": enemy["affinities"],
+                "reserves": enemy["reserves"],
+                "enemy_meta": enemy_meta,
+                "enemy_type": identity["enemy_type"],
+                "faction": identity["faction"],
+                "is_boss": identity["is_boss"],
+                "tags": identity["tags"],
+                "hp": combat_stats["hp"],
+                "max_hp": combat_stats["max_hp"],
+                "reward_exp": enemy_meta.get("reward_exp"),
+                "counter_damage": enemy_meta.get("counter_damage"),
+                "damage_taken": enemy_meta.get("damage_taken"),
+                "stamina_cost": enemy_meta.get("stamina_cost"),
+                "drop_item_id": enemy_meta.get("drop_item_id"),
+                "drop_key": enemy_meta.get("drop_key"),
+                "drop_desc": enemy_meta.get("drop_desc"),
+                "quest_flag": (enemy_meta.get("quest_hooks") or {}).get("quest_flag"),
             },
         )
 

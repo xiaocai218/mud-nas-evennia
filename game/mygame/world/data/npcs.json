@@ -51,6 +51,25 @@
       }
     },
     {
+      "id": "npc_spirit_guide_steward",
+      "room_id": "ascension_platform",
+      "key": "引灵执事",
+      "desc": "一名身披淡青执事袍的中年修士立在测灵石侧，袖口绣着细密云纹，目光平稳而克制。他偶尔抬手安抚骚动的人群，像是早已看惯无数人在此等待命运落定。",
+      "attrs": {
+        "npc_role": "spirit_guide",
+        "talk_route": "spirit_guide"
+      }
+    },
+    {
+      "id": "npc_platform_disciple",
+      "room_id": "ascension_platform",
+      "key": "维序弟子",
+      "desc": "一名背负木牌的年轻弟子在台边来回巡视，不时提醒候选者依次上前，不要喧哗推搡。看起来这里每天都要接待许多前来测灵的人。",
+      "attrs": {
+        "npc_role": "platform_guard"
+      }
+    },
+    {
       "id": "npc_garden_attendant",
       "room_id": "outer_court",
       "key": "药圃执事",

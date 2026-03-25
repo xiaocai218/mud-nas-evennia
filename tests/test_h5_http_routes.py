@@ -60,6 +60,7 @@ class H5HttpRouteTests(unittest.TestCase):
         self.assertIn("attack", payload["payload"]["actions"])
         self.assertIn("login", payload["payload"]["routes"])
         self.assertIn("event_poll", payload["payload"]["routes"])
+        self.assertIn("market_detail", payload["payload"]["routes"])
 
     def test_ws_meta_view_returns_poll_fallback(self):
         request = self.factory.get("/api/h5/ws-meta/")
@@ -246,6 +247,33 @@ class H5HttpRouteTests(unittest.TestCase):
         payload = self._decode(response)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(payload["payload"]["shop"]["id"], "shop_ferry_general_store")
+
+    def test_market_detail_view_returns_not_found(self):
+        request = self.factory.get("/api/h5/markets/missing/")
+        request.user = self.account
+        request.session = {}
+        with patch("web.api.views.serialize_market_by_id", return_value=None):
+            response = views.market_detail_view(request, "missing")
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(payload["error"]["code"], "market_not_found")
+
+    def test_market_detail_view_returns_market(self):
+        request = self.factory.get("/api/h5/markets/market_qingyun_outer_gate/?page=2&keyword=青木")
+        request.user = self.account
+        request.session = {}
+        with (
+            patch(
+                "web.api.views.serialize_market_by_id",
+                return_value={"id": "market_qingyun_outer_gate", "listings": [], "paging": {"page": 2, "keyword": "青木"}},
+            ),
+            patch("web.api.views.build_bootstrap_payload", return_value={"character": {"name": "tester"}}),
+        ):
+            response = views.market_detail_view(request, "market_qingyun_outer_gate")
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["payload"]["market"]["id"], "market_qingyun_outer_gate")
+        self.assertEqual(payload["payload"]["market"]["paging"]["page"], 2)
 
     def test_action_view_rejects_invalid_json(self):
         request = self.factory.post("/api/h5/action/", data=b"{bad", content_type="application/json")

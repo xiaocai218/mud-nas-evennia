@@ -2,6 +2,7 @@
 
 from systems.chat import send_system_message
 from systems.content_loader import load_content
+from systems.enemy_model import get_enemy_quest_flag
 from systems.items import create_reward_item, find_item
 from systems.player_stats import apply_exp
 from systems.teams import get_same_area_team_members, get_team_member_characters
@@ -12,9 +13,12 @@ STAGE_ONE_DONE = "stage_one_done"
 STAGE_TWO = "stage_two_started"
 STAGE_THREE_READY = "stage_three_ready"
 STAGE_THREE = "stage_three_started"
+ROOT_CHOICE_READY = "root_choice_ready"
+QI_GUIDANCE_READY = "qi_guidance_ready"
 COMPLETED = "completed"
 
 NOT_STARTED = "not_started"
+ASCENSION_PLATFORM_STATES = frozenset({ROOT_CHOICE_READY, QI_GUIDANCE_READY})
 
 
 QUEST_DATA = load_content("quests")
@@ -41,6 +45,43 @@ def get_quest_state(caller):
 
 def get_stage_data(state):
     return QUEST_STAGE_DATA.get(state)
+
+
+def has_completed_trial_rewards(caller):
+    return bool(getattr(caller.db, "guide_quest_stage_two_rewarded", False)) and bool(
+        getattr(caller.db, "guide_quest_stage_three_rewarded", False)
+    )
+
+
+def has_awakened_spiritual_root(caller):
+    return bool(getattr(caller.db, "guide_quest_root_awakened", False))
+
+
+def has_completed_qi_guidance(caller):
+    return bool(getattr(caller.db, "guide_quest_qi_guided", False))
+
+
+def is_waiting_for_root_choice(caller):
+    return get_quest_state(caller) == ROOT_CHOICE_READY
+
+
+def is_waiting_for_qi_guidance(caller):
+    return get_quest_state(caller) == QI_GUIDANCE_READY
+
+
+def can_use_spirit_stone(caller):
+    return is_waiting_for_root_choice(caller) or has_awakened_spiritual_root(caller)
+
+
+def has_completed_intro_trials(caller):
+    state = get_quest_state(caller)
+    if state == COMPLETED:
+        return has_completed_trial_rewards(caller) and has_completed_qi_guidance(caller)
+    return state in ASCENSION_PLATFORM_STATES
+
+
+def can_access_ascension_platform(caller):
+    return has_completed_intro_trials(caller)
 
 
 def get_main_stage_summary(state, prefix="主线已更新"):
@@ -245,6 +286,15 @@ def set_main_quest_state(caller, state):
     caller.db.guide_quest = state
 
 
+def prepare_root_choice_state(caller):
+    caller.db.guide_quest_stage_two_rewarded = True
+    caller.db.guide_quest_stage_three_rewarded = True
+    caller.db.guide_quest_root_awakened = False
+    caller.db.guide_quest_qi_guided = False
+    set_main_quest_state(caller, ROOT_CHOICE_READY)
+    return caller.db.guide_quest
+
+
 def start_guide_quest(caller):
     set_main_quest_state(caller, MAIN_FLOW["start_state"])
 
@@ -294,7 +344,7 @@ def complete_side_quest(caller, quest_key):
 
 
 def mark_combat_kill(caller, target):
-    quest_flag = getattr(target.db, "quest_flag", None)
+    quest_flag = get_enemy_quest_flag(target)
     expected = COMBAT_PROGRESS_FLAGS.get(quest_flag)
     if not expected:
         return {"updated": [], "shared": []}
@@ -346,7 +396,10 @@ def can_complete_main_stage(caller, state):
     stage = get_stage_data(state)
     if not stage or get_quest_state(caller) != state:
         return False
-    return bool(getattr(caller.db, stage["progress_attr"], False))
+    progress_attr = stage.get("progress_attr")
+    if not progress_attr:
+        return False
+    return bool(getattr(caller.db, progress_attr, False))
 
 
 def complete_main_stage(caller, state):
@@ -360,6 +413,12 @@ def complete_main_stage(caller, state):
     if reward_flag:
         setattr(caller.db, reward_flag, True)
     return next_state
+
+
+def mark_root_awakened(caller):
+    caller.db.guide_quest_root_awakened = True
+    caller.db.guide_quest = QI_GUIDANCE_READY
+    return caller.db.guide_quest
 
 
 def can_complete_stage_one(caller):

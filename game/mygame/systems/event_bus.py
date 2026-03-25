@@ -45,6 +45,26 @@ def chat_message_event(payload):
     return chat_message(payload)
 
 
+def combat_started(payload):
+    return emit_event("combat.started", payload, scope="combat")
+
+
+def combat_updated(payload):
+    return emit_event("combat.updated", payload, scope="combat")
+
+
+def combat_turn_ready(payload):
+    return emit_event("combat.turn_ready", payload, scope="combat")
+
+
+def combat_action_resolved(payload):
+    return emit_event("combat.action_resolved", payload, scope="combat")
+
+
+def combat_finished(payload):
+    return emit_event("combat.finished", payload, scope="combat")
+
+
 def enqueue_account_event(account, event):
     if not account:
         return

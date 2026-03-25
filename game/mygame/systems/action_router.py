@@ -1,14 +1,41 @@
 """Structured action routing layer for future H5/API clients."""
 
+from systems.battle import (
+    get_battle_snapshot,
+    is_character_in_battle,
+    list_available_cards,
+    list_available_targets,
+    start_battle,
+    submit_action,
+)
 from systems.client_protocol import build_response
 from systems.chat import send_private_message, send_team_message, send_world_message
-from systems.combat import attack_training_target
+from systems.combat import attack_enemy
 from systems.items import find_item, use_item
+from systems.market import (
+    buy_market_listing,
+    cancel_market_listing,
+    claim_market_earnings,
+    create_market_listing,
+)
 from systems.npc_routes import run_npc_route
 from systems.player_stats import get_stats
 from systems.quests import get_quest_status_text
-from systems.serializers import build_bootstrap_payload, serialize_inventory, serialize_room
+from systems.serializers import (
+    build_bootstrap_payload,
+    serialize_inventory,
+    serialize_market_in_room,
+    serialize_my_market_status,
+    serialize_room,
+    serialize_trade_status,
+)
 from systems.shops import buy_item
+from systems.trade import (
+    accept_trade_offer,
+    cancel_trade_offer,
+    create_trade_offer,
+    reject_trade_offer,
+)
 from systems.world_objects import (
     gather_from_object,
     get_readable_text,
@@ -16,6 +43,8 @@ from systems.world_objects import (
     is_readable,
     trigger_object,
 )
+
+attack_training_target = attack_enemy
 
 
 def dispatch_action(caller, action, payload=None):
@@ -29,15 +58,40 @@ def dispatch_action(caller, action, payload=None):
         "trigger_object": _handle_trigger_object,
         "use_item": _handle_use_item,
         "buy_item": _handle_buy_item,
+        "market_listings": _handle_market_listings,
+        "market_status": _handle_market_status,
+        "market_create_listing": _handle_market_create_listing,
+        "market_buy_listing": _handle_market_buy_listing,
+        "market_cancel_listing": _handle_market_cancel_listing,
+        "market_claim_earnings": _handle_market_claim_earnings,
+        "trade_status": _handle_trade_status,
+        "trade_create_offer": _handle_trade_create_offer,
+        "trade_accept_offer": _handle_trade_accept_offer,
+        "trade_reject_offer": _handle_trade_reject_offer,
+        "trade_cancel_offer": _handle_trade_cancel_offer,
         "chat_world": _handle_chat_world,
         "chat_team": _handle_chat_team,
         "chat_private": _handle_chat_private,
         "talk": _handle_talk,
         "attack": _handle_attack,
+        "battle_status": _handle_battle_status,
+        "battle_play_card": _handle_battle_play_card,
+        "battle_available_cards": _handle_battle_available_cards,
+        "battle_targets": _handle_battle_targets,
     }
     handler = handlers.get(action)
     if not handler:
         return build_response(False, error={"code": "unknown_action"})
+    if is_character_in_battle(caller) and action not in {
+        "attack",
+        "battle_status",
+        "battle_play_card",
+        "battle_available_cards",
+        "battle_targets",
+        "chat_team",
+        "bootstrap",
+    }:
+        return build_response(False, error={"code": "battle_action_only"})
     return handler(caller, payload)
 
 
@@ -94,12 +148,17 @@ def _handle_trigger_object(caller, payload):
     target = caller.search(payload.get("target"), location=caller.location)
     if not target:
         return build_response(False, error={"code": "target_not_found"})
-    result = trigger_object(caller, target)
+    result = trigger_object(caller, target, option=payload.get("option"))
     if not result.get("ok"):
         return build_response(False, error={"code": result.get("reason"), "message": result.get("text")})
     response = {"text": result.get("text"), "room": serialize_room(caller.location)}
     if result.get("destination"):
         response["room"] = serialize_room(result["destination"])
+    if "choices" in result:
+        response["choices"] = result["choices"]
+    if "root" in result:
+        response["root"] = result["root"]
+        response["root_label"] = result.get("root_label")
     return build_response(True, response)
 
 
@@ -116,8 +175,145 @@ def _handle_use_item(caller, payload):
 def _handle_buy_item(caller, payload):
     result = buy_item(caller, payload.get("target"))
     if not result.get("ok"):
-        return build_response(False, error={"code": result.get("reason"), "message": result.get("currency")})
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
     return build_response(True, {"result": result, "inventory": serialize_inventory(caller)})
+
+
+def _handle_market_listings(caller, payload):
+    market = serialize_market_in_room(
+        caller.location,
+        page=payload.get("page", 1),
+        keyword=(payload.get("keyword") or "").strip() or None,
+    )
+    if not market:
+        return build_response(False, error={"code": "market_not_available"})
+    return build_response(True, {"market": market})
+
+
+def _handle_market_status(caller, payload):
+    status = serialize_my_market_status(caller)
+    if not status:
+        return build_response(False, error={"code": "market_not_available"})
+    return build_response(True, {"status": status, "inventory": serialize_inventory(caller)})
+
+
+def _handle_market_create_listing(caller, payload):
+    result = create_market_listing(caller, payload.get("target"), payload.get("price"))
+    if not result.get("ok"):
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
+    return build_response(
+        True,
+        {
+            "result": result,
+            "inventory": serialize_inventory(caller),
+            "market": serialize_market_in_room(caller.location),
+            "status": serialize_my_market_status(caller),
+        },
+    )
+
+
+def _handle_market_buy_listing(caller, payload):
+    result = buy_market_listing(caller, payload.get("listing_id"))
+    if not result.get("ok"):
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
+    return build_response(
+        True,
+        {
+            "result": result,
+            "inventory": serialize_inventory(caller),
+            "market": serialize_market_in_room(caller.location),
+        },
+    )
+
+
+def _handle_market_cancel_listing(caller, payload):
+    result = cancel_market_listing(caller, payload.get("listing_id"))
+    if not result.get("ok"):
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
+    return build_response(
+        True,
+        {
+            "result": result,
+            "inventory": serialize_inventory(caller),
+            "market": serialize_market_in_room(caller.location),
+            "status": serialize_my_market_status(caller),
+        },
+    )
+
+
+def _handle_market_claim_earnings(caller, payload):
+    result = claim_market_earnings(caller)
+    if not result.get("ok"):
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
+    return build_response(
+        True,
+        {
+            "result": result,
+            "character": build_bootstrap_payload(caller)["character"],
+            "status": serialize_my_market_status(caller),
+        },
+    )
+
+
+def _handle_trade_status(caller, payload):
+    status = serialize_trade_status(caller)
+    if not status:
+        return build_response(False, error={"code": "trade_status_unavailable"})
+    return build_response(True, {"status": status, "inventory": serialize_inventory(caller)})
+
+
+def _handle_trade_create_offer(caller, payload):
+    result = create_trade_offer(caller, payload.get("target"), payload.get("item_name"), payload.get("price"))
+    if not result.get("ok"):
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
+    return build_response(
+        True,
+        {
+            "result": result,
+            "inventory": serialize_inventory(caller),
+            "status": serialize_trade_status(caller),
+        },
+    )
+
+
+def _handle_trade_accept_offer(caller, payload):
+    result = accept_trade_offer(caller, payload.get("target"))
+    if not result.get("ok"):
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
+    return build_response(
+        True,
+        {
+            "result": result,
+            "inventory": serialize_inventory(caller),
+            "status": serialize_trade_status(caller),
+        },
+    )
+
+
+def _handle_trade_reject_offer(caller, payload):
+    result = reject_trade_offer(caller, payload.get("target"))
+    if not result.get("ok"):
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
+    return build_response(
+        True,
+        {
+            "result": result,
+            "status": serialize_trade_status(caller),
+        },
+    )
+
+
+def _handle_trade_cancel_offer(caller, payload):
+    result = cancel_trade_offer(caller, payload.get("target"))
+    if not result.get("ok"):
+        return build_response(False, error=result.get("error") or {"code": result.get("reason")})
+    return build_response(
+        True,
+        {
+            "result": result,
+            "status": serialize_trade_status(caller),
+        },
+    )
 
 
 def _build_chat_response(result):
@@ -189,6 +385,37 @@ def _handle_attack(caller, payload):
         "inventory": serialize_inventory(caller),
     }
     return build_response(True, payload)
+
+
+def _handle_battle_status(caller, payload):
+    battle = get_battle_snapshot(caller)
+    if not battle:
+        return build_response(False, error={"code": "battle_not_found"})
+    return build_response(True, {"battle": battle})
+
+
+def _handle_battle_play_card(caller, payload):
+    result = submit_action(
+        caller,
+        payload.get("card_id"),
+        target_id=payload.get("target_id"),
+        item_id=payload.get("item_id"),
+    )
+    if not result.get("ok"):
+        return build_response(False, error={"code": result.get("reason")})
+    return build_response(True, {"result": result.get("result"), "battle": result.get("battle")})
+
+
+def _handle_battle_available_cards(caller, payload):
+    if not is_character_in_battle(caller):
+        return build_response(False, error={"code": "battle_not_found"})
+    return build_response(True, {"cards": list_available_cards(caller)})
+
+
+def _handle_battle_targets(caller, payload):
+    if not is_character_in_battle(caller):
+        return build_response(False, error={"code": "battle_not_found"})
+    return build_response(True, {"targets": list_available_targets(caller)})
 
 
 def _handle_not_implemented(caller, payload):

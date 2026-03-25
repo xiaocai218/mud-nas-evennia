@@ -2,32 +2,61 @@
 
 import time
 
-from .character_profiles import get_character_profile
+from .character_model import (
+    CULTIVATOR_STAGE,
+    PRIMARY_CURRENCY_COPPER,
+    ensure_character_model,
+    is_awakened_realm,
+    resolve_character_realm,
+)
 from .content_loader import load_content
-from .realms import get_default_realm, get_realm_from_exp
+from .realms import get_realm_from_exp
 
 
 EFFECT_DEFINITIONS = load_content("effects")
 
 
 def get_stats(caller):
-    profile = get_character_profile(getattr(caller.db, "character_profile", None))
+    sheet = ensure_character_model(caller)
+    combat = sheet["combat_stats"]
+    currencies = sheet["currencies"]
+    progression = sheet["progression"]
+    identity = sheet["identity"]
     return {
-        "realm": caller.db.realm or profile["realm"] or get_default_realm(),
-        "hp": profile["hp"] if caller.db.hp is None else caller.db.hp,
-        "max_hp": profile["max_hp"] if caller.db.max_hp is None else caller.db.max_hp,
-        "stamina": profile["stamina"] if caller.db.stamina is None else caller.db.stamina,
-        "max_stamina": profile["max_stamina"] if caller.db.max_stamina is None else caller.db.max_stamina,
-        "exp": profile["exp"] if caller.db.exp is None else caller.db.exp,
-        "copper": profile.get("copper", 0) if caller.db.copper is None else caller.db.copper,
+        "stage": identity["stage"],
+        "root": identity["root"],
+        "sect": identity.get("sect"),
+        "realm": progression["realm"],
+        "hp": combat["hp"],
+        "max_hp": combat["max_hp"],
+        "mp": combat["mp"],
+        "max_mp": combat["max_mp"],
+        "stamina": combat["stamina"],
+        "max_stamina": combat["max_stamina"],
+        "exp": progression["cultivation_exp"],
+        "copper": currencies["copper"],
+        "spirit_stone": currencies["spirit_stone"],
+        "primary_currency": currencies["primary_currency"],
+        "currencies": currencies,
+        "primary_stats": sheet["primary_stats"],
+        "combat_stats": combat,
+        "equipment": sheet["equipment"],
+        "affinities": sheet["affinities"],
+        "reserves": sheet["reserves"],
     }
 
 
 def apply_exp(caller, gain):
+    ensure_character_model(caller)
     exp = 0 if caller.db.exp is None else caller.db.exp
-    old_realm = caller.db.realm or get_realm_from_exp(exp)
+    stage = getattr(caller.db, "character_stage", None)
+    root = getattr(caller.db, "spiritual_root", None)
+    old_realm = resolve_character_realm(stage, exp, current_realm=getattr(caller.db, "realm", None), root=root)
     exp += gain
-    new_realm = get_realm_from_exp(exp)
+    if stage == CULTIVATOR_STAGE:
+        new_realm = old_realm if is_awakened_realm(old_realm) else get_realm_from_exp(exp)
+    else:
+        new_realm = resolve_character_realm(stage, exp, current_realm=None, root=root)
     caller.db.exp = exp
     caller.db.realm = new_realm
     return old_realm, new_realm, exp
@@ -118,18 +147,34 @@ def get_active_effect_text(caller):
 
 
 def get_currency(caller):
-    return get_stats(caller)["copper"]
+    stats = get_stats(caller)
+    if stats["primary_currency"] == PRIMARY_CURRENCY_COPPER:
+        return stats["copper"]
+    return stats["spirit_stone"]
 
 
 def add_currency(caller, amount):
-    caller.db.copper = get_currency(caller) + int(amount)
-    return caller.db.copper
+    sheet = ensure_character_model(caller)
+    amount = int(amount)
+    return _set_primary_currency_balance(caller, sheet, get_currency(caller) + amount)
 
 
 def spend_currency(caller, amount):
+    sheet = ensure_character_model(caller)
     amount = int(amount)
     current = get_currency(caller)
     if current < amount:
         return False, current
-    caller.db.copper = current - amount
-    return True, caller.db.copper
+    return True, _set_primary_currency_balance(caller, sheet, current - amount)
+
+
+def _set_primary_currency_balance(caller, sheet, amount):
+    amount = int(amount)
+    primary_currency = sheet["currencies"]["primary_currency"]
+    if primary_currency == PRIMARY_CURRENCY_COPPER:
+        caller.db.copper = amount
+        caller.db.currencies["copper"] = amount
+        return caller.db.copper
+    caller.db.spirit_stone = amount
+    caller.db.currencies["spirit_stone"] = amount
+    return caller.db.spirit_stone

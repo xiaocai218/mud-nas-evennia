@@ -1,9 +1,13 @@
 """Structured serializers for future H5/API clients."""
 
 from systems.areas import get_area_for_room
+from systems.battle import get_battle_snapshot, list_available_cards, list_available_targets
 from systems.chat_payloads import serialize_chat_message
+from systems.character_model import get_root_definition
 from systems.content_loader import load_content
+from systems.enemy_model import get_enemy_definition
 from systems.items import get_inventory_items
+from systems.market import get_market_by_id, get_market_in_room, list_market_goods, list_my_market_status
 from systems.player_stats import get_active_effect_text, get_stats
 from systems.quests import (
     COMPLETED,
@@ -16,6 +20,7 @@ from systems.quests import (
     get_stage_data,
 )
 from systems.shops import get_shop_by_id, get_shop_in_room
+from systems.trade import list_trade_status
 
 
 MAP_DEFINITIONS = load_content("maps")
@@ -81,16 +86,30 @@ def serialize_inventory(caller):
 
 def serialize_character(caller):
     stats = get_stats(caller)
+    root_definition = get_root_definition(stats["root"])
     return {
         "name": caller.key,
         "profile": getattr(caller.db, "character_profile", None),
+        "stage": stats["stage"],
+        "root": stats["root"],
+        "root_label": root_definition.get("label") if root_definition else None,
         "realm": stats["realm"],
         "hp": stats["hp"],
         "max_hp": stats["max_hp"],
+        "mp": stats["mp"],
+        "max_mp": stats["max_mp"],
         "stamina": stats["stamina"],
         "max_stamina": stats["max_stamina"],
         "exp": stats["exp"],
         "copper": stats["copper"],
+        "spirit_stone": stats["spirit_stone"],
+        "primary_currency": stats["primary_currency"],
+        "currencies": stats["currencies"],
+        "primary_stats": stats["primary_stats"],
+        "combat_stats": stats["combat_stats"],
+        "equipment": stats["equipment"],
+        "affinities": stats["affinities"],
+        "reserves": stats["reserves"],
         "effects_text": get_active_effect_text(caller),
         "inventory_count": len(get_inventory_items(caller)),
     }
@@ -101,11 +120,16 @@ def serialize_character_summary(character):
     return {
         "id": getattr(character, "pk", None),
         "key": character.key,
+        "stage": stats["stage"],
+        "root": stats["root"],
         "realm": stats["realm"],
         "hp": stats["hp"],
         "max_hp": stats["max_hp"],
+        "mp": stats["mp"],
+        "max_mp": stats["max_mp"],
         "stamina": stats["stamina"],
         "max_stamina": stats["max_stamina"],
+        "primary_currency": stats["primary_currency"],
         "area": serialize_world_position(character.location)["area"] if getattr(character, "location", None) else None,
         "room": serialize_room(character.location) if getattr(character, "location", None) else None,
     }
@@ -166,6 +190,7 @@ def serialize_room(room):
         "objects": _serialize_room_objects(room_id, room_content_id),
         "enemies": _serialize_room_enemies(room_id, room_content_id),
         "shop": serialize_shop_in_room(room),
+        "market": serialize_market_in_room(room),
     }
 
 
@@ -201,6 +226,76 @@ def serialize_shop_by_id(shop_id):
     if not shop:
         return None
     return serialize_shop(shop)
+
+
+def serialize_market_in_room(room, page=1, keyword=None):
+    market = get_market_in_room(room)
+    if not market:
+        return None
+    return serialize_market(market, page=page, keyword=keyword)
+
+
+def serialize_market(market, page=1, keyword=None):
+    if not market:
+        return None
+    fake_caller = type("MarketCaller", (), {"location": type("MarketRoomHolder", (), {"db": type("Db", (), {})()})(), "id": 0})()
+    fake_caller.location.db.room_id = market.get("room_id")
+    fake_caller.location.db.content_id = market.get("room_id")
+    listings = list_market_goods(fake_caller, page=page, keyword=keyword)
+    return {
+        "id": market.get("id"),
+        "key": market.get("key"),
+        "desc": market.get("desc", ""),
+        "currency": market.get("currency", "铜钱"),
+        "room_id": market.get("room_id"),
+        "visible_listings": market.get("visible_listings"),
+        "listing_ttl_seconds": market.get("listing_ttl_seconds"),
+        "listings": listings.get("listings", []),
+        "paging": {
+            "page": listings.get("page", 1),
+            "per_page": listings.get("per_page", market.get("visible_listings")),
+            "total_count": listings.get("total_count", 0),
+            "total_pages": listings.get("total_pages", 1),
+            "keyword": listings.get("keyword"),
+        },
+    }
+
+
+def serialize_market_by_id(market_id, page=1, keyword=None):
+    market = get_market_by_id(market_id)
+    if not market:
+        return None
+    return serialize_market(market, page=page, keyword=keyword)
+
+
+def serialize_my_market_status(caller):
+    result = list_my_market_status(caller)
+    if not result.get("ok"):
+        return None
+    return {
+        "market": serialize_market(result.get("market")),
+        "active": list(result.get("active", [])),
+        "sold": list(result.get("sold", [])),
+        "reclaimable": list(result.get("reclaimable", [])),
+        "pending_earnings": int(result.get("pending_earnings", 0)),
+        "summary": dict(result.get("summary", {})),
+    }
+
+
+def serialize_trade_status(caller):
+    result = list_trade_status(caller)
+    if not result.get("ok"):
+        return None
+    return {
+        "incoming": list(result.get("incoming", [])),
+        "outgoing": list(result.get("outgoing", [])),
+        "expired_offers_count": int(result.get("expired_offers_count", 0)),
+        "summary": {
+            "incoming_count": len(result.get("incoming", [])),
+            "outgoing_count": len(result.get("outgoing", [])),
+            "expired_offers_count": int(result.get("expired_offers_count", 0)),
+        },
+    }
 
 
 def serialize_world_position(room):
@@ -287,6 +382,18 @@ def build_bootstrap_payload(caller):
         "position": serialize_world_position(caller.location),
         "quests": serialize_quest_log(caller),
         "inventory": serialize_inventory(caller),
+        "battle": serialize_battle_state(caller),
+    }
+
+
+def serialize_battle_state(caller):
+    snapshot = get_battle_snapshot(caller)
+    if not snapshot:
+        return None
+    return {
+        **snapshot,
+        "available_cards": list_available_cards(caller),
+        "available_targets": list_available_targets(caller),
     }
 
 
@@ -317,15 +424,22 @@ def _serialize_room_objects(room_id, room_content_id):
 def _serialize_room_enemies(room_id, room_content_id):
     payload = []
     for enemy_key, enemy in ENEMY_DEFINITIONS.items():
-        if enemy.get("room_id") not in {room_id, room_content_id}:
+        enemy_def = get_enemy_definition(enemy_key)
+        if not enemy_def or enemy_def.get("room_id") not in {room_id, room_content_id}:
             continue
+        identity = enemy_def["identity"]
+        combat = enemy_def["combat_stats"]
+        affinities = enemy_def["affinities"]
         payload.append(
             {
-                "id": enemy.get("id"),
-                "key": enemy.get("enemy_key", enemy_key),
-                "max_hp": enemy.get("max_hp"),
-                "damage": enemy.get("damage"),
-                "drop_item_id": enemy.get("drop_item_id"),
+                "id": identity.get("content_id"),
+                "key": identity.get("name"),
+                "enemy_type": identity.get("enemy_type"),
+                "realm": enemy_def["progression"].get("realm"),
+                "max_hp": combat.get("max_hp"),
+                "attack_power": combat.get("attack_power"),
+                "drop_item_id": enemy_def["enemy_meta"].get("drop_item_id"),
+                "element": affinities.get("element"),
             }
         )
     return payload

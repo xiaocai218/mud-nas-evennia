@@ -1,18 +1,12 @@
 """Starter combat helpers."""
 
+from .battle import attack_or_start_battle
 from .chat import notify_player
-from .content_loader import load_content
+from .enemy_model import get_enemy_definition, get_enemy_sheet, get_loot_table, is_enemy
 from .items import create_loot, get_item_definition, get_item_definition_by_id, resolve_item_key
 from .player_stats import apply_exp, get_stats
 from .quests import mark_combat_kill
 from .teams import get_same_area_team_members
-
-
-ENEMY_DEFINITIONS = load_content("enemies")
-
-
-def get_enemy_definition(enemy_id):
-    return ENEMY_DEFINITIONS.get(enemy_id)
 
 
 def notify_team_combat_kill(caller, target):
@@ -33,18 +27,30 @@ def notify_team_combat_kill(caller, target):
     return True
 
 
-def attack_training_target(caller, target):
-    stats = get_stats(caller)
-    target_hp = target.db.hp if target.db.hp is not None else 30
-    target_max_hp = target.db.max_hp if target.db.max_hp is not None else 30
+def attack_enemy(caller, target):
+    return attack_or_start_battle(caller, target)
 
-    cost = 8
-    damage = target.db.damage_taken if target.db.damage_taken is not None else 12
-    reward_exp = target.db.reward_exp if target.db.reward_exp is not None else 12
-    counter = target.db.counter_damage if target.db.counter_damage is not None else 6
-    drop_item_id = target.db.drop_item_id
-    drop_key = target.db.drop_key or resolve_item_key(item_id=drop_item_id)
-    drop_desc = target.db.drop_desc or (
+
+def attack_training_target(caller, target):
+    enemy_sheet = get_enemy_sheet(target) if is_enemy(target) else None
+    enemy_meta = (enemy_sheet or {}).get("enemy_meta", {})
+    enemy_combat = (enemy_sheet or {}).get("combat_stats", {})
+    stats = get_stats(caller)
+    target_hp = target.db.hp if getattr(target.db, "hp", None) is not None else enemy_combat.get("hp", 30)
+    target_max_hp = target.db.max_hp if getattr(target.db, "max_hp", None) is not None else enemy_combat.get("max_hp", 30)
+
+    cost = enemy_meta.get("stamina_cost", getattr(target.db, "stamina_cost", 8) if hasattr(target.db, "stamina_cost") else 8)
+    damage = enemy_meta.get("damage_taken", getattr(target.db, "damage_taken", 12) if hasattr(target.db, "damage_taken") else 12)
+    reward_exp = enemy_meta.get("reward_exp", getattr(target.db, "reward_exp", 12) if hasattr(target.db, "reward_exp") else 12)
+    counter = enemy_meta.get("counter_damage", getattr(target.db, "counter_damage", 6) if hasattr(target.db, "counter_damage") else 6)
+    loot = get_loot_table(target) if is_enemy(target) else {
+        "drop_item_id": getattr(target.db, "drop_item_id", None),
+        "drop_key": getattr(target.db, "drop_key", None),
+        "drop_desc": getattr(target.db, "drop_desc", None),
+    }
+    drop_item_id = loot.get("drop_item_id")
+    drop_key = loot.get("drop_key") or resolve_item_key(item_id=drop_item_id)
+    drop_desc = loot.get("drop_desc") or (
         (get_item_definition(drop_key) or {}).get("desc") if drop_key else (get_item_definition_by_id(drop_item_id) or {}).get("desc")
     )
 
@@ -57,6 +63,8 @@ def attack_training_target(caller, target):
     if target_hp <= 0:
         old_realm, new_realm, exp = apply_exp(caller, reward_exp)
         target.db.hp = target_max_hp
+        if getattr(target.db, "combat_stats", None):
+            target.db.combat_stats = {**target.db.combat_stats, "hp": target_max_hp}
         mark_combat_kill(caller, target)
         notify_team_combat_kill(caller, target)
         drop = None
@@ -79,6 +87,8 @@ def attack_training_target(caller, target):
         }
 
     target.db.hp = target_hp
+    if getattr(target.db, "combat_stats", None):
+        target.db.combat_stats = {**target.db.combat_stats, "hp": target_hp}
     hp_after = max(0, stats["hp"] - counter)
     caller.db.hp = hp_after
     return {

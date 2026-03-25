@@ -24,4 +24,6 @@ def get_character_profile(profile_key=None):
         "stamina": int(profile.get("stamina", 50) or 50),
         "max_stamina": int(profile.get("max_stamina", 50) or 50),
         "exp": int(profile.get("exp", 0) or 0),
+        "copper": int(profile.get("copper", 0) or 0),
+        "spirit_stone": int(profile.get("spirit_stone", 0) or 0),
     }

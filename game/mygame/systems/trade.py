@@ -9,6 +9,7 @@ import evennia
 from evennia.server.models import ServerConfig
 
 from .chat import notify_player
+from .commerce import build_commerce_error, build_commerce_success, build_trade_or_listing_summary
 from .items import find_item
 from .player_stats import add_currency, get_currency, spend_currency
 
@@ -23,32 +24,37 @@ def list_trade_status(caller):
     caller_id = _get_character_id(caller)
     incoming = [_serialize_offer(offer) for offer in active_offers if offer["target_id"] == caller_id]
     outgoing = [_serialize_offer(offer) for offer in active_offers if offer["sender_id"] == caller_id]
-    return {
-        "ok": True,
-        "incoming": incoming,
-        "outgoing": outgoing,
-        "expired_offers_count": expired_count,
-    }
+    return build_commerce_success(
+        incoming=incoming,
+        outgoing=outgoing,
+        expired_offers_count=expired_count,
+    )
 
 
 def create_trade_offer(caller, target_name, item_name, price=0):
     target = _find_target_character(target_name)
     if not target:
-        return {"ok": False, "reason": "target_not_found"}
+        return build_commerce_error("target_not_found", target_name=target_name)
     if target == caller:
-        return {"ok": False, "reason": "target_is_self"}
+        return build_commerce_error("target_is_self")
     if getattr(caller, "location", None) is None or target.location != caller.location:
-        return {"ok": False, "reason": "target_not_nearby"}
+        return build_commerce_error("target_not_nearby", target_name=target.key)
 
     item = find_item(caller, item_name=item_name)
     if not item:
-        return {"ok": False, "reason": "item_not_found"}
+        return build_commerce_error("item_not_found", item_name=item_name)
 
     price = int(price or 0)
     if price < 0:
-        return {"ok": False, "reason": "invalid_price"}
+        return build_commerce_error("invalid_price", price=price)
 
     active_offers, _ = _load_active_offers()
+    if any(
+        offer["sender_id"] == _get_character_id(caller) and offer["item_object_id"] == _get_object_id(item)
+        for offer in active_offers
+    ):
+        return build_commerce_error("item_already_offered", item_name=item.key)
+
     offer = {
         "id": _build_offer_id(caller),
         "sender_id": _get_character_id(caller),
@@ -79,7 +85,7 @@ def create_trade_offer(caller, target_name, item_name, price=0):
         code="trade_offer_created",
     )
     notify_player(target, target_message, code="trade_offer_received")
-    return {"ok": True, "offer": offer, "target": target.key}
+    return build_commerce_success(offer=_serialize_offer(offer), target=target.key, summary=_serialize_offer(offer))
 
 
 def accept_trade_offer(caller, sender_name=None):
@@ -87,34 +93,33 @@ def accept_trade_offer(caller, sender_name=None):
     incoming = [offer for offer in active_offers if offer["target_id"] == _get_character_id(caller)]
     if not incoming:
         reason = "offer_expired" if expired_count else "offer_not_found"
-        return {"ok": False, "reason": reason}
+        return build_commerce_error(reason)
 
     offer = _select_offer(incoming, sender_name)
     if not offer:
-        return {"ok": False, "reason": "offer_not_found"}
+        return build_commerce_error("offer_not_found", sender_name=sender_name)
 
     sender = _get_character_by_id(offer["sender_id"])
     if not sender:
         _remove_offer(offer["id"], active_offers)
-        return {"ok": False, "reason": "sender_not_found"}
+        return build_commerce_error("sender_not_found", sender_name=offer["sender_name"])
     if getattr(sender, "location", None) != getattr(caller, "location", None):
-        return {"ok": False, "reason": "target_not_nearby"}
+        return build_commerce_error("target_not_nearby", target_name=offer["sender_name"])
 
     item = _get_object_by_id(offer["item_object_id"])
     if not item or getattr(item, "location", None) != sender:
         _remove_offer(offer["id"], active_offers)
-        return {"ok": False, "reason": "item_unavailable"}
+        return build_commerce_error("item_unavailable", item_name=offer["item_name"])
 
     if offer["price"]:
         success, current = spend_currency(caller, offer["price"])
         if not success:
-            return {
-                "ok": False,
-                "reason": "not_enough_money",
-                "price": offer["price"],
-                "currency": offer["currency"],
-                "current": current,
-            }
+            return build_commerce_error(
+                "not_enough_money",
+                price=offer["price"],
+                currency=offer["currency"],
+                current=current,
+            )
         sender_balance = add_currency(sender, offer["price"])
     else:
         sender_balance = get_currency(sender)
@@ -134,7 +139,7 @@ def accept_trade_offer(caller, sender_name=None):
         + (f" 你获得 {offer['price']} {offer['currency']}，当前铜钱 {sender_balance}。" if offer["price"] else ""),
         code="trade_offer_completed",
     )
-    return {"ok": True, "offer": offer, "item": item}
+    return build_commerce_success(offer=_serialize_offer(offer), item=item, summary=_serialize_offer(offer))
 
 
 def reject_trade_offer(caller, sender_name=None):
@@ -142,11 +147,11 @@ def reject_trade_offer(caller, sender_name=None):
     incoming = [offer for offer in active_offers if offer["target_id"] == _get_character_id(caller)]
     if not incoming:
         reason = "offer_expired" if expired_count else "offer_not_found"
-        return {"ok": False, "reason": reason}
+        return build_commerce_error(reason)
 
     offer = _select_offer(incoming, sender_name)
     if not offer:
-        return {"ok": False, "reason": "offer_not_found"}
+        return build_commerce_error("offer_not_found", sender_name=sender_name)
 
     _remove_offer(offer["id"], active_offers)
     notify_player(
@@ -161,7 +166,7 @@ def reject_trade_offer(caller, sender_name=None):
             f"{caller.key} 拒绝了你的交易：{offer['item_name']}。",
             code="trade_offer_declined",
         )
-    return {"ok": True, "offer": offer}
+    return build_commerce_success(offer=_serialize_offer(offer), summary=_serialize_offer(offer))
 
 
 def cancel_trade_offer(caller, target_name=None):
@@ -169,11 +174,11 @@ def cancel_trade_offer(caller, target_name=None):
     outgoing = [offer for offer in active_offers if offer["sender_id"] == _get_character_id(caller)]
     if not outgoing:
         reason = "offer_expired" if expired_count else "offer_not_found"
-        return {"ok": False, "reason": reason}
+        return build_commerce_error(reason)
 
     offer = _select_offer(outgoing, target_name, target_field="target_name")
     if not offer:
-        return {"ok": False, "reason": "offer_not_found"}
+        return build_commerce_error("offer_not_found", target_name=target_name)
 
     _remove_offer(offer["id"], active_offers)
     notify_player(
@@ -188,7 +193,7 @@ def cancel_trade_offer(caller, target_name=None):
             f"{caller.key} 取消了发给你的交易：{offer['item_name']}。",
             code="trade_offer_withdrawn",
         )
-    return {"ok": True, "offer": offer}
+    return build_commerce_success(offer=_serialize_offer(offer), summary=_serialize_offer(offer))
 
 
 def _load_registry() -> Dict[str, dict]:
@@ -217,15 +222,17 @@ def _remove_offer(offer_id, active_offers):
 
 def _serialize_offer(offer):
     expires_in = max(0, int(offer.get("expires_at", 0)) - int(time.time()))
-    return {
-        "id": offer["id"],
-        "sender_name": offer["sender_name"],
-        "target_name": offer["target_name"],
-        "item_name": offer["item_name"],
-        "price": offer["price"],
-        "currency": offer["currency"],
-        "expires_in": expires_in,
-    }
+    return build_trade_or_listing_summary(
+        entry_id=offer["id"],
+        sender_name=offer["sender_name"],
+        target_name=offer["target_name"],
+        item_name=offer["item_name"],
+        price=offer["price"],
+        currency=offer["currency"],
+        status="pending",
+        status_label="待处理",
+        expires_in=expires_in,
+    )
 
 
 def _select_offer(offers, name=None, target_field="sender_name"):

@@ -9,12 +9,14 @@ _CONTENT_CACHE = {}
 CONTENT_SPECS = {
     "items": {"source": "items", "container": None, "kind": "dict", "key_field": "key", "id_field": "id"},
     "enemies": {"source": "enemies", "container": None, "kind": "dict", "key_field": "enemy_key", "id_field": "id"},
+    "battle_cards": {"source": "battle_cards", "container": None, "kind": "dict", "key_field": "card_key", "id_field": "id"},
     "areas": {"source": "areas", "container": None, "kind": "dict", "key_field": "area_key", "id_field": "id"},
     "area_exits": {"source": "area_exits", "container": None, "kind": "dict", "key_field": "area_exit_key", "id_field": "id"},
     "rooms": {"source": "rooms", "container": "rooms", "kind": "dict", "key_field": "room_key", "id_field": "content_id"},
     "npcs": {"source": "npcs", "container": "npcs", "kind": "list", "key_field": "key", "id_field": "id"},
     "objects": {"source": "objects", "container": "objects", "kind": "list", "key_field": "key", "id_field": "id"},
     "shops": {"source": "shops", "container": None, "kind": "dict", "key_field": "shop_key", "id_field": "id"},
+    "markets": {"source": "markets", "container": None, "kind": "dict", "key_field": "market_key", "id_field": "id"},
     "main_stages": {"source": "quests", "container": "main_stages", "kind": "dict", "key_field": "state", "id_field": "id"},
     "side_quests": {"source": "quests", "container": "side_quests", "kind": "dict", "key_field": "quest_key", "id_field": "id"},
 }
@@ -22,6 +24,7 @@ VALID_NPC_ROUTE_ACTIONS = {
     "dialogue",
     "start_main_stage",
     "complete_main_stage",
+    "complete_main_stage_realm_step",
     "start_side_quest",
     "complete_side_quest",
 }
@@ -149,9 +152,13 @@ def validate_content():
 
     for enemy_key, enemy in load_content("enemies").items():
         room_id = enemy.get("room_id")
+        if not room_id:
+            room_id = ((enemy.get("progression") or {}).get("spawn_profile") or {}).get("room_id")
         if room_id and room_id not in room_keys:
             issues.append(f"enemies.{enemy_key}: room_id '{room_id}' 不存在")
         drop_item_id = enemy.get("drop_item_id")
+        if not drop_item_id:
+            drop_item_id = (enemy.get("enemy_meta") or {}).get("drop_item_id")
         if drop_item_id and drop_item_id not in item_ids:
             issues.append(f"enemies.{enemy_key}: drop_item_id '{drop_item_id}' 不存在")
 
@@ -197,9 +204,19 @@ def validate_content():
             if item_id and item_id not in item_ids:
                 issues.append(f"shops.{shop_key}.inventory[{index}]: item_id '{item_id}' 不存在")
 
+    for market_key, market in load_content("markets").items():
+        if market.get("room_id") and market["room_id"] not in room_keys and market["room_id"] not in room_content_ids:
+            issues.append(f"markets.{market_key}: room_id '{market['room_id']}' 不存在")
+        if not market.get("key"):
+            issues.append(f"markets.{market_key}: 缺少 key")
+        if int(market.get("visible_listings", 0) or 0) <= 0:
+            issues.append(f"markets.{market_key}: visible_listings 必须大于 0")
+        if int(market.get("listing_ttl_seconds", 0) or 0) <= 0:
+            issues.append(f"markets.{market_key}: listing_ttl_seconds 必须大于 0")
+
     quests = load_content("quests")
     for state, stage in quests.get("main_stages", {}).items():
-        if stage.get("giver_npc_id") and stage["giver_npc_id"] not in npc_ids:
+        if stage.get("giver_npc_id") and stage["giver_npc_id"] not in npc_ids and stage["giver_npc_id"] not in object_ids:
             issues.append(f"quests.main_stages.{state}: giver_npc_id '{stage['giver_npc_id']}' 不存在")
         reward_item = stage.get("reward_item", {})
         if reward_item.get("item_id") and reward_item["item_id"] not in item_ids:
@@ -244,7 +261,7 @@ def validate_content():
             dialogue = action.get("dialogue")
             if dialogue and not _dialogue_exists(dialogue_sections, dialogue):
                 issues.append(f"npc_routes.{route_key}.steps[{index}]: dialogue '{dialogue}' 不存在")
-            if action_type in {"start_main_stage", "complete_main_stage"} and action.get("stage") not in main_stage_states:
+            if action_type in {"start_main_stage", "complete_main_stage", "complete_main_stage_realm_step"} and action.get("stage") not in main_stage_states:
                 issues.append(f"npc_routes.{route_key}.steps[{index}]: stage '{action.get('stage')}' 不存在")
             if action_type in {"start_side_quest", "complete_side_quest"} and action.get("quest") not in side_quest_keys:
                 issues.append(f"npc_routes.{route_key}.steps[{index}]: quest '{action.get('quest')}' 不存在")

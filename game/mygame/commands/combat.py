@@ -1,13 +1,14 @@
-"""Combat and combat-adjacent commands."""
+"""Combat and battle commands."""
 
 from .command import Command
-from systems.combat import attack_training_target
+from systems.battle import get_battle_snapshot, list_available_cards, list_available_targets, submit_action
+from systems.combat import attack_enemy
 from systems.player_stats import apply_exp, get_stats
 
 
 def get_target(caller, target_name):
     results = caller.search(target_name, location=caller.location, quiet=True)
-    return results[0] if results else None
+    return results[0] if isinstance(results, list) and results else results
 
 
 class CmdTrain(Command):
@@ -44,6 +45,7 @@ class CmdAttack(Command):
     aliases = ["attack", "fight", "打"]
     locks = "cmd:all()"
     help_category = "战斗"
+    battle_allowed = True
 
     def func(self):
         caller = self.caller
@@ -57,32 +59,96 @@ class CmdAttack(Command):
         if not getattr(target.db, "combat_target", False):
             caller.msg(f"{target.key} 并不是适合出手的目标。")
             return
-        result = attack_training_target(caller, target)
-        if not result["ok"]:
-            caller.msg(f"你提气欲上，却发现体力不足。至少需要 |w{result['cost']}|n 点体力才能出手。")
+        result = attack_enemy(caller, target)
+        if not result.get("ok"):
+            caller.msg("你现在无法完成这次攻击。")
             return
-        if result["result"] == "kill":
-            drop_text = f"你拾起了 |w{result['drop'].key}|n。\n" if result["drop"] else ""
-            caller.msg(
-                f"你一掌击中 {result['target_name']} 的胸口，碎屑四散，对方轰然倒退。\n"
-                f"|g战斗收获|n: 修为 +{result['reward_exp']}，体力 -{result['cost']}\n"
-                f"{drop_text}"
-                f"{result['target_name']} 很快被重新扶正，似乎又能继续陪练了。"
-            )
-            if result["new_realm"] != result["old_realm"]:
-                caller.msg(f"|y在实战磨砺之下，你的境界提升至 {result['new_realm']}。|n")
+        battle = result.get("battle")
+        if not battle:
+            caller.msg("战斗未能正确建立。")
             return
-        caller.msg(
-            f"你朝 {result['target_name']} 猛然出手，打得它身形一震。\n"
-            f"{result['target_name']} 随即回震而来，撞得你胸口微微发闷。\n"
-            f"|g当前效果|n: {result['target_name']} 气血 {result['target_hp']}/{result['target_max_hp']}，你的体力 {result['stamina_after']}/{result['max_stamina']}，你的气血 {result['hp_after']}/{result['max_hp']}"
+        caller.msg(_render_battle_summary(battle))
+
+
+class CmdBattleStatus(Command):
+    key = "战况"
+    aliases = ["battle", "battle_status"]
+    locks = "cmd:all()"
+    help_category = "战斗"
+    battle_allowed = True
+
+    def func(self):
+        battle = get_battle_snapshot(self.caller)
+        if not battle:
+            self.caller.msg("你当前没有进入战斗。")
+            return
+        self.caller.msg(_render_battle_summary(battle))
+
+
+class CmdPlayCard(Command):
+    key = "出牌"
+    aliases = ["playcard", "play"]
+    locks = "cmd:all()"
+    help_category = "战斗"
+    battle_allowed = True
+
+    def func(self):
+        caller = self.caller
+        battle = get_battle_snapshot(caller)
+        if not battle:
+            caller.msg("你当前没有进入战斗。")
+            return
+        raw = self.args.strip()
+        if not raw:
+            caller.msg("用法：|w出牌 普通攻击 目标名|n、|w出牌 防御|n、|w出牌 灵击 目标名|n、|w出牌 物品 物品ID|n")
+            return
+        parts = raw.split()
+        card_name = parts[0]
+        mapping = {
+            "普通攻击": "basic_attack",
+            "攻击": "basic_attack",
+            "防御": "guard",
+            "格挡": "guard",
+            "灵击": "spirit_blast",
+            "金锋术": "metal_edge",
+            "回春诀": "wood_rejuvenation",
+            "水幕诀": "water_barrier",
+            "炽焰诀": "fire_burst",
+            "岩甲诀": "earth_guard",
+            "物品": "use_combat_item",
+        }
+        card_id = mapping.get(card_name, card_name)
+        target_id = None
+        item_id = None
+        if card_id == "use_combat_item":
+            item_id = parts[1] if len(parts) > 1 else None
+        elif len(parts) > 1:
+            target_name = " ".join(parts[1:])
+            for target in list_available_targets(caller):
+                if target["name"] == target_name:
+                    target_id = target["combatant_id"]
+                    break
+        result = submit_action(caller, card_id, target_id=target_id, item_id=item_id)
+        if not result.get("ok"):
+            caller.msg(f"出牌失败：{result.get('reason')}。")
+            return
+        caller.msg(_render_battle_summary(result["battle"]))
+
+
+def _render_battle_summary(battle):
+    lines = [
+        f"|g战斗状态|n: {battle['status']} / 回合数 {battle['turn_count']}",
+        f"|g当前行动者|n: {battle.get('current_actor_name') or '无'}",
+        "|g参战单位|n:",
+    ]
+    for combatant in battle.get("participants", []):
+        state = "存活" if combatant["alive"] else "倒下"
+        lines.append(
+            f"- {combatant['name']} [{combatant['side']}] HP {combatant['hp']}/{combatant['max_hp']} MP {combatant['mp']}/{combatant['max_mp']} 护盾 {combatant.get('shield', 0)} [{state}]"
         )
-        if result["hp_after"] <= 0:
-            stats = get_stats(caller)
-            caller.db.hp = stats["max_hp"]
-            caller.db.stamina = stats["max_stamina"]
-            if caller.location and caller.location.key != "青云渡":
-                home = caller.search("青云渡", global_search=True, quiet=True)
-                if home:
-                    caller.move_to(home[0], quiet=True)
-            caller.msg("|r你被反震得眼前发黑，只得狼狈退回青云渡重新调息。|n")
+    if battle.get("log"):
+        last = battle["log"][-1]
+        lines.append(f"|g最近行动|n: {last.get('actor_name', '系统')} -> {last.get('type')} ({last.get('value', 0)})")
+    if battle.get("current_actor_name"):
+        lines.append("|g可用卡牌|n: " + "、".join(card["name"] for card in battle.get("available_cards", []) or []))
+    return "\n".join(lines)

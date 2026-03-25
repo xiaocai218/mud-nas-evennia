@@ -97,22 +97,36 @@ class SerializerTests(unittest.TestCase):
         inventory = [FakeItem("松纹草", "item_songwen_grass", "desc")]
         with (
             patch("systems.serializers.get_stats", return_value={
+                "stage": "mortal",
+                "root": None,
                 "realm": "炼气一层",
                 "hp": 90,
                 "max_hp": 100,
+                "mp": 0,
+                "max_mp": 0,
                 "stamina": 40,
                 "max_stamina": 50,
                 "exp": 12,
                 "copper": 30,
+                "spirit_stone": 0,
+                "primary_currency": "copper",
+                "currencies": {"copper": 30, "spirit_stone": 0, "primary_currency": "copper"},
+                "primary_stats": {"physique": 6, "aether": 4, "spirit": 4, "agility": 5, "bone": 5},
+                "combat_stats": {"hp": 90, "max_hp": 100},
+                "equipment": {"slots": {"chest": None, "legs": None}},
+                "affinities": {"life": []},
+                "reserves": {"spiritual_pet": {"bonded_pet_id": None, "slots": []}},
             }),
             patch("systems.serializers.get_active_effect_text", return_value="无"),
             patch("systems.serializers.get_inventory_items", return_value=inventory),
         ):
             payload = serializers.serialize_character(caller)
         self.assertEqual(payload["name"], "tester")
+        self.assertEqual(payload["stage"], "mortal")
         self.assertEqual(payload["realm"], "炼气一层")
         self.assertEqual(payload["inventory_count"], 1)
         self.assertEqual(payload["copper"], 30)
+        self.assertEqual(payload["primary_currency"], "copper")
 
     def test_serialize_room_with_exits(self):
         target_room = FakeRoom("古松林", "old_pine_forest", "room_old_pine_forest")
@@ -145,6 +159,47 @@ class SerializerTests(unittest.TestCase):
             payload = serializers.serialize_shop_by_id("shop_ferry_general_store")
         self.assertEqual(payload["id"], "shop_ferry_general_store")
         self.assertEqual(payload["inventory"][0]["price"], 8)
+
+    def test_serialize_my_market_status(self):
+        with patch(
+            "systems.serializers.list_my_market_status",
+            return_value={
+                "ok": True,
+                "market": {
+                    "id": "market_qingyun_outer_gate",
+                    "key": "外门坊市",
+                    "desc": "desc",
+                    "currency": "铜钱",
+                    "room_id": "outer_market",
+                    "visible_listings": 20,
+                    "listing_ttl_seconds": 86400,
+                },
+                "active": [{"id": "1", "item_name": "青木碎片"}],
+                "sold": [],
+                "reclaimable": [],
+                "pending_earnings": 12,
+                "summary": {"active_count": 1, "sold_count": 0, "reclaimable_count": 0},
+            },
+        ), patch("systems.serializers.list_market_goods", return_value={"listings": [], "page": 1, "per_page": 20, "total_count": 0, "total_pages": 1, "keyword": None}):
+            payload = serializers.serialize_my_market_status(FakeCaller())
+        self.assertEqual(payload["market"]["id"], "market_qingyun_outer_gate")
+        self.assertEqual(payload["pending_earnings"], 12)
+        self.assertEqual(payload["summary"]["active_count"], 1)
+
+    def test_serialize_trade_status(self):
+        with patch(
+            "systems.serializers.list_trade_status",
+            return_value={
+                "ok": True,
+                "incoming": [{"id": "trade_1", "item_name": "青木碎片"}],
+                "outgoing": [{"id": "trade_2", "item_name": "止血散"}],
+                "expired_offers_count": 1,
+            },
+        ):
+            payload = serializers.serialize_trade_status(FakeCaller())
+        self.assertEqual(payload["summary"]["incoming_count"], 1)
+        self.assertEqual(payload["summary"]["outgoing_count"], 1)
+        self.assertEqual(payload["summary"]["expired_offers_count"], 1)
 
     def test_serialize_chat_message(self):
         sender = SimpleNamespace(pk=11, key="甲")
@@ -246,6 +301,24 @@ class ActionRouterTests(unittest.TestCase):
         self.assertFalse(response["ok"])
         self.assertEqual(response["error"]["code"], "target_not_attackable")
 
+    def test_battle_status_action(self):
+        caller = FakeCaller()
+        with patch("systems.action_router.get_battle_snapshot", return_value={"battle_id": "battle_1", "status": "active"}):
+            response = action_router.dispatch_action(caller, "battle_status", {})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["battle"]["battle_id"], "battle_1")
+
+    def test_battle_play_card_action(self):
+        caller = FakeCaller()
+        with patch(
+            "systems.action_router.submit_action",
+            return_value={"ok": True, "result": {"type": "guard"}, "battle": {"battle_id": "battle_1", "status": "active"}},
+        ):
+            response = action_router.dispatch_action(caller, "battle_play_card", {"card_id": "guard"})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["result"]["type"], "guard")
+        self.assertEqual(response["payload"]["battle"]["battle_id"], "battle_1")
+
     def test_chat_world_action(self):
         caller = FakeCaller()
         with patch(
@@ -272,6 +345,107 @@ class ActionRouterTests(unittest.TestCase):
             response = action_router.dispatch_action(caller, "chat_private", {"target": "乙", "text": "你好"})
         self.assertFalse(response["ok"])
         self.assertEqual(response["error"]["code"], "target_not_found")
+
+    def test_market_listings_action(self):
+        caller = FakeCaller(location=FakeRoom("外门坊市", "outer_market", "room_outer_market"))
+        with patch(
+            "systems.action_router.serialize_market_in_room",
+            return_value={"id": "market_qingyun_outer_gate", "paging": {"page": 2, "keyword": "青木"}},
+        ):
+            response = action_router.dispatch_action(caller, "market_listings", {"page": 2, "keyword": "青木"})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["market"]["id"], "market_qingyun_outer_gate")
+
+    def test_market_create_listing_action(self):
+        caller = FakeCaller(location=FakeRoom("外门坊市", "outer_market", "room_outer_market"))
+        with (
+            patch(
+                "systems.action_router.create_market_listing",
+                return_value={"ok": True, "listing": {"id": "1", "item_name": "青木碎片"}},
+            ),
+            patch("systems.action_router.serialize_inventory", return_value=[]),
+            patch("systems.action_router.serialize_market_in_room", return_value={"id": "market_qingyun_outer_gate"}),
+            patch("systems.action_router.serialize_my_market_status", return_value={"summary": {"active_count": 1}}),
+        ):
+            response = action_router.dispatch_action(
+                caller,
+                "market_create_listing",
+                {"target": "青木碎片", "price": 12},
+            )
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["result"]["listing"]["id"], "1")
+        self.assertEqual(response["payload"]["status"]["summary"]["active_count"], 1)
+
+    def test_market_claim_earnings_action(self):
+        caller = FakeCaller(location=FakeRoom("外门坊市", "outer_market", "room_outer_market"))
+        with (
+            patch("systems.action_router.claim_market_earnings", return_value={"ok": True, "amount": 12, "currency": "铜钱"}),
+            patch("systems.action_router.build_bootstrap_payload", return_value={"character": {"name": "tester", "copper": 12}}),
+            patch("systems.action_router.serialize_my_market_status", return_value={"pending_earnings": 0}),
+        ):
+            response = action_router.dispatch_action(caller, "market_claim_earnings", {})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["result"]["amount"], 12)
+        self.assertEqual(response["payload"]["character"]["copper"], 12)
+
+    def test_market_buy_listing_action_preserves_structured_error(self):
+        caller = FakeCaller(location=FakeRoom("外门坊市", "outer_market", "room_outer_market"))
+        with patch(
+            "systems.action_router.buy_market_listing",
+            return_value={
+                "ok": False,
+                "reason": "not_enough_money",
+                "error": {"code": "not_enough_money", "price": 12, "currency": "铜钱", "current": 3},
+            },
+        ):
+            response = action_router.dispatch_action(caller, "market_buy_listing", {"listing_id": "1"})
+        self.assertFalse(response["ok"])
+        self.assertEqual(response["error"]["code"], "not_enough_money")
+        self.assertEqual(response["error"]["price"], 12)
+
+    def test_trade_status_action(self):
+        caller = FakeCaller(location=FakeRoom("青云渡", "qingyundu", "room_qingyundu"))
+        with (
+            patch("systems.action_router.serialize_trade_status", return_value={"summary": {"incoming_count": 1}}),
+            patch("systems.action_router.serialize_inventory", return_value=[]),
+        ):
+            response = action_router.dispatch_action(caller, "trade_status", {})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["status"]["summary"]["incoming_count"], 1)
+
+    def test_trade_create_offer_action(self):
+        caller = FakeCaller(location=FakeRoom("青云渡", "qingyundu", "room_qingyundu"))
+        with (
+            patch(
+                "systems.action_router.create_trade_offer",
+                return_value={"ok": True, "offer": {"id": "trade_1", "item_name": "青木碎片"}},
+            ),
+            patch("systems.action_router.serialize_inventory", return_value=[]),
+            patch("systems.action_router.serialize_trade_status", return_value={"summary": {"outgoing_count": 1}}),
+        ):
+            response = action_router.dispatch_action(
+                caller,
+                "trade_create_offer",
+                {"target": "乙", "item_name": "青木碎片", "price": 12},
+            )
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["result"]["offer"]["id"], "trade_1")
+        self.assertEqual(response["payload"]["status"]["summary"]["outgoing_count"], 1)
+
+    def test_trade_accept_offer_action_preserves_structured_error(self):
+        caller = FakeCaller(location=FakeRoom("青云渡", "qingyundu", "room_qingyundu"))
+        with patch(
+            "systems.action_router.accept_trade_offer",
+            return_value={
+                "ok": False,
+                "reason": "not_enough_money",
+                "error": {"code": "not_enough_money", "price": 12, "currency": "铜钱", "current": 3},
+            },
+        ):
+            response = action_router.dispatch_action(caller, "trade_accept_offer", {"target": "甲"})
+        self.assertFalse(response["ok"])
+        self.assertEqual(response["error"]["code"], "not_enough_money")
+        self.assertEqual(response["error"]["current"], 3)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,7 @@ TRADE_ERROR_MESSAGES = {
     "target_is_self": "不能和自己交易。",
     "target_not_nearby": "交易双方需要站在同一个房间内。",
     "item_not_found": "你背包里没有这个物品。",
+    "item_already_offered": "这件物品已经有一条未完成的交易邀约，请先取消或等待对方处理。",
     "invalid_price": "交易价格必须是 0 或正整数。",
     "offer_not_found": "没有找到可处理的交易邀约。",
     "offer_expired": "当前没有有效交易邀约，旧邀约可能已经过期。",
@@ -54,6 +55,29 @@ def _send_trade_action_or_error(caller, action, *args):
     return result
 
 
+def _parse_trade_input(raw):
+    parts = raw.split()
+    if len(parts) < 2:
+        return None
+
+    price = 0
+    try:
+        parsed_price = int(parts[-1])
+    except ValueError:
+        parsed_price = None
+
+    if parsed_price is not None:
+        price = parsed_price
+        parts = parts[:-1]
+    if len(parts) < 2:
+        return None
+    return {
+        "target_name": parts[0],
+        "item_name": " ".join(parts[1:]),
+        "price": price,
+    }
+
+
 class CmdTrade(Command):
     key = "交易"
     aliases = ["trade"]
@@ -76,22 +100,18 @@ class CmdTrade(Command):
             )
             return
 
-        parts = raw.split()
-        if len(parts) < 2:
+        parsed = _parse_trade_input(raw)
+        if not parsed:
             self.caller.msg("用法：交易 玩家名 物品名 [价格]")
             return
 
-        price = 0
-        if parts[-1].isdigit():
-            price = int(parts[-1])
-            parts = parts[:-1]
-        if len(parts) < 2:
-            self.caller.msg("用法：交易 玩家名 物品名 [价格]")
-            return
-
-        target_name = parts[0]
-        item_name = " ".join(parts[1:])
-        _send_trade_action_or_error(self.caller, create_trade_offer, target_name, item_name, price)
+        _send_trade_action_or_error(
+            self.caller,
+            create_trade_offer,
+            parsed["target_name"],
+            parsed["item_name"],
+            parsed["price"],
+        )
 
 
 class CmdAcceptTrade(Command):

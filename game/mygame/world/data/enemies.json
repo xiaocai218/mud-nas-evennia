@@ -1,41 +1,315 @@
 {
   "qingmu_dummy": {
     "id": "enemy_qingmu_dummy",
-    "key": "青木傀儡",
     "room_id": "pine",
-    "desc": "一尊以青木和旧铁片拼接成的傀儡半蹲在林间，关节处仍能听见细碎摩擦声。它像是专门留给新人试手的陪练目标。",
-    "hp": 30,
-    "max_hp": 30,
-    "reward_exp": 12,
-    "counter_damage": 6,
-    "damage_taken": 12,
-    "drop_item_id": "item_qingmu_fragment",
-    "quest_flag": "dummy_kill"
+    "identity": {
+      "name": "青木傀儡",
+      "kind": "enemy",
+      "enemy_type": "mortal_enemy",
+      "faction": "trial_construct",
+      "is_boss": false,
+      "tags": ["construct", "training"]
+    },
+    "progression": {
+      "stage": "mortal",
+      "realm": "凡人",
+      "rank_tier": "common",
+      "spawn_profile": {
+        "room_id": "pine"
+      },
+      "kill_credit_flags": ["dummy_kill"]
+    },
+    "primary_stats": {
+      "physique": 5,
+      "aether": 2,
+      "spirit": 2,
+      "agility": 3,
+      "bone": 5
+    },
+    "combat_stats": {
+      "hp": 30,
+      "max_hp": 30,
+      "mp": 0,
+      "max_mp": 0,
+      "stamina": 40,
+      "max_stamina": 40,
+      "attack_power": 10,
+      "spell_power": 0,
+      "defense": 5,
+      "speed": 8,
+      "crit_rate": 0,
+      "crit_damage": 150,
+      "healing_power": 0,
+      "shield_power": 0,
+      "control_power": 0,
+      "control_resist": 0,
+      "threat_modifier": 100
+    },
+    "affinities": {
+      "element": "wood",
+      "damage_tags": ["blunt"],
+      "resist_tags": [],
+      "drop_theme": ["wood"]
+    },
+    "reserves": {
+      "resources": {}
+    },
+    "enemy_meta": {
+      "loot_table_id": "item_qingmu_fragment",
+      "respawn_policy": {
+        "mode": "reset_on_kill"
+      },
+      "quest_hooks": {
+        "quest_flag": "dummy_kill"
+      },
+      "boss_modifiers": {
+        "damage_reduction_pct": 0,
+        "penetration_pct": 0,
+        "bonus_max_hp_pct": 0,
+        "bonus_defense_pct": 0,
+        "control_resist_bonus": 0,
+        "phase_shield": 0,
+        "pressure_tags": []
+      },
+      "ai_profile": {
+        "mode": "passive"
+      },
+      "engage_rules": {},
+      "presentation": {
+        "desc": "一尊以青木和旧铁片拼接成的傀儡半蹲在林间，关节处仍能听见细碎摩擦声。它像是专门留给新人试手的陪练目标。"
+      },
+      "core_type": null,
+      "battle_ai_profile": {
+        "mode": "basic"
+      },
+      "battle_card_pool": ["basic_attack", "guard"],
+      "decision_rules": [
+        {
+          "when": {
+            "self_hp_lte_pct": 35
+          },
+          "use_card": "guard"
+        }
+      ],
+      "reward_exp": 12,
+      "damage_taken": 12,
+      "counter_damage": 6,
+      "stamina_cost": 8,
+      "drop_item_id": "item_qingmu_fragment",
+      "drop_key": null,
+      "drop_desc": null,
+      "tags": ["training"]
+    }
   },
   "stone_dummy": {
     "id": "enemy_stone_dummy",
-    "key": "山石傀儡",
     "room_id": "stair",
-    "desc": "一尊由山石碎块与旧铜环拼起来的傀儡守在石阶转角，动作沉稳得近乎迟缓。可一旦它真正扑上来，那股力道又像落石般结实。",
-    "hp": 42,
-    "max_hp": 42,
-    "reward_exp": 18,
-    "counter_damage": 9,
-    "damage_taken": 12,
-    "drop_item_id": "item_stone_dust",
-    "quest_flag": "stone_kill"
+    "identity": {
+      "name": "山石傀儡",
+      "kind": "enemy",
+      "enemy_type": "mortal_enemy",
+      "faction": "trial_construct",
+      "is_boss": false,
+      "tags": ["construct", "training", "stone"]
+    },
+    "progression": {
+      "stage": "mortal",
+      "realm": "凡人",
+      "rank_tier": "elite",
+      "spawn_profile": {
+        "room_id": "stair"
+      },
+      "kill_credit_flags": ["stone_kill"]
+    },
+    "primary_stats": {
+      "physique": 6,
+      "aether": 2,
+      "spirit": 2,
+      "agility": 2,
+      "bone": 6
+    },
+    "combat_stats": {
+      "hp": 42,
+      "max_hp": 42,
+      "mp": 0,
+      "max_mp": 0,
+      "stamina": 45,
+      "max_stamina": 45,
+      "attack_power": 12,
+      "spell_power": 0,
+      "defense": 7,
+      "speed": 6,
+      "crit_rate": 0,
+      "crit_damage": 150,
+      "healing_power": 0,
+      "shield_power": 0,
+      "control_power": 0,
+      "control_resist": 0,
+      "threat_modifier": 110
+    },
+    "affinities": {
+      "element": "earth",
+      "damage_tags": ["blunt"],
+      "resist_tags": ["impact"],
+      "drop_theme": ["stone"]
+    },
+    "reserves": {
+      "resources": {}
+    },
+    "enemy_meta": {
+      "loot_table_id": "item_stone_dust",
+      "respawn_policy": {
+        "mode": "reset_on_kill"
+      },
+      "quest_hooks": {
+        "quest_flag": "stone_kill"
+      },
+      "boss_modifiers": {
+        "damage_reduction_pct": 0,
+        "penetration_pct": 0,
+        "bonus_max_hp_pct": 0,
+        "bonus_defense_pct": 0,
+        "control_resist_bonus": 0,
+        "phase_shield": 0,
+        "pressure_tags": []
+      },
+      "ai_profile": {
+        "mode": "passive"
+      },
+      "engage_rules": {},
+      "presentation": {
+        "desc": "一尊由山石碎块与旧铜环拼起来的傀儡守在石阶转角，动作沉稳得近乎迟缓。可一旦它真正扑上来，那股力道又像落石般结实。"
+      },
+      "core_type": null,
+      "battle_ai_profile": {
+        "mode": "basic"
+      },
+      "battle_card_pool": ["basic_attack", "guard"],
+      "decision_rules": [
+        {
+          "when": {
+            "self_hp_lte_pct": 50
+          },
+          "use_card": "guard"
+        }
+      ],
+      "reward_exp": 18,
+      "damage_taken": 12,
+      "counter_damage": 9,
+      "stamina_cost": 8,
+      "drop_item_id": "item_stone_dust",
+      "drop_key": null,
+      "drop_desc": null,
+      "tags": ["training"]
+    }
   },
   "mist_ape": {
     "id": "enemy_mist_ape",
-    "key": "雾行山魈",
     "room_id": "valley",
-    "desc": "一只灰黑长臂的山魈伏在栏影与雾气之间，獠牙半露，动作却异常灵巧。它不像傀儡那样呆板，更像是在试探你什么时候会露出破绽。",
-    "hp": 36,
-    "max_hp": 36,
-    "reward_exp": 24,
-    "counter_damage": 10,
-    "damage_taken": 12,
-    "drop_item_id": "item_mist_fruit",
-    "quest_flag": "mist_kill"
+    "identity": {
+      "name": "雾行山魈",
+      "kind": "enemy",
+      "enemy_type": "beast_enemy",
+      "faction": "wild_beast",
+      "is_boss": false,
+      "tags": ["beast", "mist"]
+    },
+    "progression": {
+      "stage": "mortal",
+      "realm": "妖兽",
+      "rank_tier": "common",
+      "spawn_profile": {
+        "room_id": "valley"
+      },
+      "kill_credit_flags": ["mist_kill"]
+    },
+    "primary_stats": {
+      "physique": 5,
+      "aether": 3,
+      "spirit": 3,
+      "agility": 6,
+      "bone": 4
+    },
+    "combat_stats": {
+      "hp": 36,
+      "max_hp": 36,
+      "mp": 0,
+      "max_mp": 0,
+      "stamina": 50,
+      "max_stamina": 50,
+      "attack_power": 12,
+      "spell_power": 0,
+      "defense": 5,
+      "speed": 12,
+      "crit_rate": 2,
+      "crit_damage": 155,
+      "healing_power": 0,
+      "shield_power": 0,
+      "control_power": 0,
+      "control_resist": 2,
+      "threat_modifier": 100
+    },
+    "affinities": {
+      "element": "wood",
+      "damage_tags": ["claw", "mist"],
+      "resist_tags": [],
+      "drop_theme": ["wood", "mist"]
+    },
+    "reserves": {
+      "resources": {}
+    },
+    "enemy_meta": {
+      "loot_table_id": "item_mist_fruit",
+      "respawn_policy": {
+        "mode": "reset_on_kill"
+      },
+      "quest_hooks": {
+        "quest_flag": "mist_kill"
+      },
+      "boss_modifiers": {
+        "damage_reduction_pct": 0,
+        "penetration_pct": 0,
+        "bonus_max_hp_pct": 0,
+        "bonus_defense_pct": 0,
+        "control_resist_bonus": 0,
+        "phase_shield": 0,
+        "pressure_tags": []
+      },
+      "ai_profile": {
+        "mode": "passive"
+      },
+      "engage_rules": {},
+      "presentation": {
+        "desc": "一只灰黑长臂的山魈伏在栏影与雾气之间，獠牙半露，动作却异常灵巧。它不像傀儡那样呆板，更像是在试探你什么时候会露出破绽。"
+      },
+      "core_type": "wood_core",
+      "battle_ai_profile": {
+        "mode": "basic"
+      },
+      "battle_card_pool": ["basic_attack", "guard", "recover_instinct"],
+      "decision_rules": [
+        {
+          "when": {
+            "self_hp_lte_pct": 50,
+            "card_ready": "recover_instinct"
+          },
+          "use_card": "recover_instinct"
+        },
+        {
+          "when": {
+            "has_effect": "guard"
+          },
+          "use_card": "basic_attack"
+        }
+      ],
+      "reward_exp": 24,
+      "damage_taken": 12,
+      "counter_damage": 10,
+      "stamina_cost": 8,
+      "drop_item_id": "item_mist_fruit",
+      "drop_key": null,
+      "drop_desc": null,
+      "tags": ["beast"]
+    }
   }
 }

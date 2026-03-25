@@ -49,6 +49,12 @@
       "key": "溪谷栈道",
       "desc": "栈道贴着山壁向前探出，脚下隐约能听见溪流撞击乱石的空响。山雾时聚时散，将前方的木栏和藤蔓都笼上一层湿润的冷意。"
     },
+    "ascension_platform": {
+      "content_id": "room_shengxian_platform",
+      "area_id": "qingyun_outer_gate",
+      "key": "升仙台",
+      "desc": "一方开阔石台倚着山门外侧层层展开，栏边云雾翻卷，台上已经聚了不少等候测灵的人。有人低声祈愿，有人紧张踱步，也有人只是盯着台中央那块映着五色流光的灵石，像在等命运开口。"
+    },
     "outer_court": {
       "content_id": "room_qingyun_outer_court",
       "area_id": "qingyun_outer_gate",
@@ -60,6 +66,12 @@
       "area_id": "qingyun_outer_gate",
       "key": "听泉药圃",
       "desc": "几畦药草沿着石渠与矮篱整整齐齐铺开，细泉从山壁间引下，在圃边叮咚作响。空气里浮着潮润草木香，连呼吸都像被洗得清亮了一层。"
+    },
+    "outer_market": {
+      "content_id": "room_qingyun_outer_market",
+      "area_id": "qingyun_outer_gate",
+      "key": "外门坊市",
+      "desc": "白墙外檐下连着一排木架和竹牌，外门弟子把闲置丹药、材料与杂物分门别类挂在架上。来往行人不算拥挤，却总有人停下脚步翻看编号和价签。"
     }
   },
   "exits": [
@@ -148,6 +160,18 @@
       "aliases": ["south", "s"]
     },
     {
+      "from": "ascension_platform",
+      "to": "outer_court",
+      "key": "北",
+      "aliases": ["north", "n"]
+    },
+    {
+      "from": "outer_court",
+      "to": "ascension_platform",
+      "key": "南",
+      "aliases": ["south", "s"]
+    },
+    {
       "from": "outer_court",
       "to": "herb_garden",
       "key": "东",
@@ -158,6 +182,18 @@
       "to": "outer_court",
       "key": "西",
       "aliases": ["west", "w"]
+    },
+    {
+      "from": "outer_court",
+      "to": "outer_market",
+      "key": "北",
+      "aliases": ["north", "n"]
+    },
+    {
+      "from": "outer_market",
+      "to": "outer_court",
+      "key": "南",
+      "aliases": ["south", "s"]
     }
   ]
 }

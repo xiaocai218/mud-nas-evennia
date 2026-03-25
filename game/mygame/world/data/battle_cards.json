@@ -1,0 +1,152 @@
+{
+  "basic_attack": {
+    "id": "card_basic_attack",
+    "name": "普通攻击",
+    "card_type": "basic_attack",
+    "target_rule": "enemy_single",
+    "costs": {},
+    "cooldown": 0,
+    "source": "basic",
+    "effects": ["damage"]
+  },
+  "guard": {
+    "id": "card_guard",
+    "name": "防御",
+    "card_type": "guard",
+    "target_rule": "self",
+    "costs": {},
+    "cooldown": 0,
+    "source": "basic",
+    "effects": ["shield"]
+  },
+  "use_combat_item": {
+    "id": "card_use_combat_item",
+    "name": "使用战斗物品",
+    "card_type": "use_combat_item",
+    "target_rule": "self",
+    "costs": {},
+    "cooldown": 0,
+    "source": "inventory",
+    "effects": ["item"]
+  },
+  "spirit_blast": {
+    "id": "card_spirit_blast",
+    "name": "灵击",
+    "card_type": "skill_card",
+    "target_rule": "enemy_single",
+    "costs": {
+      "mp": 6
+    },
+    "cooldown": 2,
+    "source": "skill",
+    "effects": ["spell_damage"],
+    "effect_params": {
+      "base_damage": 8,
+      "attack_ratio": 0.5,
+      "spell_ratio": 1.0,
+      "min_damage": 4
+    }
+  },
+  "metal_edge": {
+    "id": "card_metal_edge",
+    "name": "金锋术",
+    "card_type": "skill_card",
+    "target_rule": "enemy_single",
+    "costs": {
+      "mp": 6
+    },
+    "cooldown": 2,
+    "source": "root_skill",
+    "effects": ["spell_damage"],
+    "effect_params": {
+      "base_damage": 10,
+      "attack_ratio": 0.6,
+      "spell_ratio": 1.0,
+      "min_damage": 5
+    }
+  },
+  "wood_rejuvenation": {
+    "id": "card_wood_rejuvenation",
+    "name": "回春诀",
+    "card_type": "skill_card",
+    "target_rule": "self",
+    "costs": {
+      "mp": 5
+    },
+    "cooldown": 3,
+    "source": "root_skill",
+    "effects": ["heal"],
+    "effect_params": {
+      "base_heal": 10,
+      "max_hp_ratio": 0.18,
+      "min_heal": 8
+    }
+  },
+  "water_barrier": {
+    "id": "card_water_barrier",
+    "name": "水幕诀",
+    "card_type": "skill_card",
+    "target_rule": "self",
+    "costs": {
+      "mp": 5
+    },
+    "cooldown": 2,
+    "source": "root_skill",
+    "effects": ["shield"],
+    "effect_params": {
+      "base_shield": 12,
+      "defense_ratio": 1.5,
+      "min_shield": 10
+    }
+  },
+  "fire_burst": {
+    "id": "card_fire_burst",
+    "name": "炽焰诀",
+    "card_type": "skill_card",
+    "target_rule": "enemy_single",
+    "costs": {
+      "mp": 7
+    },
+    "cooldown": 2,
+    "source": "root_skill",
+    "effects": ["spell_damage"],
+    "effect_params": {
+      "base_damage": 12,
+      "attack_ratio": 0.5,
+      "spell_ratio": 1.2,
+      "min_damage": 6
+    }
+  },
+  "earth_guard": {
+    "id": "card_earth_guard",
+    "name": "岩甲诀",
+    "card_type": "skill_card",
+    "target_rule": "self",
+    "costs": {
+      "mp": 5
+    },
+    "cooldown": 3,
+    "source": "root_skill",
+    "effects": ["shield"],
+    "effect_params": {
+      "base_shield": 16,
+      "defense_ratio": 1.8,
+      "min_shield": 12
+    }
+  },
+  "recover_instinct": {
+    "id": "card_recover_instinct",
+    "name": "兽性回生",
+    "card_type": "skill_card",
+    "target_rule": "self",
+    "costs": {},
+    "cooldown": 3,
+    "source": "enemy_skill",
+    "effects": ["heal"],
+    "effect_params": {
+      "base_heal": 8,
+      "max_hp_ratio": 0.25,
+      "min_heal": 8
+    }
+  }
+}

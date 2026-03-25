@@ -47,6 +47,13 @@
   - `接受交易`
   - `拒绝交易`
   - `取消交易`
+- `market.py`
+  - `坊市`
+  - `上架`
+  - `购买坊市`
+  - `下架`
+  - `我的坊市`
+  - `领取坊市`
 - `inventory.py`
   - `背包`
   - `炼化`
@@ -63,10 +70,18 @@
 - `character_profiles.py`
   - 从 `world/data/character_defaults.json` 读取角色默认模板
   - 当前负责初始境界、气血、体力、修为等基础值
+- `character_model.py`
+  - 统一角色模型入口
+  - 当前负责角色阶段、灵根、一级属性、派生战斗属性、货币主次和扩展预留位
+  - 当前也负责“凡人 -> 测灵 -> 启灵 -> 炼气一层”的最小切换
 - `player_stats.py`
   - 玩家气血、体力、修为与临时效果
   - 从 `world/data/effects.json` 读取效果定义
   - 当前已支持按 modifiers 结构汇总 buff / debuff
+  - 当前也负责把统一角色模型兼容映射回旧玩法字段
+- `object_index.py`
+  - 统一按 `content_id` 查找 live 对象
+  - 当前供对象触发、管理员命令和 `start_area.py` 复用
 - `effect_executor.py`
   - 统一处理恢复、buff 等效果执行
   - 物品和对象开始共用这一层，减少重复逻辑
@@ -86,6 +101,10 @@
   - 统一处理玩家间最小交易邀约
   - 当前支持发起、接受、拒绝、取消和列表查看
   - 当前先做同房间实时交易，不做坊市、拍卖或历史留档
+- `market.py`
+  - 统一处理外门坊市的一口价寄售
+  - 当前支持挂牌、购买、下架/取回、个人坊市状态与收益领取
+  - 当前只在指定坊市房间开放，不做竞价拍卖、历史价格和全服随时访问
 - `content_loader.py`
   - 统一加载 `world/data/*.json`
   - 当前 realms、items、quests、dialogues、npc_routes、help_content 等已开始共用这一层
@@ -106,18 +125,35 @@
   - 第一版组队任务联动也已挂在这里，当前会同步同区域队友的主线击杀进度
   - 主线交付完成后，也会向队伍成员发送后续推进提示
   - 当前也提供临时测试用的任务状态重置入口，只重置任务进度与状态标记
+  - 当前也开始集中维护“测灵待选 / 引气待完成 / 完整试炼完成”等 helper，减少对象和管理员命令散写 flag
 - `items.py`
   - 从 `world/data/items.json` 读取物品定义
   - 处理炼化与使用效果
 - `shops.py`
   - 从 `world/data/shops.json` 读取商店定义
   - 处理房间商店查询与最小购买结算
+- `commerce.py`
+  - 商店 / 坊市共用的设施解析与分页辅助
+  - 当前用于收口“房间内设施定位”、“列表分页元数据”和“商品系统统一错误/摘要结构”
 - `serializers.py`
   - 为未来 H5/API 客户端输出结构化 DTO
-  - 当前已支持角色、房间、区域、世界层级、背包、任务状态与聊天消息序列化
+  - 当前已支持角色、房间、区域、世界层级、背包、任务状态、商店与坊市 DTO 序列化
 - `action_router.py`
   - 为未来 H5/API 客户端提供结构化动作分发入口
   - 当前已支持 `bootstrap / look / move / read / gather / trigger_object / use_item / buy_item / talk / attack / chat_world / chat_team / chat_private`
+  - 当前也已预留坊市相关动作：
+    - `market_listings`
+    - `market_status`
+    - `market_create_listing`
+    - `market_buy_listing`
+    - `market_cancel_listing`
+    - `market_claim_earnings`
+  - 当前也已预留玩家交易动作：
+    - `trade_status`
+    - `trade_create_offer`
+    - `trade_accept_offer`
+    - `trade_reject_offer`
+    - `trade_cancel_offer`
 - `event_bus.py`
   - 为未来 H5/WebSocket 客户端统一结构化事件信封
   - 当前已开始支持 `chat.message` 和最小账号事件队列
@@ -128,11 +164,18 @@
   - 负责登录态检查、活跃角色解析、请求解包与响应输出
 - `web/api/urls.py`
   - H5 HTTP 路由定义
-  - 当前已挂载 `bootstrap / quests / shops / action / ws-meta`
+  - 当前已挂载 `bootstrap / quests / shops / markets / action / ws-meta`
 - `combat.py`
   - 训练目标战斗结算
   - 结合 `world/data/enemies.json` 处理怪物模板与掉落
   - 当前第一版组队战斗联动也已挂在这里，同区域队友会收到击杀提示，但不共享奖励和掉落
+- `battle.py`
+  - 统一战斗实例、ATB 时间轴、卡牌式动作与战斗结果结算
+  - 当前最小支持普通攻击、防御、战斗物品、基础技能卡与规则式敌人 AI
+- `enemy_model.py`
+  - 统一敌对实体模型入口
+  - 负责敌人模板标准化、运行态对象兼容桥接和 enemy sheet 输出
+  - 当前用于把旧的对象散字段战斗目标升级为共享骨架的正式敌人模型
 - `dialogues.py`
   - 从 `world/data/dialogues.json` 读取 NPC 对话文案
 - `areas.py`
@@ -147,13 +190,18 @@
 
 - `start_area.py`
   - 读取配置并铺设新手区房间、出口、NPC、交互对象、训练目标
+  - 当前优先按 `content_id` 更新既有对象，避免 JSON 已更新而运行态对象属性未刷新
 - `data/quests.json`
   - 主线/支线任务定义
   - 支线可通过 `state_attr`、`start_state`、`completed_state` 描述状态流转
+  - 当前主线也已新增 `测灵定根` 阶段，用于承接灵根确认
 - `data/items.json`
   - 物品模板、炼化值、使用效果
 - `data/enemies.json`
   - 怪物模板、基础属性、掉落、任务标记、房间摆放
+- `data/battle_cards.json`
+  - 基础战斗卡模板
+  - 当前承载普通攻击、防御、战斗物品与第一批技能卡定义
 - `data/rooms.json`
   - 房间定义、出口关系与所属区域
 - `data/areas.json`
@@ -170,7 +218,7 @@
   - NPC 定义
 - `data/objects.json`
   - 房间内交互对象模板与对象类型
-  - 当前可配置公告牌、任务碑、采集点、传送点、增益点、恢复点、门派入口等对象
+  - 当前可配置公告牌、任务碑、采集点、传送点、增益点、恢复点、门派入口、测灵石等对象
   - 触发型对象可直接配置效果类型和解锁条件，减少新增对象时的 Python 分支
 - `data/dialogues.json`
   - NPC 对话文案与通用交互提示
@@ -187,19 +235,37 @@
   - 帮助文案与新手指引配置
 - `data/shops.json`
   - 商店模板、所在房间、售卖清单与价格
+- `data/markets.json`
+  - 坊市模板、所在房间、可见挂牌数量与寄售有效期
 - `help_entries.py`
   - 文件型帮助条目桥接层
 
 ## 当前任务链
 
-当前已形成三段式新手任务链：
+当前已形成“五段式”入门链：
 
 1. `守渡老人` 发布 `渡口试手`
 2. `守渡老人` 发布 `石阶试锋`
 3. `巡山弟子` 发布 `溪谷巡查`
+4. 玩家前往 `升仙台`，通过 `测灵石` 完成 `测灵定根`
+5. 玩家留在 `升仙台`，通过 `引灵执事` 完成 `引气入体`
 
 其中阶段标题、目标、交付人、进度字段已经收进 `systems/quests.py`，后续继续扩展时应优先沿用这套数据结构，而不是在 `commands/social.py` 里继续堆新的状态判断。
 现在这些任务定义已经进一步独立到 `world/data/quests.json`，除了奖励外，阶段完成后的流转状态、兼容映射和开始时的进度重置也已经进入配置层。后续增删任务时优先修改 JSON，再让 `systems/quests.py` 负责读取与执行。
+
+当前规则补充：
+
+- 新角色默认处于 `凡人` 阶段
+- 第四段只确认灵根，不立即入宗
+- 测灵后先进入 `启灵`
+- 完成 `引气入体` 后才进入 `炼气一层`
+- 新手村与正式外门之间新增 `升仙台` 作为候测过渡场景
+- 已确认灵根后才进入 `cultivator` 阶段
+
+相关设计说明见：
+
+- [player_character_model_v1.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\player_character_model_v1.md)
+- [enemy_model_v1.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\enemy_model_v1.md)
 
 ## 当前支线
 
@@ -237,6 +303,8 @@
 16. JSON 内容加载优先走统一加载器，后续热更新和内容索引也应从这一层扩展。
 17. 地图扩展优先按 `area -> room -> object/npc/enemy` 的顺序组织，而不是只堆散房间。
 18. H5 HTTP 路由层只负责传输和鉴权，具体动作仍通过 `action_router.py` 分发。
+19. 商店和坊市这类商品设施，优先复用共用 helper 和 DTO，而不是各自重复实现房间定位、分页和只读详情结构。
+20. `shop / market / trade` 这类商品流转系统，系统层应优先返回统一 `error.code` 和 `summary`，避免命令层与 H5 各自维护两套解释逻辑。
 
 ## World / Area 设计基线
 

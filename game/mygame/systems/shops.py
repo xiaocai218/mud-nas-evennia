@@ -1,6 +1,7 @@
 """Shop lookups and purchase helpers."""
 
 from .chat import notify_player
+from .commerce import build_commerce_error, build_commerce_success, get_facility_in_room
 from .content_loader import load_content
 from .items import create_reward_item, get_item_definition_by_id
 from .player_stats import get_currency, spend_currency
@@ -17,16 +18,7 @@ def get_shop_by_id(shop_id):
 
 
 def get_shop_in_room(room):
-    if not room:
-        return None
-    room_key = getattr(room.db, "room_id", None)
-    for shop in SHOP_DEFINITIONS.values():
-        if shop.get("room_id") == room_key:
-            return _normalize_shop(shop)
-    for shop in SHOP_DEFINITIONS.values():
-        if shop.get("room_id") == getattr(room.db, "content_id", None):
-            return _normalize_shop(shop)
-    return None
+    return get_facility_in_room(room, SHOP_DEFINITIONS, normalize=_normalize_shop)
 
 
 def _normalize_shop(shop):
@@ -56,21 +48,20 @@ def list_shop_goods(caller):
 def buy_item(caller, item_name):
     shop = get_shop_in_room(caller.location)
     if not shop:
-        return {"ok": False, "reason": "no_shop"}
+        return build_commerce_error("no_shop")
 
     entry = next((entry for entry in shop["inventory"] if entry["key"] == item_name), None)
     if not entry:
-        return {"ok": False, "reason": "not_found", "shop": shop}
+        return build_commerce_error("not_found", shop=shop)
 
     success, remaining = spend_currency(caller, entry["price"])
     if not success:
-        return {
-            "ok": False,
-            "reason": "not_enough_money",
-            "price": entry["price"],
-            "current": remaining,
-            "currency": shop.get("currency", "铜钱"),
-        }
+        return build_commerce_error(
+            "not_enough_money",
+            price=entry["price"],
+            current=remaining,
+            currency=shop.get("currency", "铜钱"),
+        )
 
     item = create_reward_item(caller, item_id=entry["item_id"])
     notify_player(
@@ -78,11 +69,16 @@ def buy_item(caller, item_name):
         f"购买成功：{item.key}，花费 {entry['price']} {shop.get('currency', '铜钱')}。",
         code="shop_purchase",
     )
-    return {
-        "ok": True,
-        "item": item,
-        "price": entry["price"],
-        "remaining": remaining,
-        "currency": shop.get("currency", "铜钱"),
-        "shop": shop,
-    }
+    return build_commerce_success(
+        item=item,
+        price=entry["price"],
+        remaining=remaining,
+        currency=shop.get("currency", "铜钱"),
+        shop=shop,
+        summary={
+            "item_name": item.key,
+            "price": entry["price"],
+            "currency": shop.get("currency", "铜钱"),
+            "remaining": remaining,
+        },
+    )

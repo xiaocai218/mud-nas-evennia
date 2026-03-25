@@ -1,6 +1,7 @@
 """NPC talk route configuration helpers."""
 
 from systems.chat import notify_player
+from systems.character_model import promote_awakened_realm
 from systems.content_loader import load_content
 from systems.dialogues import get_dialogue
 from systems.quests import (
@@ -114,10 +115,21 @@ def _handle_complete_side_quest(caller, action):
     return True
 
 
+def _handle_complete_main_stage_realm_step(caller, action):
+    complete_main_stage(caller, action["stage"])
+    sheet = promote_awakened_realm(caller)
+    caller.msg(get_dialogue(*action["dialogue"].split(".", 1)))
+    if action.get("reward_label"):
+        caller.msg(f"|g{action['reward_label']}|n: 境界稳固至 {sheet['progression']['realm']}。")
+    notify_player(caller, get_main_stage_summary(action["stage"], prefix="主线已完成"), code="quest_main_completed")
+    return True
+
+
 ACTION_HANDLERS = {
     "dialogue": _handle_dialogue,
     "start_main_stage": _handle_start_main_stage,
     "complete_main_stage": _handle_complete_main_stage,
+    "complete_main_stage_realm_step": _handle_complete_main_stage_realm_step,
     "start_side_quest": _handle_start_side_quest,
     "complete_side_quest": _handle_complete_side_quest,
 }

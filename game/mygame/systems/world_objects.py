@@ -1,21 +1,44 @@
 """Helpers for configured world objects."""
 
-from evennia.objects.models import ObjectDB
-
+from systems.character_model import ROOT_CHOICES, awaken_spiritual_root, get_root_label, normalize_root_choice
 from systems.effect_executor import execute_effect
 from systems.items import create_loot
+from systems.object_index import get_object_by_content_id, iter_world_objects
 from systems.player_stats import get_stats
-from systems.quests import get_quest_state, get_quest_status_text
+from systems.quests import (
+    can_access_ascension_platform,
+    can_use_spirit_stone,
+    get_quest_state,
+    get_quest_status_text,
+    has_awakened_spiritual_root,
+    mark_root_awakened,
+)
 
 
-def get_object_by_content_id(content_id):
-    if not content_id:
-        return None
-    for obj in ObjectDB.objects.filter(db_key__isnull=False):
-        if getattr(obj.db, "content_id", None) == content_id:
-            return obj
-    return None
+TRIGGER_CONFIG_FALLBACK_KEYS = [
+    "teleport_room_id",
+    "teleport_room_key",
+    "teleport_text",
+    "locked_text",
+    "required_main_state",
+    "buff_key",
+    "buff_bonus",
+    "buff_duration",
+    "buff_label",
+    "buff_text",
+    "type",
+]
 
+TELEPORT_CONFIG_FALLBACK_KEYS = [
+    "teleport_room_id",
+    "teleport_room_key",
+    "teleport_text",
+    "locked_text",
+    "required_main_state",
+]
+
+BUFF_CONFIG_FALLBACK_KEYS = ["buff_key", "buff_bonus", "buff_duration", "buff_label", "buff_text"]
+SPIRITUAL_ROOT_CONFIG_FALLBACK_KEYS = ["text", "confirm_text", "already_awakened_text"]
 
 def _get_config(target, attr_name, fallback_keys=None):
     config = getattr(target.db, attr_name, None)
@@ -34,12 +57,37 @@ def _get_config(target, attr_name, fallback_keys=None):
 def _check_requirements(caller, requirements):
     if not requirements:
         return {"ok": True}
+    current_state = get_quest_state(caller)
     main_state = requirements.get("main_state_is")
-    if main_state and get_quest_state(caller) != main_state:
+    if main_state and current_state != main_state:
         return {
             "ok": False,
             "reason": "locked",
             "text": requirements.get("fail_text") or "这处入口暂时还不会向你开启。",
+        }
+    main_states = requirements.get("main_state_in")
+    if main_states and current_state not in set(main_states):
+        return {
+            "ok": False,
+            "reason": "locked",
+            "text": requirements.get("fail_text") or "这处入口暂时还不会向你开启。",
+        }
+    return {"ok": True}
+
+
+def _check_object_specific_requirements(caller, target):
+    content_id = getattr(target.db, "content_id", None)
+    if content_id == "obj_qingyun_gate_01" and not can_access_ascension_platform(caller):
+        return {
+            "ok": False,
+            "reason": "locked",
+            "text": "你刚靠近山门，门上云纹便生出一层微凉阻力，像是在提醒你：先完成眼前这段试炼，拿到前往升仙台测灵的资格，再谈更高处的去路。",
+        }
+    if content_id == "obj_spirit_stone_01" and not can_use_spirit_stone(caller):
+        return {
+            "ok": False,
+            "reason": "locked",
+            "text": "你将手伸向测灵石，却只触到一层温凉却毫无回应的光幕。眼下还不到定下灵根的时候。",
         }
     return {"ok": True}
 
@@ -105,7 +153,7 @@ def gather_from_object(caller, target):
 
 
 def is_teleportable(target):
-    trigger_config = _get_config(target, "trigger_effect", ["teleport_room_id", "teleport_room_key", "teleport_text", "locked_text", "required_main_state", "buff_key", "buff_bonus", "buff_duration", "buff_label", "buff_text"])
+    trigger_config = _get_trigger_config(target)
     if not trigger_config:
         return False
     effect_type = trigger_config.get("type", "teleport")
@@ -115,7 +163,7 @@ def is_teleportable(target):
 
 
 def teleport_via_object(caller, target):
-    trigger_config = _get_config(target, "trigger_effect", ["teleport_room_id", "teleport_room_key", "teleport_text", "locked_text", "required_main_state"])
+    trigger_config = _get_config(target, "trigger_effect", TELEPORT_CONFIG_FALLBACK_KEYS)
     requirements = _get_config(target, "trigger_requirements")
     room_id = (trigger_config or {}).get("room_id") or (trigger_config or {}).get("teleport_room_id")
     room_key = (trigger_config or {}).get("room_key") or (trigger_config or {}).get("teleport_room_key")
@@ -128,12 +176,15 @@ def teleport_via_object(caller, target):
     requirement_result = _check_requirements(caller, requirements)
     if not requirement_result["ok"]:
         return requirement_result
+    object_requirement_result = _check_object_specific_requirements(caller, target)
+    if not object_requirement_result["ok"]:
+        return object_requirement_result
 
     destination = None
     if room_id:
         destination = get_object_by_content_id(room_id)
     if not destination and room_key:
-        destination = ObjectDB.objects.filter(db_key=room_key).first()
+        destination = next((obj for obj in iter_world_objects() if obj.db_key == room_key), None)
     if not destination:
         return {"ok": False, "reason": "destination_missing", "text": "这处灵纹如今黯淡无光，似乎暂时无法回应。"}
 
@@ -143,7 +194,7 @@ def teleport_via_object(caller, target):
 
 
 def is_blessable(target):
-    trigger_config = _get_config(target, "trigger_effect", ["buff_key", "buff_bonus", "buff_duration", "buff_label", "buff_text"])
+    trigger_config = _get_config(target, "trigger_effect", BUFF_CONFIG_FALLBACK_KEYS)
     if not trigger_config:
         return False
     effect_type = trigger_config.get("type", "buff")
@@ -153,27 +204,101 @@ def is_blessable(target):
 
 
 def is_triggerable(target):
-    return bool(_get_config(target, "trigger_effect", ["teleport_room_id", "teleport_room_key", "buff_key", "required_main_state"]))
+    return bool(_get_trigger_config(target))
 
 
 def receive_object_blessing(caller, target):
-    trigger_config = _get_config(target, "trigger_effect", ["buff_key", "buff_bonus", "buff_duration", "buff_label", "buff_text"])
+    trigger_config = _get_config(target, "trigger_effect", BUFF_CONFIG_FALLBACK_KEYS)
     buff_key = (trigger_config or {}).get("buff_key")
     if not buff_key:
         return {"ok": False, "reason": "not_blessable"}
     return execute_effect(caller, trigger_config)
 
 
-def trigger_object(caller, target):
-    trigger_config = _get_config(target, "trigger_effect", ["teleport_room_id", "teleport_room_key", "teleport_text", "locked_text", "required_main_state", "buff_key", "buff_bonus", "buff_duration", "buff_label", "buff_text"])
+def awaken_root_via_object(caller, target, root_choice=None):
+    trigger_config = _get_config(target, "trigger_effect", SPIRITUAL_ROOT_CONFIG_FALLBACK_KEYS)
+    requirements = _get_config(target, "trigger_requirements")
+    requirement_result = _check_requirements(caller, requirements)
+    if not requirement_result["ok"]:
+        return requirement_result
+    object_requirement_result = _check_object_specific_requirements(caller, target)
+    if not object_requirement_result["ok"]:
+        return object_requirement_result
+
+    stats = get_stats(caller)
+    if stats["stage"] == "cultivator" and stats["root"] and has_awakened_spiritual_root(caller):
+        return {
+            "ok": True,
+            "text": (trigger_config or {}).get("already_awakened_text") or "你的灵根已定。",
+            "root": stats["root"],
+            "already_awakened": True,
+        }
+
+    normalized_root = normalize_root_choice(root_choice)
+    if not normalized_root:
+        return {
+            "ok": True,
+            "text": (trigger_config or {}).get("text") or f"{target.key} 映出五行灵光，等待你的选择。",
+            "choices": list(ROOT_CHOICES),
+            "awaiting_choice": True,
+        }
+
+    sheet = awaken_spiritual_root(caller, normalized_root)
+    mark_root_awakened(caller)
+    confirm_text = (trigger_config or {}).get("confirm_text") or "灵根已定：{root_label}"
+    return {
+        "ok": True,
+        "text": confirm_text.format(root_label=get_root_label(normalized_root, normalized_root)),
+        "root": normalized_root,
+        "root_label": get_root_label(normalized_root, normalized_root),
+        "character": sheet,
+    }
+
+
+def trigger_object(caller, target, option=None):
+    trigger_config = _get_trigger_config(target)
     if not trigger_config:
         return {"ok": False, "reason": "not_triggerable", "text": f"{target.key} 看起来并不会回应你的触碰。"}
 
-    effect_type = trigger_config.get("type")
-    if effect_type == "restore":
-        return execute_effect(caller, trigger_config)
-    if effect_type == "buff" or (not effect_type and is_blessable(target)):
-        return receive_object_blessing(caller, target)
-    if effect_type == "teleport" or not effect_type:
-        return teleport_via_object(caller, target)
+    effect_type = _resolve_trigger_type(target, trigger_config)
+    handler = TRIGGER_HANDLERS.get(effect_type)
+    if handler:
+        return handler(caller, target, trigger_config=trigger_config, option=option)
     return {"ok": False, "reason": "unsupported_trigger", "text": f"{target.key} 暂时还没有可触发的反应。"}
+
+
+def _get_trigger_config(target):
+    return _get_config(target, "trigger_effect", TRIGGER_CONFIG_FALLBACK_KEYS)
+
+
+def _resolve_trigger_type(target, trigger_config):
+    effect_type = trigger_config.get("type")
+    if effect_type:
+        return effect_type
+    if is_blessable(target):
+        return "buff"
+    return "teleport"
+
+
+def _handle_trigger_teleport(caller, target, trigger_config=None, option=None):
+    return teleport_via_object(caller, target)
+
+
+def _handle_trigger_buff(caller, target, trigger_config=None, option=None):
+    return receive_object_blessing(caller, target)
+
+
+def _handle_trigger_restore(caller, target, trigger_config=None, option=None):
+    return execute_effect(caller, trigger_config or {})
+
+
+def _handle_trigger_spiritual_root(caller, target, trigger_config=None, option=None):
+    return awaken_root_via_object(caller, target, root_choice=option)
+
+
+TRIGGER_HANDLERS = {
+    "teleport": _handle_trigger_teleport,
+    "buff": _handle_trigger_buff,
+    "restore": _handle_trigger_restore,
+    "spiritual_root": _handle_trigger_spiritual_root,
+}

@@ -13,11 +13,19 @@ from .chat import (
     CmdUnmuteChannel,
     CmdWorldChat,
 )
-from .combat import CmdAttack, CmdTrain
+from .combat import CmdAttack, CmdBattleStatus, CmdPlayCard, CmdTrain
 from .core import CmdGather, CmdNewbie, CmdRead, CmdStatus, CmdTrigger
 from .cultivation import CmdCultivate, CmdRecoverHp, CmdRest
-from .devtools import CmdContent
+from .devtools import CmdContent, CmdTestAddMoney, CmdTestChooseRoot, CmdTestGoto, CmdTestResetRoot
 from .inventory import CmdInventory, CmdRefine, CmdUseItem
+from .market import (
+    CmdBuyMarketItem,
+    CmdCancelMarketListing,
+    CmdClaimMarketEarnings,
+    CmdListMarketItem,
+    CmdListMyMarket,
+    CmdMarket,
+)
 from .shop import CmdBuy, CmdShop
 from .social import CmdQuest, CmdResetQuest, CmdTalk
 from .team import (
@@ -48,6 +56,8 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdTrain())
         self.add(CmdTalk())
         self.add(CmdAttack())
+        self.add(CmdBattleStatus())
+        self.add(CmdPlayCard())
         self.add(CmdInventory())
         self.add(CmdRefine())
         self.add(CmdUseItem())
@@ -69,8 +79,18 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdAcceptTrade())
         self.add(CmdRejectTrade())
         self.add(CmdCancelTrade())
+        self.add(CmdMarket())
+        self.add(CmdListMarketItem())
+        self.add(CmdBuyMarketItem())
+        self.add(CmdCancelMarketListing())
+        self.add(CmdListMyMarket())
+        self.add(CmdClaimMarketEarnings())
         self.add(CmdShop())
         self.add(CmdBuy())
         self.add(CmdQuest())
         self.add(CmdResetQuest())
         self.add(CmdContent())
+        self.add(CmdTestGoto())
+        self.add(CmdTestAddMoney())
+        self.add(CmdTestChooseRoot())
+        self.add(CmdTestResetRoot())

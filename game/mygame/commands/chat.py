@@ -67,6 +67,7 @@ class CmdTeamChat(Command):
     locks = "cmd:all()"
     help_category = "社交"
     priority = 1
+    battle_allowed = True
 
     def func(self):
         _send_chat_or_error(

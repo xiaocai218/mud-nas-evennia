@@ -1,0 +1,11 @@
+{
+  "qingyun_outer_market": {
+    "id": "market_qingyun_outer_gate",
+    "key": "外门坊市",
+    "room_id": "outer_market",
+    "currency": "铜钱",
+    "visible_listings": 20,
+    "listing_ttl_seconds": 86400,
+    "desc": "青云外门旁辟出一片专供弟子交换余物的市集，木牌货架整齐排开，值守弟子只认挂牌编号和铜钱，不替人讨价还价。"
+  }
+}

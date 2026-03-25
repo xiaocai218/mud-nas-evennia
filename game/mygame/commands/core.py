@@ -6,6 +6,7 @@ from evennia.utils import evtable
 
 from .command import Command
 from systems.areas import get_area_for_room
+from systems.character_model import get_root_label, normalize_root_choice
 from systems.effect_executor import format_effect_result
 from systems.help_content import get_newbie_content
 from systems.items import get_inventory_items
@@ -23,6 +24,16 @@ from systems.world_objects import (
 def get_target(caller, target_name):
     results = caller.search(target_name, location=caller.location, quiet=True)
     return results[0] if results else None
+
+
+def parse_trigger_input(raw_args):
+    raw_args = (raw_args or "").strip()
+    if not raw_args:
+        return None, None
+    parts = raw_args.split()
+    if len(parts) >= 2 and normalize_root_choice(parts[-1]):
+        return " ".join(parts[:-1]), parts[-1]
+    return raw_args, None
 
 
 class CmdNewbie(Command):
@@ -63,18 +74,21 @@ class CmdStatus(Command):
 
         table = evtable.EvTable(border="cells", pad_width=1)
         table.add_row("姓名", caller.key)
+        table.add_row("阶段", "修士" if stats["stage"] == "cultivator" else "凡人")
+        table.add_row("灵根", get_root_label(stats["root"]))
         table.add_row("境界", stats["realm"])
         table.add_row("气血", f"{stats['hp']}/{stats['max_hp']}")
+        table.add_row("灵力", f"{stats['mp']}/{stats['max_mp']}")
         table.add_row("体力", f"{stats['stamina']}/{stats['max_stamina']}")
         table.add_row("修为", str(stats["exp"]))
         table.add_row("铜钱", str(stats["copper"]))
+        table.add_row("灵石", str(stats["spirit_stone"]))
+        table.add_row("主货币", "灵石" if stats["primary_currency"] == "spirit_stone" else "铜钱")
         table.add_row("区域", area["key"] if area else "未划分")
         table.add_row("位置", location)
         table.add_row("效果", get_active_effect_text(caller))
         table.add_row("背包", f"{item_count} 件")
         self.caller.msg("|g角色状态|n\n%s" % table)
-
-
 class CmdRead(Command):
     key = "阅读"
     aliases = ["read", "查看告示", "读"]
@@ -136,14 +150,15 @@ class CmdTrigger(Command):
         if not self.args:
             caller.msg("你想触发什么？用法：|w触发 回渡石|n")
             return
-        target = get_target(caller, self.args.strip())
+        target_name, option = parse_trigger_input(self.args)
+        target = get_target(caller, target_name)
         if not target:
             caller.msg("你没有在附近看到这个目标。")
             return
         if not is_triggerable(target):
             caller.msg(f"{target.key} 看起来并不会回应你的触碰。")
             return
-        result = trigger_object(caller, target)
+        result = trigger_object(caller, target, option=option)
         if not result["ok"]:
             caller.msg(result["text"])
             return

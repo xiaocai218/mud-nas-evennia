@@ -107,13 +107,13 @@
       "desc": "一道半掩的青石山门立在栈道尽头，门楣上覆着淡淡云纹，像是把山下与真正的宗门内界轻轻分隔开来。门后隐约可见更高处的石坪与檐影。",
       "attrs": {
         "trigger_requirements": {
-          "main_state_is": "completed",
-          "fail_text": "你刚靠近山门，门上云纹便生出一层微凉阻力，像是在提醒你：先完成眼前这段入门试炼，再谈更高处的去路。"
+          "main_state_in": ["root_choice_ready", "completed"],
+          "fail_text": "你刚靠近山门，门上云纹便生出一层微凉阻力，像是在提醒你：先完成眼前这段试炼，拿到前往升仙台测灵的资格，再谈更高处的去路。"
         },
         "trigger_effect": {
           "type": "teleport",
-          "room_id": "room_qingyun_outer_court",
-          "text": "你伸手触向山门，门上云纹一层层亮起，原本凝滞的灵压忽然散开，随后你被一道柔和气机引入门后石坪。"
+          "room_id": "room_shengxian_platform",
+          "text": "你伸手触向山门，门上云纹一层层亮起，原本凝滞的灵压忽然散开。下一瞬，脚下石阶与雾气齐齐一错，你已被柔和气机送上山门后的升仙台。"
         }
       }
     },
@@ -129,6 +129,38 @@
           "gather_cost": 5,
           "gather_text": "你沿着药畦仔细挑拣，轻手轻脚采下了一束带着露气的露华草。",
           "gather_fail_text": "你刚俯下身，便觉得手臂发沉。要稳稳采下这些细嫩药草，至少需要 |w{cost}|n 点体力。"
+        }
+      }
+    },
+    {
+      "id": "obj_spirit_stone_01",
+      "room_id": "ascension_platform",
+      "key": "测灵石",
+      "object_type": "spiritual_root_stone",
+      "desc": "一块半透明的测灵石静静立在前坪中央，石心像沉着一团未明的云水光泽。靠近时，石面会映出极淡的五色流痕，仿佛正等待你做出选择。",
+      "attrs": {
+        "trigger_requirements": {
+          "main_state_in": ["root_choice_ready", "qi_guidance_ready", "completed"],
+          "fail_text": "你将手伸向测灵石，却只触到一层温凉却毫无回应的光幕。眼下还不到定下灵根的时候。"
+        },
+        "trigger_effect": {
+          "type": "spiritual_root",
+          "text": "你将手按上测灵石，石心深处缓缓浮出五道灵光：金、木、水、火、土。\n可用 |w触发 测灵石 <金|木|水|火|土>|n 来确认灵根。",
+          "confirm_text": "测灵石中的{root_label}灵光忽然稳稳凝住，顺着你的掌心沉入经脉。\n|g灵根已定|n：{root_label}\n从这一刻起，你真正踏入了修行之路。",
+          "already_awakened_text": "测灵石映出的灵光已经与你体内灵根互相呼应。你的根骨已定，无需再次选择。"
+        }
+      }
+    },
+    {
+      "id": "obj_waiting_notice_01",
+      "room_id": "ascension_platform",
+      "key": "候测石牌",
+      "object_type": "noticeboard",
+      "desc": "一块立在台边的长石牌上刻着整齐的黑字，最上方写着“升仙台候测次序”。周围不少人都会在上前前先看上一眼，像是怕自己犯了忌讳。",
+      "attrs": {
+        "read_config": {
+          "type": "static",
+          "text": "|g升仙台候测须知|n\n\n1. 通过山下试炼者，方可登台测灵。\n2. 测灵前请静心凝神，不可争抢喧哗。\n3. 测灵石只用于辨明灵根，不代表立即收入宗门。\n4. 灵根既定，后续自有执事引你前往外门候领下一步安排。"
         }
       }
     }

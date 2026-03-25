@@ -35,14 +35,19 @@
     "desc": "这里是穿过山门后的外门前段区域，已经脱离山下新手村，开始承担更明确的宗门过渡与外门生活功能。",
     "rooms": [
       "valley",
+      "ascension_platform",
       "outer_court",
-      "herb_garden"
+      "herb_garden",
+      "outer_market"
     ],
     "facilities": [
       "山门入口",
+      "升仙台",
+      "测灵石",
       "巡查任务",
       "药圃采集",
-      "外门执事"
+      "外门执事",
+      "外门坊市"
     ]
   }
 }

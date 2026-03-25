@@ -45,6 +45,7 @@
 - `GET /api/h5/bootstrap/`
 - `GET /api/h5/quests/`
 - `GET /api/h5/shops/<shop_id>/`
+- `GET /api/h5/markets/<market_id>/`
 - `POST /api/h5/action/`
 - `GET /api/h5/ws-meta/`
 - `GET /api/h5/events/poll/`
@@ -210,6 +211,24 @@
 
 - `systems.serializers.serialize_shop_by_id`
 
+### `GET /api/h5/markets/<market_id>/`
+
+响应：
+
+```json
+{
+  "ok": true,
+  "payload": {
+    "market": {},
+    "character": {}
+  }
+}
+```
+
+当前对应后端基础：
+
+- `systems.serializers.serialize_market_by_id`
+
 ### `POST /api/h5/action/`
 
 请求：
@@ -325,6 +344,17 @@
 - `trigger_object`
 - `use_item`
 - `buy_item`
+- `market_listings`
+- `market_status`
+- `market_create_listing`
+- `market_buy_listing`
+- `market_cancel_listing`
+- `market_claim_earnings`
+- `trade_status`
+- `trade_create_offer`
+- `trade_accept_offer`
+- `trade_reject_offer`
+- `trade_cancel_offer`
 - `talk`
 - `attack`
 
@@ -484,6 +514,216 @@
 }
 ```
 
+### `market_listings`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "market_listings",
+  "payload": {
+    "page": 1,
+    "keyword": "青木"
+  }
+}
+```
+
+响应补充：
+
+- `market`
+
+### `market_status`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "market_status",
+  "payload": {}
+}
+```
+
+响应补充：
+
+- `status`
+- `inventory`
+
+### `market_create_listing`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "market_create_listing",
+  "payload": {
+    "target": "青木碎片",
+    "price": 12
+  }
+}
+```
+
+响应补充：
+
+- `result`
+- `inventory`
+- `market`
+- `status`
+
+### `market_buy_listing`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "market_buy_listing",
+  "payload": {
+    "listing_id": "1"
+  }
+}
+```
+
+响应补充：
+
+- `result`
+- `inventory`
+- `market`
+
+### `market_cancel_listing`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "market_cancel_listing",
+  "payload": {
+    "listing_id": "1"
+  }
+}
+```
+
+响应补充：
+
+- `result`
+- `inventory`
+- `market`
+- `status`
+
+### `market_claim_earnings`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "market_claim_earnings",
+  "payload": {}
+}
+```
+
+响应补充：
+
+- `result`
+- `character`
+- `status`
+
+### `trade_status`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "trade_status",
+  "payload": {}
+}
+```
+
+响应补充：
+
+- `status`
+- `inventory`
+
+### `trade_create_offer`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "trade_create_offer",
+  "payload": {
+    "target": "乙",
+    "item_name": "青木碎片",
+    "price": 12
+  }
+}
+```
+
+响应补充：
+
+- `result`
+- `inventory`
+- `status`
+
+### `trade_accept_offer`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "trade_accept_offer",
+  "payload": {
+    "target": "甲"
+  }
+}
+```
+
+说明：
+
+- `target` 当前可省略，省略时默认处理最近一条有效邀约
+
+### `trade_reject_offer`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "trade_reject_offer",
+  "payload": {
+    "target": "甲"
+  }
+}
+```
+
+说明：
+
+- `target` 当前可省略，省略时默认处理最近一条有效邀约
+
+### `trade_cancel_offer`
+
+请求：
+
+```json
+{
+  "type": "action",
+  "action": "trade_cancel_offer",
+  "payload": {
+    "target": "乙"
+  }
+}
+```
+
+说明：
+
+- `target` 当前可省略，省略时默认处理最近一条自己发出的有效邀约
+
 ### `talk`
 
 请求：
@@ -557,7 +797,8 @@
   "npcs": [],
   "objects": [],
   "enemies": [],
-  "shop": null
+  "shop": null,
+  "market": null
 }
 ```
 
@@ -593,6 +834,43 @@
 }
 ```
 
+### MarketDTO
+
+```json
+{
+  "id": "market_qingyun_outer_gate",
+  "key": "外门坊市",
+  "desc": "...",
+  "currency": "铜钱",
+  "room_id": "outer_market",
+  "visible_listings": 20,
+  "listing_ttl_seconds": 86400,
+  "listings": [],
+  "paging": {
+    "page": 1,
+    "per_page": 20,
+    "total_count": 0,
+    "total_pages": 1,
+    "keyword": null
+  }
+}
+```
+
+### TradeStatusDTO
+
+```json
+{
+  "incoming": [],
+  "outgoing": [],
+  "expired_offers_count": 0,
+  "summary": {
+    "incoming_count": 0,
+    "outgoing_count": 0,
+    "expired_offers_count": 0
+  }
+}
+```
+
 ### ChatMessageDTO
 
 ```json
@@ -618,7 +896,13 @@
 当前状态更新为：
 
 - HTTP 路由骨架已落地
+- `shops / markets` 只读详情已可直接联调
 - `ws-meta` 已能返回实时通道元信息
 - `events/poll` 已作为 WebSocket 之前的 fallback transport 落地
 - 当前 poll / future WebSocket 已统一预留 `chat.message`
+- `shop / market / trade` 三条商品链路都已进入统一 action 协议
+- 前端联调用清单已另见：
+  - [h5_frontend_api_checklist.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\h5_frontend_api_checklist.md)
+- 错误码索引已另见：
+  - [h5_error_codes.md](C:\Users\CZH\Documents\Playground\mud-nas-evennia\docs\h5_error_codes.md)
 - 真正的 WebSocket bridge 仍是下一阶段

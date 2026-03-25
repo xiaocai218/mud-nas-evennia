@@ -120,6 +120,31 @@
       }
     ]
   },
+  "spirit_guide": {
+    "fallback_dialogue": "spirit_guide.idle",
+    "steps": [
+      {
+        "condition": {
+          "main_state_is": "qi_guidance_ready"
+        },
+        "action": {
+          "type": "complete_main_stage_realm_step",
+          "stage": "qi_guidance_ready",
+          "dialogue": "spirit_guide.qi_guidance_complete",
+          "reward_label": "引气完成"
+        }
+      },
+      {
+        "condition": {
+          "main_state_is": "root_choice_ready"
+        },
+        "action": {
+          "type": "dialogue",
+          "dialogue": "spirit_guide.waiting_root_choice"
+        }
+      }
+    ]
+  },
   "herb_delivery": {
     "fallback_dialogue": "herbalist.side_remind",
     "steps": [

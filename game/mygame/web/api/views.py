@@ -12,6 +12,7 @@ from systems.client_protocol import ACTION_SPECS, build_response, validate_actio
 from systems.event_bus import build_event_batch, pop_account_events
 from systems.serializers import (
     build_bootstrap_payload,
+    serialize_market_by_id,
     serialize_account,
     serialize_character_summary,
     serialize_quest_log,
@@ -221,6 +222,7 @@ def protocol_overview_view(request):
             "quests": "/api/h5/quests/",
             "action": "/api/h5/action/",
             "shop_detail": "/api/h5/shops/<shop_id>/",
+            "market_detail": "/api/h5/markets/<market_id>/",
             "ws_meta": "/api/h5/ws-meta/",
             "event_poll": "/api/h5/events/poll/",
         },
@@ -317,6 +319,30 @@ def shop_detail_view(request, shop_id):
             True,
             {
                 "shop": shop,
+                "character": build_bootstrap_payload(caller)["character"],
+            },
+        )
+    )
+
+
+@require_GET
+def market_detail_view(request, market_id):
+    caller, error_response = _get_active_character(request)
+    if error_response:
+        return error_response
+    page = request.GET.get("page", 1)
+    keyword = request.GET.get("keyword")
+    market = serialize_market_by_id(market_id, page=page, keyword=keyword)
+    if not market:
+        return _json_response(
+            build_response(False, error={"code": "market_not_found", "message": "坊市不存在"}),
+            status=404,
+        )
+    return _json_response(
+        build_response(
+            True,
+            {
+                "market": market,
                 "character": build_bootstrap_payload(caller)["character"],
             },
         )

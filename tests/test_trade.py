@@ -19,6 +19,7 @@ import django  # noqa: E402
 django.setup()
 
 from systems import trade  # noqa: E402
+from commands.trade import CmdAcceptTrade, CmdCancelTrade, CmdTrade, _parse_trade_input  # noqa: E402
 
 
 class FakeAccount:
@@ -110,9 +111,13 @@ class TradeSystemTests(unittest.TestCase):
         self.target_account.db._last_puppet = self.target
         self.other_account.db._last_puppet = self.other
         self.item = FakeItem("青木碎片", 101, self.sender)
+        self.other_item = FakeItem("雾露果", 102, self.other)
+        self.sender_other_item = FakeItem("止血散", 103, self.sender)
         self.sender.contents.append(self.item)
+        self.sender.contents.append(self.sender_other_item)
+        self.other.contents.append(self.other_item)
         self.by_name = {"甲": self.sender, "乙": self.target, "丙": self.other, "sender_account": self.sender, "target_account": self.target}
-        self.by_id = {11: self.sender, 12: self.target, 13: self.other, 101: self.item}
+        self.by_id = {11: self.sender, 12: self.target, 13: self.other, 101: self.item, 102: self.other_item, 103: self.sender_other_item}
 
     def _conf(self, key=None, value=None, delete=False, default=None):
         if value is not None:
@@ -220,6 +225,149 @@ class TradeSystemTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertIn("甲 取消了发给你的交易", "".join(self.target_account.messages))
+
+    def test_same_item_cannot_create_multiple_active_offers(self):
+        self.other.location = self.room
+        trade_patch, chat_patch, conf_patch = self._patch_all()
+        with trade_patch, chat_patch, conf_patch:
+            first = trade.create_trade_offer(self.sender, "乙", "青木碎片")
+            second = trade.create_trade_offer(self.sender, "丙", "青木碎片")
+
+        self.assertTrue(first["ok"])
+        self.assertFalse(second["ok"])
+        self.assertEqual(second["reason"], "item_already_offered")
+
+    def test_parse_trade_input_treats_negative_tail_as_price(self):
+        parsed = _parse_trade_input("乙 青木碎片 -12")
+        self.assertEqual(
+            parsed,
+            {
+                "target_name": "乙",
+                "item_name": "青木碎片",
+                "price": -12,
+            },
+        )
+
+    def test_trade_command_lists_incoming_and_outgoing_offers(self):
+        command = CmdTrade()
+        command.caller = self.target
+        command.args = ""
+        with patch("commands.trade.list_trade_status") as mocked_status:
+            mocked_status.return_value = {
+                "ok": True,
+                "incoming": [
+                    {
+                        "sender_name": "甲",
+                        "target_name": "乙",
+                        "item_name": "青木碎片",
+                        "price": 12,
+                        "currency": "铜钱",
+                        "expires_in": 1200,
+                    }
+                ],
+                "outgoing": [
+                    {
+                        "sender_name": "乙",
+                        "target_name": "甲",
+                        "item_name": "止血散",
+                        "price": 0,
+                        "currency": "铜钱",
+                        "expires_in": 300,
+                    }
+                ],
+                "expired_offers_count": 2,
+            }
+            command.func()
+
+        message = "".join(self.target_account.messages)
+        self.assertIn("收到的交易：", message)
+        self.assertIn("甲 -> 乙 / 青木碎片 / 12 铜钱 / 约剩 20 分钟", message)
+        self.assertIn("发出的交易：", message)
+        self.assertIn("乙 -> 甲 / 止血散 / 免费 / 约剩 5 分钟", message)
+        self.assertIn("已自动清理过期交易邀约 2 条", message)
+
+    def test_accept_trade_without_name_uses_latest_offer(self):
+        self.other.location = self.room
+        self.registry[trade.TRADE_REGISTRY_KEY] = {
+            "offer_old": {
+                "id": "offer_old",
+                "sender_id": self.sender.id,
+                "sender_name": self.sender.key,
+                "target_id": self.target.id,
+                "target_name": self.target.key,
+                "item_object_id": self.item.id,
+                "item_name": self.item.key,
+                "price": 0,
+                "currency": trade.TRADE_CURRENCY_LABEL,
+                "created_at": 100,
+                "expires_at": 9999999999,
+            },
+            "offer_new": {
+                "id": "offer_new",
+                "sender_id": self.other.id,
+                "sender_name": self.other.key,
+                "target_id": self.target.id,
+                "target_name": self.target.key,
+                "item_object_id": self.other_item.id,
+                "item_name": self.other_item.key,
+                "price": 0,
+                "currency": trade.TRADE_CURRENCY_LABEL,
+                "created_at": 200,
+                "expires_at": 9999999999,
+            },
+        }
+        command = CmdAcceptTrade()
+        command.caller = self.target
+        command.args = ""
+        trade_patch, chat_patch, conf_patch = self._patch_all()
+        with trade_patch, chat_patch, conf_patch:
+            command.func()
+
+        self.assertEqual(self.other_item.location, self.target)
+        self.assertEqual(self.item.location, self.sender)
+        self.assertIn("你接受了来自 丙 的交易", "".join(self.target_account.messages))
+
+    def test_cancel_trade_without_name_uses_latest_offer(self):
+        self.other.location = self.room
+        self.registry[trade.TRADE_REGISTRY_KEY] = {
+            "offer_old": {
+                "id": "offer_old",
+                "sender_id": self.sender.id,
+                "sender_name": self.sender.key,
+                "target_id": self.target.id,
+                "target_name": self.target.key,
+                "item_object_id": self.item.id,
+                "item_name": self.item.key,
+                "price": 0,
+                "currency": trade.TRADE_CURRENCY_LABEL,
+                "created_at": 100,
+                "expires_at": 9999999999,
+            },
+            "offer_new": {
+                "id": "offer_new",
+                "sender_id": self.sender.id,
+                "sender_name": self.sender.key,
+                "target_id": self.other.id,
+                "target_name": self.other.key,
+                "item_object_id": self.sender_other_item.id,
+                "item_name": self.sender_other_item.key,
+                "price": 0,
+                "currency": trade.TRADE_CURRENCY_LABEL,
+                "created_at": 200,
+                "expires_at": 9999999999,
+            },
+        }
+        command = CmdCancelTrade()
+        command.caller = self.sender
+        command.args = ""
+        trade_patch, chat_patch, conf_patch = self._patch_all()
+        with trade_patch, chat_patch, conf_patch:
+            command.func()
+
+        offers = self.registry[trade.TRADE_REGISTRY_KEY]
+        self.assertIn("offer_old", offers)
+        self.assertNotIn("offer_new", offers)
+        self.assertIn("甲 取消了发给你的交易：止血散。", "".join(self.other_account.messages))
 
 
 if __name__ == "__main__":

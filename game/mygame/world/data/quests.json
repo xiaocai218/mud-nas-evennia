@@ -47,7 +47,7 @@
       "start_resets": [
         "guide_quest_mist_kill"
       ],
-      "complete_to": "completed",
+      "complete_to": "root_choice_ready",
       "reward_flag": "guide_quest_stage_three_rewarded",
       "reward_exp": 36,
       "reward_item": {
@@ -55,6 +55,24 @@
         "key": "巡山木牌",
         "desc": "一块刻着巡山纹记的木牌，边角被磨得光滑，象征你已通过这段入门试炼。"
       }
+    },
+    "root_choice_ready": {
+      "id": "quest_main_stage_04",
+      "title": "测灵定根",
+      "objective": "前往升仙台，触发测灵石并确认你的灵根",
+      "giver": "测灵石",
+      "giver_npc_id": "obj_spirit_stone_01",
+      "complete_to": "qi_guidance_ready",
+      "reward_flag": "guide_quest_root_awakened"
+    },
+    "qi_guidance_ready": {
+      "id": "quest_main_stage_05",
+      "title": "引气入体",
+      "objective": "在升仙台交谈引灵执事，完成第一次引气入体",
+      "giver": "引灵执事",
+      "giver_npc_id": "npc_spirit_guide_steward",
+      "complete_to": "completed",
+      "reward_flag": "guide_quest_qi_guided"
     }
   },
   "main_flow": {
@@ -64,6 +82,8 @@
     "not_started": "你暂时还没有接到任务。可以试试 |w交谈 守渡老人|n。",
     "stage_one_done": "|g当前主线|n\n任务名: 渡口试手\n状态: 已完成，等待后续指引\n交付人: 守渡老人",
     "stage_three_ready": "|g当前主线|n\n任务名: 溪谷巡查\n状态: 待接取\n提示: 前往溪谷栈道，交谈 巡山弟子",
+    "root_choice_ready": "|g当前主线|n\n任务名: 测灵定根\n状态: 待确认\n提示: 前往升仙台，使用 |w触发 测灵石|n 查看并确认你的灵根。",
+    "qi_guidance_ready": "|g当前主线|n\n任务名: 引气入体\n状态: 待完成\n提示: 留在升仙台，|w交谈 引灵执事|n，完成第一次引气入体。",
     "completed": "|g当前主线|n\n任务名: 入门试炼\n状态: 已全部完成\n守渡老人已经认可你完成了三段基础试炼。"
   },
   "combat_progress_flags": {
@@ -98,6 +118,29 @@
           "guide_quest_stage_three_rewarded"
         ],
         "mapped_state": "stage_three_ready"
+      },
+      {
+        "when_state": "completed",
+        "required_flags": [
+          "guide_quest_stage_two_rewarded",
+          "guide_quest_stage_three_rewarded"
+        ],
+        "missing_flags": [
+          "guide_quest_root_awakened"
+        ],
+        "mapped_state": "root_choice_ready"
+      },
+      {
+        "when_state": "completed",
+        "required_flags": [
+          "guide_quest_stage_two_rewarded",
+          "guide_quest_stage_three_rewarded",
+          "guide_quest_root_awakened"
+        ],
+        "missing_flags": [
+          "guide_quest_qi_guided"
+        ],
+        "mapped_state": "qi_guidance_ready"
       }
     ]
   },
