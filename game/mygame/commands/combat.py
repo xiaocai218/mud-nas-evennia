@@ -173,10 +173,14 @@ def _render_battle_summary(battle):
         lines.append(_render_combatant_line(combatant, highlight=combatant["name"] == current_actor))
     if player_side or enemy_side:
         lines.append("|g当前对阵|n: " + _render_battle_state_overview(player_side, enemy_side))
-    recent_logs = battle.get("log")[-3:] if battle.get("log") else []
-    if recent_logs:
+    recent_reports = battle.get("round_reports")[-3:] if battle.get("round_reports") else []
+    if recent_reports:
+        lines.append("|g最近回合战报|n:")
+        for report in recent_reports:
+            lines.extend(_render_round_report(report))
+    elif battle.get("log"):
         lines.append("|g最近战报|n:")
-        for entry in recent_logs:
+        for entry in battle.get("log")[-3:]:
             lines.append(f"- {_format_battle_log_entry(entry)}")
     if battle.get("current_actor_name") and battle["status"] == "active":
         lines.append("|g可用卡牌|n: " + "、".join(card["name"] for card in battle.get("available_cards", []) or []))
@@ -270,10 +274,31 @@ def _render_battle_state_overview(player_side, enemy_side):
 
 
 def _render_state_chip(combatant):
+    stamina = combatant.get("stamina")
+    max_stamina = combatant.get("max_stamina")
+    stamina_text = "" if stamina is None or max_stamina is None else f", 体力 {stamina}/{max_stamina}"
     return (
         f"{combatant['name']}("
         f"气血 {combatant['hp']}/{combatant['max_hp']}, "
         f"灵力 {combatant['mp']}/{combatant['max_mp']}, "
         f"护盾 {combatant.get('shield', 0)}"
+        f"{stamina_text}"
         f")"
     )
+
+
+def _render_round_report(report):
+    actor_side_label = "我方回合" if report.get("actor_side") == "player" else "敌方回合"
+    lines = [
+        f"- 回合 {report.get('turn_count')} | {actor_side_label} | {report.get('actor_name')}",
+        f"  出手前: {_render_snapshot_overview(report.get('before') or {})}",
+        f"  行动: {_format_battle_log_entry(report.get('entry') or {})}",
+        f"  出手后: {_render_snapshot_overview(report.get('after') or {})}",
+    ]
+    return lines
+
+
+def _render_snapshot_overview(snapshot):
+    player_text = "；".join(_render_state_chip(entry) for entry in snapshot.get("player", []) or []) or "我方无可行动单位"
+    enemy_text = "；".join(_render_state_chip(entry) for entry in snapshot.get("enemy", []) or []) or "敌方无可行动单位"
+    return f"我方 {player_text} / 敌方 {enemy_text}"

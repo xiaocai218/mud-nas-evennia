@@ -138,6 +138,7 @@ def start_battle(caller, targets, team_mode=False):
         "action_deadline_ts": None,
         "result": None,
         "log": [],
+        "round_reports": [],
     }
     for ally in allies:
         combatant = _create_player_combatant(ally)
@@ -232,6 +233,7 @@ def _create_player_combatant(caller):
 
 
 def _create_enemy_combatant(enemy):
+    _prepare_enemy_for_battle(enemy)
     sheet = get_enemy_sheet(enemy)
     combat = dict(sheet["combat_stats"])
     meta = dict(sheet["enemy_meta"])
@@ -337,6 +339,7 @@ def _advance_battle_to_next_actor(battle):
 
 
 def _resolve_action(battle, actor, card_id, target_id=None, item_id=None, auto=False):
+    before_snapshot = _snapshot_battle_state(battle)
     actor["available_cards"] = _build_available_cards(battle, actor)
     cards = {card["card_id"]: card for card in actor["available_cards"]}
     card = cards.get(card_id)
@@ -354,6 +357,8 @@ def _resolve_action(battle, actor, card_id, target_id=None, item_id=None, auto=F
     _write_back_combatant_state(actor)
     _sync_battle_targets(battle)
     battle["log"].append(result["log"])
+    after_snapshot = _snapshot_battle_state(battle)
+    battle["round_reports"].append(_build_round_report(battle, actor, result["log"], before_snapshot, after_snapshot, auto=auto))
     battle["action_deadline_ts"] = None
     _emit_battle_event(battle, combat_action_resolved({"battle_id": battle["battle_id"], "entry": result["log"], "auto": auto}))
     return result
@@ -382,6 +387,10 @@ def _resolve_basic_attack(battle, actor, target_id=None):
 
 def _resolve_guard_action(battle, actor, card=None):
     params = dict((card or {}).get("effect_params") or {})
+    costs = dict((card or {}).get("costs") or {})
+    if card and card.get("card_type") == "skill_card":
+        actor["mp"] = max(0, actor["mp"] - int(costs.get("mp", 0) or 0))
+        actor["cooldowns"][card["card_id"]] = int((card or {}).get("cooldown", 0) or 0)
     shield = max(
         int(params.get("min_shield", 6) or 6),
         int(params.get("base_shield", 0) or 0)
@@ -562,6 +571,8 @@ def _check_battle_finished(battle):
         return False
     battle["status"] = "finished"
     battle["result"] = "victory" if player_alive else "defeat"
+    battle["turn_state"]["current_actor_id"] = None
+    battle["action_deadline_ts"] = None
     return True
 
 
@@ -630,7 +641,7 @@ def _handle_defeat(battle):
 
 
 def _serialize_battle(battle):
-    current_actor = _get_current_actor(battle)
+    current_actor = None if battle["status"] == "finished" else _get_current_actor(battle)
     available_cards = current_actor["available_cards"] if current_actor else []
     available_targets = _serialize_targets_for_actor(battle, current_actor) if current_actor else []
     return {
@@ -640,10 +651,11 @@ def _serialize_battle(battle):
         "turn_count": battle["turn_state"]["turn_count"],
         "current_actor_id": current_actor["combatant_id"] if current_actor else None,
         "current_actor_name": current_actor["name"] if current_actor else None,
-        "action_deadline_ts": battle["action_deadline_ts"],
+        "action_deadline_ts": None if battle["status"] == "finished" else battle["action_deadline_ts"],
         "result": battle["result"],
         "participants": [_serialize_combatant(entry) for entry in battle["participants"]],
         "log": list(battle["log"][-10:]),
+        "round_reports": list(battle.get("round_reports") or [])[-3:],
         "available_cards": available_cards,
         "available_targets": available_targets,
     }
@@ -794,3 +806,54 @@ def _resolve_ai_target_id(battle, actor, card):
         return actor["combatant_id"]
     target = _resolve_target_for_actor(battle, actor)
     return target["combatant_id"] if target else None
+
+
+def _prepare_enemy_for_battle(enemy):
+    sheet = get_enemy_sheet(enemy)
+    identity = sheet.get("identity", {})
+    meta = sheet.get("enemy_meta", {})
+    tags = set(identity.get("tags", []) or []) | set(meta.get("tags", []) or [])
+    if "test_enemy" not in tags:
+        return
+    max_hp = int(sheet["combat_stats"]["max_hp"])
+    enemy.db.hp = max_hp
+    enemy.db.max_hp = max_hp
+    if getattr(enemy.db, "combat_stats", None):
+        enemy.db.combat_stats = {**enemy.db.combat_stats, "hp": max_hp, "max_hp": max_hp}
+
+
+def _snapshot_battle_state(battle):
+    players = []
+    enemies = []
+    for combatant in battle["participants"]:
+        entry = {
+            "name": combatant["name"],
+            "side": combatant["side"],
+            "alive": combatant["alive"],
+            "hp": combatant["hp"],
+            "max_hp": combatant["max_hp"],
+            "mp": combatant["mp"],
+            "max_mp": combatant["max_mp"],
+            "stamina": combatant["stamina"],
+            "max_stamina": combatant["max_stamina"],
+            "shield": combatant.get("shield", 0),
+        }
+        if combatant["side"] == "player":
+            players.append(entry)
+        else:
+            enemies.append(entry)
+    return {"player": players, "enemy": enemies}
+
+
+def _build_round_report(battle, actor, log_entry, before_snapshot, after_snapshot, auto=False):
+    return {
+        "turn_count": battle["turn_state"]["turn_count"],
+        "actor_name": actor["name"],
+        "actor_side": actor["side"],
+        "card_id": log_entry.get("card_id") or log_entry.get("type"),
+        "target_name": log_entry.get("target_name"),
+        "entry": dict(log_entry),
+        "before": before_snapshot,
+        "after": after_snapshot,
+        "auto": auto,
+    }

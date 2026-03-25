@@ -115,6 +115,37 @@ class BattleTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["result"]["type"], "basic_attack")
         self.assertLess(result["battle"]["participants"][1]["hp"], 30)
+        self.assertTrue(result["battle"]["round_reports"])
+        self.assertEqual(result["battle"]["round_reports"][-1]["actor_side"], "enemy")
+
+    def test_shield_skill_card_consumes_mp_and_enters_cooldown(self):
+        caller = FakeCaller()
+        enemy = FakeEnemy(key="试战恶徒")
+        with (
+            patch("systems.battle.get_stats", return_value={
+                "combat_stats": {"hp": 100, "max_hp": 100, "mp": 12, "max_mp": 12, "stamina": 50, "max_stamina": 50, "attack_power": 12, "spell_power": 10, "defense": 6, "speed": 14},
+                "hp": 100,
+                "max_hp": 100,
+                "mp": 12,
+                "max_mp": 12,
+                "stamina": 50,
+                "max_stamina": 50,
+            }),
+            patch("systems.battle.get_player_battle_card_pool", return_value=["basic_attack", "guard", "water_barrier"]),
+            patch("systems.battle.get_enemy_sheet", return_value={
+                "identity": {"name": "试战恶徒", "tags": []},
+                "combat_stats": {"hp": 60, "max_hp": 60, "mp": 0, "max_mp": 0, "stamina": 50, "max_stamina": 50, "attack_power": 8, "spell_power": 0, "defense": 4, "speed": 8},
+                "enemy_meta": {"tags": []},
+            }),
+        ):
+            battle.start_battle(caller, [enemy], team_mode=False)
+            result = battle.submit_action(caller, "water_barrier")
+
+        player_state = next(entry for entry in result["battle"]["participants"] if entry["side"] == "player")
+        self.assertEqual(player_state["mp"], 7)
+        self.assertEqual(player_state["cooldowns"]["water_barrier"], 1)
+        self.assertGreater(player_state["shield"], 0)
+        self.assertNotIn("水幕诀", [card["name"] for card in result["battle"]["available_cards"]])
 
     def test_attack_or_start_battle_does_not_auto_submit_first_basic_attack(self):
         caller = FakeCaller()
@@ -171,6 +202,49 @@ class BattleTests(unittest.TestCase):
             result = battle.start_battle(caller, [enemy], team_mode=False)
         self.assertTrue(result["ok"])
         self.assertTrue(any(entry.get("card_id") == "recover_instinct" for entry in result["battle"]["log"]))
+
+    def test_test_enemy_is_reset_to_full_hp_when_battle_starts(self):
+        caller = FakeCaller()
+        enemy = FakeEnemy(key="试战恶徒")
+        enemy.db.hp = 50
+        enemy.db.max_hp = 60
+        enemy.db.identity = {"kind": "enemy", "name": "试战恶徒", "enemy_type": "mortal_enemy", "tags": ["test_enemy"]}
+        enemy.db.combat_stats = {"hp": 50, "max_hp": 60}
+        enemy.db.enemy_meta = {"tags": ["test_enemy"]}
+        with (
+            patch("systems.battle.get_stats", return_value={
+                "combat_stats": {"hp": 100, "max_hp": 100, "mp": 12, "max_mp": 12, "stamina": 50, "max_stamina": 50, "attack_power": 12, "spell_power": 10, "defense": 6, "speed": 14},
+                "hp": 100,
+                "max_hp": 100,
+                "mp": 12,
+                "max_mp": 12,
+                "stamina": 50,
+                "max_stamina": 50,
+            }),
+            patch("systems.battle.get_player_battle_card_pool", return_value=["basic_attack", "guard"]),
+            patch(
+                "systems.battle.get_enemy_sheet",
+                side_effect=lambda target: {
+                    "identity": {"name": "试战恶徒", "tags": ["test_enemy"]},
+                    "combat_stats": {
+                        "hp": target.db.hp,
+                        "max_hp": 60,
+                        "mp": 0,
+                        "max_mp": 0,
+                        "stamina": 50,
+                        "max_stamina": 50,
+                        "attack_power": 8,
+                        "spell_power": 0,
+                        "defense": 4,
+                        "speed": 8,
+                    },
+                    "enemy_meta": {"tags": ["test_enemy"]},
+                },
+            ),
+        ):
+            result = battle.start_battle(caller, [enemy], team_mode=False)
+        self.assertEqual(enemy.db.hp, 60)
+        self.assertEqual(result["battle"]["participants"][1]["hp"], 60)
 
     def test_clear_battle_resets_ids_and_returns_cancelled_snapshot(self):
         caller = FakeCaller()
@@ -262,6 +336,35 @@ class BattleTests(unittest.TestCase):
         self.assertNotIn("修为 +0", message)
         self.assertNotIn("境界提升至", message)
 
+    def test_finished_battle_clears_current_actor_in_snapshot(self):
+        summary = _render_battle_summary(
+            {
+                "status": "finished",
+                "turn_count": 7,
+                "current_actor_name": None,
+                "participants": [
+                    {
+                        "name": "测试者",
+                        "side": "player",
+                        "alive": True,
+                        "hp": 90,
+                        "max_hp": 100,
+                        "mp": 12,
+                        "max_mp": 20,
+                        "stamina": 40,
+                        "max_stamina": 50,
+                        "shield": 0,
+                        "cooldowns": {},
+                    }
+                ],
+                "log": [],
+                "available_cards": [{"name": "普通攻击"}],
+            }
+        )
+        self.assertIn("当前行动者|n: 无", summary)
+        self.assertIn("当前节奏|n: 当前没有可行动单位。", summary)
+        self.assertNotIn("可用卡牌", summary)
+
     def test_render_battle_summary_groups_sides_and_recent_report(self):
         summary = _render_battle_summary(
             {
@@ -300,6 +403,36 @@ class BattleTests(unittest.TestCase):
                     {"type": "basic_attack", "actor_name": "试战恶徒", "target_name": "测试者", "value": 7},
                     {"type": "guard", "actor_name": "测试者", "card_id": "guard", "value": 8},
                 ],
+                "round_reports": [
+                    {
+                        "turn_count": 3,
+                        "actor_name": "试战恶徒",
+                        "actor_side": "enemy",
+                        "entry": {"type": "basic_attack", "actor_name": "试战恶徒", "target_name": "测试者", "value": 7},
+                        "before": {
+                            "player": [{"name": "测试者", "hp": 97, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0}],
+                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0}],
+                        },
+                        "after": {
+                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0}],
+                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0}],
+                        },
+                    },
+                    {
+                        "turn_count": 4,
+                        "actor_name": "测试者",
+                        "actor_side": "player",
+                        "entry": {"type": "guard", "actor_name": "测试者", "card_id": "guard", "value": 8},
+                        "before": {
+                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 0}],
+                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0}],
+                        },
+                        "after": {
+                            "player": [{"name": "测试者", "hp": 90, "max_hp": 100, "mp": 12, "max_mp": 20, "shield": 8}],
+                            "enemy": [{"name": "试战恶徒", "hp": 40, "max_hp": 60, "mp": 0, "max_mp": 0, "shield": 0}],
+                        },
+                    },
+                ],
                 "available_cards": [{"name": "普通攻击"}, {"name": "防御"}],
             }
         )
@@ -307,9 +440,12 @@ class BattleTests(unittest.TestCase):
         self.assertIn("我方状态", summary)
         self.assertIn("敌方状态", summary)
         self.assertIn("当前对阵", summary)
-        self.assertIn("测试者(气血 90/100, 灵力 12/20, 护盾 8)", summary)
-        self.assertIn("试战恶徒(气血 30/60, 灵力 0/0, 护盾 0)", summary)
+        self.assertIn("测试者(气血 90/100, 灵力 12/20, 护盾 8, 体力 40/50)", summary)
+        self.assertIn("试战恶徒(气血 30/60, 灵力 0/0, 护盾 0, 体力 30/30)", summary)
         self.assertIn("轮到你方行动", summary)
+        self.assertIn("最近回合战报", summary)
+        self.assertIn("敌方回合", summary)
+        self.assertIn("我方回合", summary)
         self.assertIn("测试者 使用 防御，获得 8 点护盾。", summary)
 
 
