@@ -20,6 +20,7 @@ django.setup()
 
 
 from systems import action_router, client_protocol, serializers  # noqa: E402
+from systems.ui_preferences import get_ui_preferences, update_ui_preferences  # noqa: E402
 
 
 class FakeExit:
@@ -39,6 +40,10 @@ class FakeItem:
     def __init__(self, key, item_id, desc):
         self.key = key
         self.db = SimpleNamespace(item_id=item_id, desc=desc)
+
+
+class FakeSaverDict(dict):
+    pass
 
 
 class FakeCaller:
@@ -90,6 +95,13 @@ class ClientProtocolTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(error, "missing_fields:direction")
 
+    def test_validate_action_message_breakthrough_needs_no_payload(self):
+        ok, error = client_protocol.validate_action_message(
+            {"type": "action", "action": "breakthrough", "payload": {}}
+        )
+        self.assertTrue(ok)
+        self.assertIsNone(error)
+
 
 class SerializerTests(unittest.TestCase):
     def test_serialize_character(self):
@@ -99,7 +111,8 @@ class SerializerTests(unittest.TestCase):
             patch("systems.serializers.get_stats", return_value={
                 "stage": "mortal",
                 "root": None,
-                "realm": "炼气一层",
+                "realm": "炼气1阶",
+                "realm_info": {"display_name": "炼气1阶", "stage_bucket": "初阶"},
                 "hp": 90,
                 "max_hp": 100,
                 "mp": 0,
@@ -110,12 +123,12 @@ class SerializerTests(unittest.TestCase):
                 "copper": 30,
                 "spirit_stone": 0,
                 "primary_currency": "copper",
-                "currencies": {"copper": 30, "spirit_stone": 0, "primary_currency": "copper"},
-                "primary_stats": {"physique": 6, "aether": 4, "spirit": 4, "agility": 5, "bone": 5},
-                "combat_stats": {"hp": 90, "max_hp": 100},
-                "equipment": {"slots": {"chest": None, "legs": None}},
-                "affinities": {"life": []},
-                "reserves": {"spiritual_pet": {"bonded_pet_id": None, "slots": []}},
+                "currencies": FakeSaverDict({"copper": 30, "spirit_stone": 0, "primary_currency": "copper"}),
+                "primary_stats": FakeSaverDict({"physique": 6, "aether": 4, "spirit": 4, "agility": 5, "bone": 5}),
+                "combat_stats": FakeSaverDict({"hp": 90, "max_hp": 100}),
+                "equipment": FakeSaverDict({"slots": FakeSaverDict({"chest": None, "legs": None})}),
+                "affinities": FakeSaverDict({"life": []}),
+                "reserves": FakeSaverDict({"spiritual_pet": FakeSaverDict({"bonded_pet_id": None, "slots": []})}),
             }),
             patch("systems.serializers.get_active_effect_text", return_value="无"),
             patch("systems.serializers.get_inventory_items", return_value=inventory),
@@ -123,10 +136,44 @@ class SerializerTests(unittest.TestCase):
             payload = serializers.serialize_character(caller)
         self.assertEqual(payload["name"], "tester")
         self.assertEqual(payload["stage"], "mortal")
-        self.assertEqual(payload["realm"], "炼气一层")
+        self.assertEqual(payload["realm"], "炼气1阶")
+        self.assertEqual(payload["realm_display"], "炼气1阶")
         self.assertEqual(payload["inventory_count"], 1)
         self.assertEqual(payload["copper"], 30)
         self.assertEqual(payload["primary_currency"], "copper")
+        self.assertIsInstance(payload["currencies"], dict)
+        self.assertIsInstance(payload["equipment"]["slots"], dict)
+
+    def test_serialize_character_uses_placeholder_stage_bucket_for_formal_realm_without_minor_stage(self):
+        caller = FakeCaller()
+        with (
+            patch("systems.serializers.get_stats", return_value={
+                "stage": "cultivator",
+                "root": "water",
+                "realm": "筑基",
+                "realm_info": {"display_name": "筑基", "realm_key": "foundation_establishment", "minor_stage": None, "stage_bucket": None},
+                "hp": 90,
+                "max_hp": 100,
+                "mp": 20,
+                "max_mp": 20,
+                "stamina": 40,
+                "max_stamina": 50,
+                "exp": 750,
+                "copper": 10,
+                "spirit_stone": 0,
+                "primary_currency": "spirit_stone",
+                "currencies": FakeSaverDict({"copper": 10, "spirit_stone": 0, "primary_currency": "spirit_stone"}),
+                "primary_stats": FakeSaverDict({}),
+                "combat_stats": FakeSaverDict({}),
+                "equipment": FakeSaverDict({"slots": FakeSaverDict({})}),
+                "affinities": FakeSaverDict({}),
+                "reserves": FakeSaverDict({}),
+            }),
+            patch("systems.serializers.get_active_effect_text", return_value="无"),
+            patch("systems.serializers.get_inventory_items", return_value=[]),
+        ):
+            payload = serializers.serialize_character(caller)
+        self.assertEqual(payload["stage_bucket"], "小阶待开放")
 
     def test_serialize_room_with_exits(self):
         target_room = FakeRoom("古松林", "old_pine_forest", "room_old_pine_forest")
@@ -145,6 +192,13 @@ class SerializerTests(unittest.TestCase):
         self.assertEqual(payload["key"], "青云渡")
         self.assertEqual(payload["area_key"], "starter_area")
         self.assertEqual(payload["exits"][0]["destination"], "古松林")
+        self.assertTrue(any("gender" in npc and "realm" in npc and "npc_role" in npc for npc in payload["npcs"]))
+        if payload["npcs"]:
+            self.assertIn("actions", payload["npcs"][0])
+            self.assertEqual(payload["npcs"][0]["inspect_command"], f"信息 {payload['npcs'][0]['key']}")
+        if payload["enemies"]:
+            self.assertEqual(payload["enemies"][0]["actions"], ["信息", "攻击"])
+            self.assertEqual(payload["enemies"][0]["inspect_command"], f"信息 {payload['enemies'][0]['key']}")
 
     def test_serialize_shop_by_id(self):
         with patch("systems.serializers.get_shop_by_id", return_value={
@@ -202,13 +256,31 @@ class SerializerTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["expired_offers_count"], 1)
 
     def test_serialize_chat_message(self):
-        sender = SimpleNamespace(pk=11, key="甲")
+        sender = SimpleNamespace(pk=11, key="甲", db=SimpleNamespace(progression={"display_name": "炼气6阶"}, realm="炼气6阶"))
         target = SimpleNamespace(pk=12, key="乙")
         payload = serializers.serialize_chat_message("private", "你好", sender=sender, target=target, ts=123456)
         self.assertEqual(payload["channel"], "private")
         self.assertEqual(payload["sender_name"], "甲")
+        self.assertEqual(payload["sender_title"], "炼气6阶·甲")
         self.assertEqual(payload["target_name"], "乙")
         self.assertEqual(payload["ts"], 123456)
+
+    def test_serialize_chat_status(self):
+        caller = FakeCaller()
+        caller.account = SimpleNamespace(
+            username="tester",
+            is_authenticated=True,
+            db=SimpleNamespace(
+                chat_message_history=[{"formatted": "[世界] 你好", "message": {"channel": "world"}}],
+                combat_log_history=[{"formatted": "回合 2 | tester 对 木人桩 造成 4 点伤害。", "type": "combat.log"}],
+                _saved_webclient_options={},
+            ),
+        )
+        with patch("systems.serializers.list_channel_status", return_value=[{"channel": "aggregate", "available": True}, {"channel": "world", "available": True}]):
+            payload = serializers.serialize_chat_status(caller)
+        self.assertEqual(payload["channels"][0]["channel"], "aggregate")
+        self.assertEqual(payload["recent_messages"][0]["formatted"], "[世界] 你好")
+        self.assertEqual(payload["recent_combat_logs"][0]["type"], "combat.log")
 
     def test_serialize_quest_log(self):
         caller = FakeCaller()
@@ -237,6 +309,75 @@ class SerializerTests(unittest.TestCase):
         self.assertEqual(payload["main"]["id"], "quest_main_stage_01")
         self.assertEqual(payload["side"][0]["key"], "herb_delivery")
 
+    def test_serialize_person_detail_for_npc(self):
+        target = SimpleNamespace(
+            key="守渡老人",
+            db=SimpleNamespace(
+                npc_role="guide",
+                desc="一位须发半白的老人。",
+                content_id="npc_old_ferryman",
+            ),
+        )
+        viewer = FakeCaller()
+        with (
+            patch("systems.serializers.is_npc", return_value=True),
+            patch(
+                "systems.serializers.get_npc_sheet",
+                return_value={
+                    "identity": {"content_id": "npc_old_ferryman", "name": "守渡老人", "npc_role": "guide", "gender": "unknown"},
+                    "progression": {"realm": "炼气一层"},
+                    "combat_stats": {"hp": 80, "max_hp": 80, "mp": 10, "max_mp": 10, "stamina": 40, "max_stamina": 40, "attack_power": 8, "defense": 6, "speed": 9},
+                    "npc_meta": {"talk_route": "guide_main", "shop_id": None, "presentation": {"desc": "一位须发半白的老人。"}},
+                },
+            ),
+            patch(
+                "systems.serializers.serialize_npc_relationship_detail",
+                return_value={
+                    "target": "守渡老人",
+                    "stats": [
+                        {"label": "好感", "value": "0"},
+                        {"label": "声望", "value": "0"},
+                        {"label": "信任", "value": "0"},
+                    ],
+                },
+            ),
+        ):
+            payload = serializers.serialize_person_detail(target, viewer=viewer)
+        self.assertEqual(payload["type"], "npc")
+        self.assertEqual(payload["key"], "守渡老人")
+        self.assertEqual(payload["realm_title"], "炼气1阶·守渡老人")
+        self.assertEqual(payload["gender_label"], "未知")
+        self.assertIn("交谈", payload["actions"])
+        self.assertIn("关系", payload["actions"])
+        self.assertEqual(payload["relationship"]["target"], "守渡老人")
+
+    def test_serialize_npc_relationship_detail(self):
+        caller = FakeCaller()
+        target = SimpleNamespace(key="守渡老人", db=SimpleNamespace(content_id="npc_old_ferryman"))
+        with (
+            patch("systems.serializers.is_npc", return_value=True),
+            patch(
+                "systems.serializers.get_npc_sheet",
+                return_value={"identity": {"content_id": "npc_old_ferryman", "name": "守渡老人"}},
+            ),
+            patch(
+                "systems.serializers.get_npc_relationship",
+                return_value={
+                    "npc_id": "npc_old_ferryman",
+                    "affection": 8,
+                    "reputation": 2,
+                    "trust": 5,
+                    "quest_flags": ["guide_done"],
+                    "companion_unlocked": False,
+                    "projection_state": {"active": False, "projection_mode": None, "projection_template_id": None},
+                    "relocation_state": {"hidden": False, "room_id_override": None, "content_id_override": None},
+                },
+            ),
+        ):
+            payload = serializers.serialize_npc_relationship_detail(caller, target)
+        self.assertEqual(payload["summary"]["affection"], 8)
+        self.assertEqual(payload["stats"][0]["label"], "好感")
+
 
 class ActionRouterTests(unittest.TestCase):
     def test_bootstrap_action(self):
@@ -245,6 +386,37 @@ class ActionRouterTests(unittest.TestCase):
             response = action_router.dispatch_action(caller, "bootstrap", {})
         self.assertTrue(response["ok"])
         self.assertEqual(response["payload"]["ok"], "bootstrap")
+
+    def test_breakthrough_action(self):
+        caller = FakeCaller()
+        with (
+            patch("systems.action_router.try_breakthrough", return_value={"ok": True, "realm": "筑基1阶"}),
+            patch("systems.action_router.build_bootstrap_payload", return_value={"character": {"realm": "筑基1阶", "realm_display": "筑基1阶"}}),
+        ):
+            response = action_router.dispatch_action(caller, "breakthrough", {})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["result"]["realm"], "筑基1阶")
+        self.assertEqual(response["payload"]["character"]["realm_display"], "筑基1阶")
+
+    def test_breakthrough_action_preserves_requirement_payload_on_failure(self):
+        caller = FakeCaller()
+        with patch(
+            "systems.action_router.try_breakthrough",
+            return_value={
+                "ok": False,
+                "reason": "requirements_not_met",
+                "requirements": {
+                    "target_realm_key": "foundation_establishment",
+                    "requirements": [{"type": "quest", "label": "宗门任务", "description": "完成引气入体", "status": "missing"}],
+                    "missing_requirements": [{"type": "quest", "label": "宗门任务", "description": "完成引气入体", "status": "missing"}],
+                    "can_breakthrough": False,
+                },
+            },
+        ):
+            response = action_router.dispatch_action(caller, "breakthrough", {})
+        self.assertFalse(response["ok"])
+        self.assertEqual(response["error"]["code"], "requirements_not_met")
+        self.assertEqual(response["error"]["requirements"]["missing_requirements"][0]["label"], "宗门任务")
 
     def test_move_action(self):
         start_room = FakeRoom("青云渡", "qingyundu", "room_qingyundu")
@@ -345,6 +517,66 @@ class ActionRouterTests(unittest.TestCase):
             response = action_router.dispatch_action(caller, "chat_private", {"target": "乙", "text": "你好"})
         self.assertFalse(response["ok"])
         self.assertEqual(response["error"]["code"], "target_not_found")
+
+    def test_chat_status_action(self):
+        caller = FakeCaller()
+        with (
+            patch("systems.action_router.serialize_chat_status", return_value={"channels": [{"channel": "world"}], "recent_messages": []}),
+            patch("systems.action_router.serialize_ui_preferences", return_value={"chat_layout": {"dock": "right-sidebar"}}),
+        ):
+            response = action_router.dispatch_action(caller, "chat_status", {})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["channels"][0]["channel"], "world")
+        self.assertEqual(response["payload"]["ui_preferences"]["chat_layout"]["dock"], "right-sidebar")
+
+    def test_inspect_person_action(self):
+        caller = FakeCaller(location=FakeRoom("青云渡", "qingyundu", "room_qingyundu"))
+        target = SimpleNamespace(key="守渡老人", db=SimpleNamespace(npc_role="guide"))
+        caller._search_map["守渡老人"] = target
+        with patch(
+            "systems.action_router.serialize_person_detail",
+            return_value={"type": "npc", "key": "守渡老人", "gender_label": "未知", "realm": "炼气一层", "relationship": {"summary": {"affection": 0}}},
+        ):
+            response = action_router.dispatch_action(caller, "inspect_person", {"target": "守渡老人"})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["target"], "守渡老人")
+        self.assertEqual(response["payload"]["person"]["type"], "npc")
+
+    def test_inspect_npc_relationship_action(self):
+        caller = FakeCaller(location=FakeRoom("青云渡", "qingyundu", "room_qingyundu"))
+        target = SimpleNamespace(key="守渡老人", db=SimpleNamespace(npc_role="guide"))
+        caller._search_map["守渡老人"] = target
+        with patch(
+            "systems.action_router.serialize_npc_relationship_detail",
+            return_value={"target": "守渡老人", "summary": {"affection": 0, "reputation": 0, "trust": 0}},
+        ):
+            response = action_router.dispatch_action(caller, "inspect_npc_relationship", {"target": "守渡老人"})
+        self.assertTrue(response["ok"])
+        self.assertEqual(response["payload"]["relationship"]["target"], "守渡老人")
+
+
+class UiPreferenceTests(unittest.TestCase):
+    def test_get_ui_preferences_returns_defaults(self):
+        account = SimpleNamespace(username="tester", is_authenticated=True, db=SimpleNamespace(_saved_webclient_options={}))
+        payload = get_ui_preferences(account)
+        self.assertEqual(payload["chat_layout"]["dock"], "right-sidebar")
+        self.assertEqual(payload["chat_layout"]["size"], "normal")
+        self.assertTrue(payload["chat_layout"]["visible"])
+        self.assertEqual(payload["chat_layout"]["active_channel"], "aggregate")
+
+    def test_update_ui_preferences_persists_chat_layout(self):
+        account = SimpleNamespace(username="tester", is_authenticated=True, db=SimpleNamespace(_saved_webclient_options={}))
+        payload = update_ui_preferences(account, {"chat_layout": {"dock": "top-strip", "size": "large", "visible": False}})
+        self.assertEqual(payload["chat_layout"]["dock"], "top-strip")
+        self.assertEqual(account.db._saved_webclient_options["chatDockPreset"], "top-strip")
+        self.assertEqual(account.db._saved_webclient_options["chatPaneSize"], "large")
+        self.assertFalse(account.db._saved_webclient_options["chatPaneVisible"])
+
+    def test_update_ui_preferences_accepts_aggregate_channel(self):
+        account = SimpleNamespace(username="tester", is_authenticated=True, db=SimpleNamespace(_saved_webclient_options={}))
+        payload = update_ui_preferences(account, {"chat_layout": {"active_channel": "aggregate"}})
+        self.assertEqual(payload["chat_layout"]["active_channel"], "aggregate")
+        self.assertEqual(account.db._saved_webclient_options["chatActiveChannel"], "aggregate")
 
     def test_market_listings_action(self):
         caller = FakeCaller(location=FakeRoom("外门坊市", "outer_market", "room_outer_market"))

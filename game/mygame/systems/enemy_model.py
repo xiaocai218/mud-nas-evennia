@@ -33,6 +33,7 @@ from copy import deepcopy
 
 from .content_loader import load_content
 from .entity_gender import GENDER_UNKNOWN, normalize_gender
+from .realms import format_entity_realm_display, normalize_realm_display
 
 
 MORTAL_ENEMY = "mortal_enemy"
@@ -246,7 +247,11 @@ def _normalize_structured_enemy(enemy_id, raw):
     identity["tags"] = list(identity.get("tags", []))
 
     progression.setdefault("stage", _default_stage_for_enemy_type(enemy_type))
-    progression.setdefault("realm", raw.get("realm") or _default_realm_for_enemy_type(enemy_type))
+    progression.setdefault("realm", normalize_realm_display(raw.get("realm") or _default_realm_for_enemy_type(enemy_type)))
+    progression.setdefault(
+        "realm_info",
+        {"display_name": format_entity_realm_display({"realm": progression.get("realm")}, entity_kind="enemy", enemy_type=enemy_type)},
+    )
     progression.setdefault("rank_tier", raw.get("rank_tier", "common"))
     progression.setdefault("spawn_profile", {"room_id": raw.get("room_id")})
     progression.setdefault("kill_credit_flags", [])
@@ -355,7 +360,7 @@ def _normalize_legacy_enemy(enemy_id, raw, target=None):
         },
         "progression": {
             "stage": raw.get("stage") or _default_stage_for_enemy_type(enemy_type),
-            "realm": raw.get("realm") or _default_realm_for_enemy_type(enemy_type),
+            "realm": normalize_realm_display(raw.get("realm") or _default_realm_for_enemy_type(enemy_type)),
             "rank_tier": raw.get("rank_tier", "common"),
             "spawn_profile": {"room_id": raw.get("room_id") or raw.get("room")},
             "kill_credit_flags": [quest_flag] if quest_flag else [],
@@ -444,7 +449,7 @@ def _default_realm_for_enemy_type(enemy_type):
     if enemy_type == BEAST_ENEMY:
         return "妖兽"
     if enemy_type == CULTIVATOR_ENEMY:
-        return "炼气一层"
+        return "炼气1阶"
     return "凡人"
 
 

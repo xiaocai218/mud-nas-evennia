@@ -1,6 +1,7 @@
 """Area metadata and area-exit helpers."""
 
 from .content_loader import load_content
+from .realms import describe_recommended_realm, get_recommended_realm_label
 
 
 AREA_DEFINITIONS = load_content("areas")
@@ -61,7 +62,7 @@ def format_area_text(room):
         f"定位: {area.get('region_type', 'unknown')}",
     ]
     if area.get("recommended_realm"):
-        lines.append(f"推荐境界: {area['recommended_realm']}")
+        lines.append(f"推荐境界: {get_recommended_realm_label(area['recommended_realm'])}")
     if area.get("desc"):
         lines.append("")
         lines.append(area["desc"])
@@ -83,3 +84,7 @@ def format_area_text(room):
             lines.append(f"- 前往 {target_name}：触发地点 {trigger_room}")
 
     return "\n".join(lines)
+
+
+def serialize_recommended_realm(raw_value):
+    return describe_recommended_realm(raw_value)

@@ -4,7 +4,20 @@
     "zone_id": "zone_ningzhou",
     "key": "青云渡新手村",
     "region_type": "starter_village",
-    "recommended_realm": "炼气一层",
+    "recommended_realm": {
+      "mode": "range",
+      "label": "凡人-炼气2阶",
+      "start": {
+        "realm_key": "mortal",
+        "minor_stage": null,
+        "display_name": "凡人"
+      },
+      "end": {
+        "realm_key": "qi_refining",
+        "minor_stage": 2,
+        "display_name": "炼气2阶"
+      }
+    },
     "desc": "这里是初入青云一脉前的山下新手地域，渡口、石阶与古松林彼此相连，适合新人熟悉移动、修炼、采集与最基础的战斗节奏。",
     "rooms": [
       "qingyundu",
@@ -33,7 +46,20 @@
     "zone_id": "zone_ningzhou",
     "key": "青云外门",
     "region_type": "outer_gate",
-    "recommended_realm": "炼气三层",
+    "recommended_realm": {
+      "mode": "point",
+      "label": "炼气3阶",
+      "start": {
+        "realm_key": "qi_refining",
+        "minor_stage": 3,
+        "display_name": "炼气3阶"
+      },
+      "end": {
+        "realm_key": "qi_refining",
+        "minor_stage": 3,
+        "display_name": "炼气3阶"
+      }
+    },
     "desc": "这里是穿过山门后的外门前段区域，已经脱离山下新手村，开始承担更明确的宗门过渡与外门生活功能。",
     "rooms": [
       "valley",

@@ -4,7 +4,20 @@
     "map_id": "map_shenzhou_mainland",
     "key": "宁洲",
     "zone_type": "prefecture",
-    "recommended_realm": "炼气一层",
+    "recommended_realm": {
+      "mode": "range",
+      "label": "凡人-炼气3阶",
+      "start": {
+        "realm_key": "mortal",
+        "minor_stage": null,
+        "display_name": "凡人"
+      },
+      "end": {
+        "realm_key": "qi_refining",
+        "minor_stage": 3,
+        "display_name": "炼气3阶"
+      }
+    },
     "desc": "宁洲位于神洲大陆东南一隅，山川秀润，宗门林立。青云一脉山门所在的山下村镇、外门药圃与入门试炼，多半都分布在这一州之内。"
   }
 }

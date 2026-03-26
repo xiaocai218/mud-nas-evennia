@@ -32,6 +32,14 @@ import time
 import evennia
 from evennia.comms.comms import DefaultChannel
 from evennia.accounts.models import AccountDB
+try:
+    from evennia.utils.create import create_channel as fallback_create_channel
+except ImportError:  # pragma: no cover - depends on Evennia runtime layout
+    fallback_create_channel = None
+try:
+    from evennia.utils.search import search_channel as fallback_search_channel
+except ImportError:  # pragma: no cover - depends on Evennia runtime layout
+    fallback_search_channel = None
 
 from systems.chat_payloads import serialize_chat_message
 from systems.event_bus import chat_message_event, enqueue_account_event
@@ -40,6 +48,7 @@ from systems.event_bus import chat_message_event, enqueue_account_event
 CHANNEL_WORLD = "world"
 CHANNEL_TEAM = "team"
 CHANNEL_SYSTEM = "system"
+CHANNEL_AGGREGATE = "aggregate"
 
 CHANNEL_CONFIG = {
     CHANNEL_WORLD: {
@@ -118,7 +127,16 @@ def resolve_channel_name(raw_name):
 
 def list_channel_status(caller):
     account = _get_account(caller)
-    statuses = []
+    statuses = [
+        {
+            "channel": CHANNEL_AGGREGATE,
+            "key": "综合",
+            "desc": "汇聚世界、队伍、私聊、系统消息",
+            "muted": False,
+            "available": True,
+            "reason": None,
+        }
+    ]
     for channel_name, config in CHANNEL_CONFIG.items():
         channel = _ensure_channel(channel_name)
         available, reason = _channel_available(caller, channel_name)
@@ -215,7 +233,7 @@ def send_private_message(caller, target_name, text):
         ts=ts,
     )
     event = chat_message_event(dto)
-    formatted = f"[私聊] {caller.key} -> {target_character.key}: {text}"
+    formatted = f"[私聊] {dto.get('sender_title') or caller.key} -> {target_character.key}: {text}"
 
     delivered = _deliver_chat_event(_unique_accounts([sender_account, target_account]), formatted, event)
 
@@ -293,7 +311,7 @@ def _send_channel_message(channel_name, caller, text):
     dto = serialize_chat_message(channel=channel_name, text=text, sender=caller, target=None, ts=ts)
     event = chat_message_event(dto)
     label = CHANNEL_CONFIG[channel_name]["key"]
-    formatted = f"[{label}] {caller.key}: {text}"
+    formatted = f"[{label}] {dto.get('sender_title') or caller.key}: {text}"
 
     delivered = _deliver_chat_event(recipients, formatted, event, muted_accounts=channel.mutelist)
 
@@ -316,13 +334,13 @@ def _channel_available(caller, channel_name):
 
 def _ensure_channel(channel_name):
     config = CHANNEL_CONFIG[channel_name]
-    matches = evennia.search_channel(config["db_key"])
+    matches = _search_channels(config["db_key"])
     if matches:
         channel = matches[0]
         _apply_channel_configuration(channel, channel_name)
         return channel
     for legacy_name in config.get("legacy_names", []):
-        matches = evennia.search_channel(legacy_name)
+        matches = _search_channels(legacy_name)
         if matches:
             channel = matches[0]
             # 这里优先接管旧频道，而不是直接新建一个同义频道。
@@ -330,7 +348,7 @@ def _ensure_channel(channel_name):
             _normalize_channel_identity(channel, channel_name)
             _apply_channel_configuration(channel, channel_name)
             return channel
-    channel = evennia.create_channel(
+    channel = _create_managed_channel(
         key=config["db_key"],
         aliases=[],
         desc=config.get("desc", ""),
@@ -344,6 +362,24 @@ def _apply_channel_configuration(channel, channel_name):
     locks = getattr(channel, "locks", None)
     if locks and hasattr(locks, "add"):
         locks.add(get_channel_lockstring(channel_name))
+
+
+def _search_channels(name):
+    search_fn = getattr(evennia, "search_channel", None)
+    if callable(search_fn):
+        return search_fn(name)
+    if callable(fallback_search_channel):
+        return fallback_search_channel(name)
+    return []
+
+
+def _create_managed_channel(**kwargs):
+    create_fn = getattr(evennia, "create_channel", None)
+    if callable(create_fn):
+        return create_fn(**kwargs)
+    if callable(fallback_create_channel):
+        return fallback_create_channel(**kwargs)
+    raise RuntimeError("Evennia channel creation is unavailable in the current runtime")
 
 
 def _normalize_channel_identity(channel, channel_name):

@@ -1,7 +1,8 @@
 """Cultivation and recovery commands."""
 
 from .command import Command
-from systems.player_stats import apply_exp, get_cultivation_bonus, get_stats
+from systems.player_stats import apply_exp, get_cultivation_bonus, get_stats, try_breakthrough
+from systems.realms import format_breakthrough_requirements, get_cultivation_progress_messages
 
 
 class CmdCultivate(Command):
@@ -31,6 +32,10 @@ class CmdCultivate(Command):
             f"{gain_text}\n"
             f"|g当前状态|n: {new_realm}，修为 {exp}，体力 {caller.db.stamina}/{stats['max_stamina']}"
         )
+        refreshed = get_stats(caller)
+        realm_info = refreshed.get("realm_info", {})
+        for text in get_cultivation_progress_messages(realm_info):
+            caller.msg(text)
         if new_realm != old_realm:
             caller.msg(f"|y你心神一振，灵息贯通，境界提升至 {new_realm}。|n")
 
@@ -73,3 +78,26 @@ class CmdRecoverHp(Command):
             "你收摄心神，缓缓调匀体内紊乱气机，胸腹间的闷痛也散去了不少。\n"
             f"|g气血恢复|n: +{caller.db.hp - stats['hp']}，当前气血 {caller.db.hp}/{stats['max_hp']}"
         )
+
+
+class CmdBreakthrough(Command):
+    key = "突破"
+    aliases = ["breakthrough"]
+    locks = "cmd:all()"
+    help_category = "修炼"
+
+    def func(self):
+        caller = self.caller
+        result = try_breakthrough(caller)
+        if not result.get("ok"):
+            if result.get("reason") == "requirements_not_met":
+                requirements = (result.get("requirements") or {}).get("missing_requirements") or []
+                lines = format_breakthrough_requirements(requirements)
+                if lines:
+                    caller.msg("你感到瓶颈仍未真正松动，突破所需条件尚未齐备：\n" + "\n".join(f"- {line}" for line in lines))
+                else:
+                    caller.msg("你感到瓶颈仍未真正松动，突破所需条件尚未齐备。")
+                return
+            caller.msg(f"你尝试冲击更高境界，却发现火候未到。当前境界：{result.get('realm') or '未知'}。")
+            return
+        caller.msg(f"|y你凝神破关，成功踏入新的境界：{result['realm']}。|n")

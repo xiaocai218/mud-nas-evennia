@@ -1,8 +1,9 @@
 """Combat and battle commands."""
 
 from .command import Command
-from systems.battle_cards import get_card_display_name, get_direct_card_aliases, resolve_card_alias
-from systems.battle import get_battle_snapshot, list_available_cards, list_available_targets, submit_action
+from systems.battle_cards import get_direct_card_aliases, resolve_card_alias
+from systems.battle import get_battle_snapshot, list_available_targets, submit_action
+from systems.battle_summary import render_battle_summary
 from systems.combat import attack_enemy
 from systems.player_stats import apply_exp, get_stats
 
@@ -68,7 +69,6 @@ class CmdAttack(Command):
         if not battle:
             caller.msg("战斗未能正确建立。")
             return
-        caller.msg(_render_battle_summary(battle))
 
 
 class CmdBattleStatus(Command):
@@ -83,7 +83,7 @@ class CmdBattleStatus(Command):
         if not battle:
             self.caller.msg("你当前没有进入战斗。")
             return
-        self.caller.msg(_render_battle_summary(battle))
+        self.caller.msg(_render_battle_summary(battle, viewer_name=self.caller.key))
 
 
 class CmdPlayCard(Command):
@@ -99,264 +99,48 @@ class CmdPlayCard(Command):
         if not battle:
             caller.msg("你当前没有进入战斗。")
             return
-        raw = self.args.strip()
-        invoked_as = (getattr(self, "cmdstring", "") or "").strip()
-        direct_card_invocation = invoked_as and invoked_as != self.key and invoked_as in self.aliases
-        if direct_card_invocation:
-            raw = f"{invoked_as} {raw}".strip()
-        if not raw:
+        request = _parse_play_card_request(self)
+        if not request:
             caller.msg("用法：|w出牌 普通攻击 目标名|n、|w出牌 防御|n、|w出牌 灵击 目标名|n、|w出牌 物品 物品ID|n")
             return
-        parts = raw.split()
-        card_name = parts[0]
-        card_id = resolve_card_alias(card_name)
-        target_id = None
-        item_id = None
-        if card_id == "use_combat_item":
-            item_id = parts[1] if len(parts) > 1 else None
-        elif len(parts) > 1:
-            target_name = " ".join(parts[1:])
-            for target in list_available_targets(caller):
-                if target["name"] == target_name:
-                    target_id = target["combatant_id"]
-                    break
-        result = submit_action(caller, card_id, target_id=target_id, item_id=item_id)
+        result = submit_action(caller, request["card_id"], target_id=request["target_id"], item_id=request["item_id"])
         if not result.get("ok"):
             caller.msg(f"出牌失败：{result.get('reason')}。")
             return
-        caller.msg(_render_battle_summary(result["battle"]))
+        return
 
 
-def _render_battle_summary(battle):
-    current_actor = battle.get("current_actor_name") or "无"
-    participants = battle.get("participants", []) or []
-    player_side = [combatant for combatant in participants if combatant.get("side") == "player"]
-    enemy_side = [combatant for combatant in participants if combatant.get("side") == "enemy"]
-    current_actor_side = _resolve_current_actor_side(battle)
-    turn_hint = _render_turn_hint(current_actor, current_actor_side)
-
-    lines = [
-        f"|g战斗状态|n: {battle['status']} / 回合数 {battle['turn_count']}",
-        f"|g当前行动者|n: {current_actor}",
-        f"|g当前节奏|n: {turn_hint}",
-        "|g战场摘要|n: " + _render_battle_meta_summary(battle),
-        "|g我方状态|n:",
-    ]
-    for combatant in player_side:
-        lines.append(_render_combatant_line(combatant, highlight=combatant["name"] == current_actor))
-    lines.append("|g敌方状态|n:")
-    for combatant in enemy_side:
-        lines.append(_render_combatant_line(combatant, highlight=combatant["name"] == current_actor))
-    if player_side or enemy_side:
-        lines.append("|g当前对阵|n: " + _render_battle_state_overview(player_side, enemy_side))
-    recent_reports = battle.get("round_reports")[-3:] if battle.get("round_reports") else []
-    if recent_reports:
-        lines.append("|g最近回合战报|n:")
-        for report in recent_reports:
-            lines.extend(_render_round_report(report))
-    elif battle.get("log"):
-        lines.append("|g最近战报|n:")
-        for entry in battle.get("log")[-3:]:
-            lines.append(f"- {_format_battle_log_entry(entry)}")
-    if battle.get("current_actor_name") and battle["status"] == "active":
-        lines.append("|g可用卡牌|n: " + "、".join(card["name"] for card in battle.get("available_cards", []) or []))
-        lines.append("|g出牌方式|n: 直接输入卡牌名，或使用 |w出牌 卡牌名 [目标]|n")
-    return "\n".join(lines)
+def _render_battle_summary(battle, viewer_name=None):
+    return render_battle_summary(battle, viewer_name=viewer_name)
 
 
-def _display_name_for_log_entry(entry):
-    card_id = entry.get("card_id")
-    if card_id:
-        return get_card_display_name(card_id=card_id)
-    return get_card_display_name(entry_type=entry.get("type"))
+def _parse_play_card_request(command):
+    # 命令层只负责把“出牌/卡牌别名/目标文本”转成统一 submit_action 参数，
+    # 后续如果再扩展快捷键或按钮入口，也应优先复用这个解析结果。
+    caller = command.caller
+    raw = command.args.strip()
+    invoked_as = (getattr(command, "cmdstring", "") or "").strip()
+    direct_card_invocation = invoked_as and invoked_as != command.key and invoked_as in command.aliases
+    if direct_card_invocation:
+        raw = f"{invoked_as} {raw}".strip()
+    if not raw:
+        return None
+
+    parts = raw.split()
+    card_id = resolve_card_alias(parts[0])
+    target_id = None
+    item_id = None
+    if card_id == "use_combat_item":
+        item_id = parts[1] if len(parts) > 1 else None
+    elif len(parts) > 1:
+        target_name = " ".join(parts[1:])
+        target_id = _resolve_named_target_id(caller, target_name)
+    return {"card_id": card_id, "target_id": target_id, "item_id": item_id}
 
 
-def _render_turn_hint(current_actor_name, current_actor_side):
-    if current_actor_name == "无":
-        return "当前没有可行动单位。"
-    if current_actor_side == "player":
-        return f"轮到你方行动，由 {current_actor_name} 出手。"
-    if current_actor_side == "enemy":
-        return f"轮到敌方行动，由 {current_actor_name} 出手。"
-    return f"当前由 {current_actor_name} 行动。"
-
-
-def _resolve_current_actor_side(battle):
-    current_actor = battle.get("current_actor_name")
-    for combatant in battle.get("participants", []) or []:
-        if combatant.get("name") == current_actor:
-            return combatant.get("side")
+def _resolve_named_target_id(caller, target_name):
+    # 这里保持“只按当前战斗可选目标解析”，避免命令层误把房间内同名非战斗对象当作战斗目标。
+    for target in list_available_targets(caller):
+        if target["name"] == target_name:
+            return target["combatant_id"]
     return None
-
-
-def _render_combatant_line(combatant, highlight=False):
-    state = "存活" if combatant["alive"] else "倒下"
-    marker = ">> " if highlight else "- "
-    resources = _get_resources(combatant)
-    parts = [
-        f"{marker}{combatant['name']}",
-        f"气血 {resources['hp']}/{resources['max_hp']}",
-        f"灵力 {resources['mp']}/{resources['max_mp']}",
-        f"体力 {resources['stamina']}/{resources['max_stamina']}",
-        f"护盾 {resources['shield']}",
-        state,
-    ]
-    effects = _render_effects_text(combatant.get("effects") or [])
-    if effects:
-        parts.append(f"状态 {effects}")
-    cooldowns = combatant.get("cooldowns") or {}
-    if cooldowns:
-        parts.append("冷却 " + "、".join(f"{name}:{value}" for name, value in cooldowns.items()))
-    return " / ".join(parts)
-
-
-def _format_battle_log_entry(entry):
-    actor_name = entry.get("actor_name", "未知")
-    target_name = entry.get("target_name")
-    action_name = _display_name_for_log_entry(entry)
-    entry_type = entry.get("type")
-    action_result = entry.get("action_result") or {}
-    result = action_result.get("result") or {}
-    modifiers = action_result.get("modifiers") or {}
-    value = result.get("damage", entry.get("value", 0)) if entry_type == "basic_attack" else entry.get("value", 0)
-
-    if entry_type == "basic_attack":
-        if modifiers.get("guard_blocked", entry.get("guard_blocked")):
-            return f"{actor_name} 对 {target_name} 发起普通攻击，但被防御完全格挡。"
-        notes = []
-        guard_reduced = modifiers.get("guard_reduced", entry.get("guard_reduced"))
-        shield_absorbed = modifiers.get("shield_absorbed", entry.get("shield_absorbed"))
-        if guard_reduced:
-            notes.append(f"防御减免 {guard_reduced}")
-        if shield_absorbed:
-            notes.append(f"护盾吸收 {shield_absorbed}")
-        suffix = f"（{'，'.join(notes)}）" if notes else ""
-        return f"{actor_name} 对 {target_name} 造成 {value} 点伤害。{suffix}"
-    if entry_type == "guard":
-        block_chance_pct = entry.get("block_chance_pct", 0)
-        resource_delta = action_result.get("resource_delta") or {}
-        notes = []
-        if resource_delta.get("source_mp"):
-            notes.append(f"灵力 {resource_delta['source_mp']}")
-        suffix = f"（{'，'.join(notes)}）" if notes else ""
-        return f"{actor_name} 使用 {action_name}，进入防御架势：普通攻击减伤 {value}%，并有 {block_chance_pct}% 概率完全格挡。{suffix}"
-    if entry_type == "use_combat_item":
-        text = entry.get("text") or "使用了战斗物品"
-        return f"{actor_name}{text}，效果值 {value}。"
-    if entry_type == "skill_card":
-        value = result.get("damage", result.get("heal", result.get("shield_gain", entry.get("value", 0))))
-        resource_delta = action_result.get("resource_delta") or {}
-        if target_name:
-            notes = []
-            shield_absorbed = modifiers.get("shield_absorbed", entry.get("shield_absorbed"))
-            if shield_absorbed:
-                notes.append(f"护盾吸收 {shield_absorbed}")
-            if resource_delta.get("source_mp"):
-                notes.append(f"灵力 {resource_delta['source_mp']}")
-            suffix = f"（{'，'.join(notes)}）" if notes else ""
-            return f"{actor_name} 使用 {action_name} 命中 {target_name}，效果值 {value}。{suffix}"
-        notes = []
-        if result.get("shield_gain"):
-            notes.append(f"获得护盾 {result['shield_gain']}")
-        if result.get("heal"):
-            notes.append(f"恢复气血 {result['heal']}")
-        if resource_delta.get("source_mp"):
-            notes.append(f"灵力 {resource_delta['source_mp']}")
-        suffix = f"（{'，'.join(notes)}）" if notes else ""
-        return f"{actor_name} 使用 {action_name}，效果值 {value}。{suffix}"
-    return f"{actor_name} 执行了 {action_name}。"
-
-
-def _render_battle_state_overview(player_side, enemy_side):
-    left = "；".join(_render_state_chip(combatant) for combatant in player_side) or "我方无可行动单位"
-    right = "；".join(_render_state_chip(combatant) for combatant in enemy_side) or "敌方无可行动单位"
-    return f"我方 {left} / 敌方 {right}"
-
-
-def _render_state_chip(combatant):
-    resources = _get_resources(combatant)
-    stamina = resources.get("stamina")
-    max_stamina = resources.get("max_stamina")
-    stamina_text = "" if stamina is None or max_stamina is None else f", 体力 {stamina}/{max_stamina}"
-    effects = _render_effects_text(combatant.get("effects") or [])
-    effect_text = "" if not effects else f", 状态 {effects}"
-    return (
-        f"{combatant['name']}("
-        f"气血 {resources['hp']}/{resources['max_hp']}, "
-        f"灵力 {resources['mp']}/{resources['max_mp']}, "
-        f"护盾 {resources['shield']}"
-        f"{stamina_text}"
-        f"{effect_text}"
-        f")"
-    )
-
-
-def _render_round_report(report):
-    actor_side_label = "我方回合" if report.get("actor_side") == "player" else "敌方回合"
-    lines = [
-        f"- 回合 {report.get('turn_count')} | {actor_side_label} | {report.get('actor_name')}",
-        f"  出手前: {_render_snapshot_overview(report.get('before') or {})}",
-        f"  行动: {_format_battle_log_entry(report.get('entry') or {})}",
-        f"  出手后: {_render_snapshot_overview(report.get('after') or {})}",
-    ]
-    return lines
-
-
-def _render_snapshot_overview(snapshot):
-    player_text = "；".join(_render_state_chip(entry) for entry in snapshot.get("player", []) or []) or "我方无可行动单位"
-    enemy_text = "；".join(_render_state_chip(entry) for entry in snapshot.get("enemy", []) or []) or "敌方无可行动单位"
-    meta = snapshot.get("meta") or {}
-    meta_text = ""
-    if meta:
-        meta_text = f" [存活 我方 {meta.get('alive_player_count', 0)} / 敌方 {meta.get('alive_enemy_count', 0)}]"
-    return f"我方 {player_text} / 敌方 {enemy_text}{meta_text}"
-
-
-def _render_effects_text(effects):
-    labels = []
-    for effect in effects:
-        effect_type = effect.get("type")
-        if effect_type == "guard":
-            reduce_pct = int(effect.get("damage_reduction_pct", 0) or 0)
-            block_pct = int(effect.get("block_chance_pct", 0) or 0)
-            labels.append(f"防御(减普攻{reduce_pct}%, 格挡{block_pct}%)")
-        elif effect.get("shield", 0) > 0:
-            labels.append(f"{_display_name_for_log_entry({'card_id': effect_type})}(护盾中)")
-        elif effect_type:
-            labels.append(_display_name_for_log_entry({"card_id": effect_type}))
-    return "、".join(labels)
-
-
-def _get_resources(combatant):
-    resources = dict(combatant.get("resources") or {})
-    if resources:
-        return {
-            "hp": resources.get("hp", combatant.get("hp", 0)),
-            "max_hp": resources.get("max_hp", combatant.get("max_hp", 0)),
-            "mp": resources.get("mp", combatant.get("mp", 0)),
-            "max_mp": resources.get("max_mp", combatant.get("max_mp", 0)),
-            "stamina": resources.get("stamina", combatant.get("stamina", 0)),
-            "max_stamina": resources.get("max_stamina", combatant.get("max_stamina", 0)),
-            "shield": resources.get("shield", combatant.get("shield", 0)),
-        }
-    return {
-        "hp": combatant.get("hp", 0),
-        "max_hp": combatant.get("max_hp", 0),
-        "mp": combatant.get("mp", 0),
-        "max_mp": combatant.get("max_mp", 0),
-        "stamina": combatant.get("stamina", 0),
-        "max_stamina": combatant.get("max_stamina", 0),
-        "shield": combatant.get("shield", 0),
-    }
-
-
-def _render_battle_meta_summary(battle):
-    if battle.get("round_reports"):
-        latest = battle["round_reports"][-1]
-        after = latest.get("after") or {}
-        meta = after.get("meta") or {}
-        if meta:
-            return f"我方存活 {meta.get('alive_player_count', 0)} 人 / 敌方存活 {meta.get('alive_enemy_count', 0)} 人"
-    player_alive = sum(1 for entry in battle.get("participants", []) if entry.get("side") == "player" and entry.get("alive"))
-    enemy_alive = sum(1 for entry in battle.get("participants", []) if entry.get("side") == "enemy" and entry.get("alive"))
-    return f"我方存活 {player_alive} 人 / 敌方存活 {enemy_alive} 人"

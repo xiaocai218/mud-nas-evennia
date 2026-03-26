@@ -1,25 +1,243 @@
 {
-  "default_realm": "炼气一层",
-  "realms": [
+  "default_realm": "炼气1阶",
+  "default_realm_key": "qi_refining",
+  "mortal_realm": {
+    "realm_key": "mortal",
+    "realm_name": "凡人",
+    "display_name": "凡人",
+    "is_formal_realm": false
+  },
+  "bands": [
     {
-      "id": "realm_qi_1",
-      "name": "炼气一层",
-      "exp_threshold": 0
+      "key": "lower",
+      "label": "下境界",
+      "realms": ["qi_refining", "foundation_establishment", "golden_core", "nascent_soul", "spirit_severing"]
     },
     {
-      "id": "realm_qi_2",
-      "name": "炼气二层",
-      "exp_threshold": 30
+      "key": "middle",
+      "label": "中境界",
+      "realms": ["void_refining", "body_integration", "great_ascension"]
     },
     {
-      "id": "realm_qi_3",
-      "name": "炼气三层",
-      "exp_threshold": 80
-    },
-    {
-      "id": "realm_qi_4",
-      "name": "炼气四层",
-      "exp_threshold": 150
+      "key": "upper",
+      "label": "上境界",
+      "realms": ["true_immortal", "gold_immortal", "taiyi", "great_luo", "dao_ancestor"]
     }
-  ]
+  ],
+  "stage_buckets": [
+    {
+      "key": "early",
+      "label": "初阶",
+      "min_stage": 1,
+      "max_stage": 3
+    },
+    {
+      "key": "mid",
+      "label": "中阶",
+      "min_stage": 4,
+      "max_stage": 6
+    },
+    {
+      "key": "late",
+      "label": "高阶",
+      "min_stage": 7,
+      "max_stage": 9
+    },
+    {
+      "key": "peak",
+      "label": "巅峰",
+      "min_stage": 10,
+      "max_stage": 10
+    }
+  ],
+  "realms": {
+    "qi_refining": {
+      "realm_key": "qi_refining",
+      "realm_name": "炼气",
+      "realm_band": "lower",
+      "max_minor_stage": 10,
+      "minor_stages": [
+        { "stage": 1, "display_name": "炼气1阶", "exp_threshold": 0 },
+        { "stage": 2, "display_name": "炼气2阶", "exp_threshold": 30 },
+        { "stage": 3, "display_name": "炼气3阶", "exp_threshold": 70 },
+        { "stage": 4, "display_name": "炼气4阶", "exp_threshold": 120 },
+        { "stage": 5, "display_name": "炼气5阶", "exp_threshold": 180 },
+        { "stage": 6, "display_name": "炼气6阶", "exp_threshold": 250 },
+        { "stage": 7, "display_name": "炼气7阶", "exp_threshold": 330 },
+        { "stage": 8, "display_name": "炼气8阶", "exp_threshold": 420 },
+        { "stage": 9, "display_name": "炼气9阶", "exp_threshold": 520 },
+        { "stage": 10, "display_name": "炼气10阶", "exp_threshold": 630 }
+      ],
+      "breakthrough": {
+        "target_realm_key": "foundation_establishment",
+        "exp_threshold": 750,
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {
+        "max_hp": 12,
+        "max_mp": 10,
+        "attack_power": 2,
+        "spell_power": 2,
+        "defense": 1,
+        "speed": 1
+      }
+    },
+    "foundation_establishment": {
+      "realm_key": "foundation_establishment",
+      "realm_name": "筑基",
+      "realm_band": "lower",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "golden_core",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "golden_core": {
+      "realm_key": "golden_core",
+      "realm_name": "结丹",
+      "realm_band": "lower",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "nascent_soul",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "nascent_soul": {
+      "realm_key": "nascent_soul",
+      "realm_name": "元婴",
+      "realm_band": "lower",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "spirit_severing",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "spirit_severing": {
+      "realm_key": "spirit_severing",
+      "realm_name": "化神",
+      "realm_band": "lower",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "void_refining",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "void_refining": {
+      "realm_key": "void_refining",
+      "realm_name": "炼虚",
+      "realm_band": "middle",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "body_integration",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "body_integration": {
+      "realm_key": "body_integration",
+      "realm_name": "合体",
+      "realm_band": "middle",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "great_ascension",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "great_ascension": {
+      "realm_key": "great_ascension",
+      "realm_name": "大乘",
+      "realm_band": "middle",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "true_immortal",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "true_immortal": {
+      "realm_key": "true_immortal",
+      "realm_name": "真仙",
+      "realm_band": "upper",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "gold_immortal",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "gold_immortal": {
+      "realm_key": "gold_immortal",
+      "realm_name": "金仙",
+      "realm_band": "upper",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "taiyi",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "taiyi": {
+      "realm_key": "taiyi",
+      "realm_name": "太乙",
+      "realm_band": "upper",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "great_luo",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "great_luo": {
+      "realm_key": "great_luo",
+      "realm_name": "大罗",
+      "realm_band": "upper",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": "dao_ancestor",
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    },
+    "dao_ancestor": {
+      "realm_key": "dao_ancestor",
+      "realm_name": "道祖",
+      "realm_band": "upper",
+      "max_minor_stage": 10,
+      "minor_stages": [],
+      "breakthrough": {
+        "target_realm_key": null,
+        "manual_only": true,
+        "requirements": []
+      },
+      "attribute_growth": {}
+    }
+  }
 }

@@ -208,10 +208,22 @@
       "aliases": ["north", "n"]
     },
     {
+      "from": "outer_court",
+      "to": "valley",
+      "key": "西",
+      "aliases": ["west", "w"]
+    },
+    {
       "from": "outer_market",
       "to": "outer_court",
       "key": "南",
       "aliases": ["south", "s"]
+    },
+    {
+      "from": "valley",
+      "to": "outer_court",
+      "key": "东",
+      "aliases": ["east", "e"]
     }
   ]
 }

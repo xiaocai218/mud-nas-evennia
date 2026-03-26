@@ -9,5 +9,12 @@
       "main_state_is": "completed"
     },
     "text": "穿过青云山门后，你便算真正离开了山下新手地域，开始踏入外门范围。"
+  },
+  "outer_gate_to_qingyundu": {
+    "id": "area_exit_outer_gate_to_qingyundu",
+    "from_area": "qingyun_outer_gate",
+    "to_area": "qingyundu_village",
+    "trigger_room": "valley",
+    "text": "当前为了方便联调测试，你可以先沿溪谷栈道折返，暂时回到山下新手区域。"
   }
 }

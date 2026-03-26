@@ -37,6 +37,7 @@ from systems.client_protocol import build_response
 from systems.chat import send_private_message, send_team_message, send_world_message
 from systems.combat import attack_enemy
 from systems.items import find_item, use_item
+from systems.interaction_errors import build_interaction_error
 from systems.market import (
     buy_market_listing,
     cancel_market_listing,
@@ -44,12 +45,13 @@ from systems.market import (
     create_market_listing,
 )
 from systems.npc_routes import run_npc_route
-from systems.player_stats import get_stats
+from systems.player_stats import get_stats, try_breakthrough
 from systems.quests import get_quest_status_text
 from systems.serializers import (
     build_bootstrap_payload,
     serialize_inventory,
     serialize_chat_status,
+    serialize_npc_relationship_detail,
     serialize_person_detail,
     serialize_ui_preferences,
     serialize_market_in_room,
@@ -64,6 +66,7 @@ from systems.trade import (
     create_trade_offer,
     reject_trade_offer,
 )
+from systems.targeting import find_target_in_room
 from systems.world_objects import (
     gather_from_object,
     get_readable_text,
@@ -84,6 +87,7 @@ def dispatch_action(caller, action, payload=None):
         "read": _handle_read,
         "gather": _handle_gather,
         "trigger_object": _handle_trigger_object,
+        "breakthrough": _handle_breakthrough,
         "use_item": _handle_use_item,
         "buy_item": _handle_buy_item,
         "market_listings": _handle_market_listings,
@@ -103,6 +107,7 @@ def dispatch_action(caller, action, payload=None):
         "chat_status": _handle_chat_status,
         "talk": _handle_talk,
         "inspect_person": _handle_inspect_person,
+        "inspect_npc_relationship": _handle_inspect_npc_relationship,
         "attack": _handle_attack,
         "battle_status": _handle_battle_status,
         "battle_play_card": _handle_battle_play_card,
@@ -154,7 +159,7 @@ def _handle_move(caller, payload):
 
 
 def _handle_read(caller, payload):
-    target = caller.search(payload.get("target"), location=caller.location)
+    target = find_target_in_room(caller, payload.get("target"))
     if not target or not is_readable(target):
         return build_response(False, error={"code": "target_not_readable"})
     text = get_readable_text(caller, target)
@@ -162,7 +167,7 @@ def _handle_read(caller, payload):
 
 
 def _handle_gather(caller, payload):
-    target = caller.search(payload.get("target"), location=caller.location)
+    target = find_target_in_room(caller, payload.get("target"))
     if not target or not is_gatherable(target):
         return build_response(False, error={"code": "target_not_gatherable"})
     result = gather_from_object(caller, target)
@@ -180,7 +185,7 @@ def _handle_gather(caller, payload):
 
 
 def _handle_trigger_object(caller, payload):
-    target = caller.search(payload.get("target"), location=caller.location)
+    target = find_target_in_room(caller, payload.get("target"))
     if not target:
         return build_response(False, error={"code": "target_not_found"})
     result = trigger_object(caller, target, option=payload.get("option"))
@@ -195,6 +200,27 @@ def _handle_trigger_object(caller, payload):
         response["root"] = result["root"]
         response["root_label"] = result.get("root_label")
     return build_response(True, response)
+
+
+def _handle_breakthrough(caller, payload):
+    result = try_breakthrough(caller)
+    if not result.get("ok"):
+        requirements = (result.get("requirements") or {}) if result.get("reason") == "requirements_not_met" else None
+        return build_response(
+            False,
+            error={
+                "code": result.get("reason") or "breakthrough_failed",
+                "message": "当前尚未满足突破条件" if result.get("reason") != "requirements_not_met" else "突破条件尚未齐备",
+                "requirements": requirements,
+            },
+        )
+    return build_response(
+        True,
+        {
+            "result": result,
+            "character": build_bootstrap_payload(caller)["character"],
+        },
+    )
 
 
 def _handle_use_item(caller, payload):
@@ -395,11 +421,11 @@ def _handle_chat_status(caller, payload):
 
 
 def _handle_talk(caller, payload):
-    target = caller.search(payload.get("target"), location=caller.location)
+    target = find_target_in_room(caller, payload.get("target"))
     if not target:
-        return build_response(False, error={"code": "target_not_found"})
+        return build_response(False, error=build_interaction_error("target_not_found"))
     if not getattr(target.db, "npc_role", None):
-        return build_response(False, error={"code": "target_not_talkable"})
+        return build_response(False, error=build_interaction_error("target_not_talkable", target=target.key))
 
     messages = _capture_messages(caller, lambda: _run_talk_route(caller, target))
     return build_response(
@@ -413,21 +439,31 @@ def _handle_talk(caller, payload):
 
 
 def _handle_inspect_person(caller, payload):
-    target = caller.search(payload.get("target"), location=caller.location)
+    target = find_target_in_room(caller, payload.get("target"))
     if not target:
-        return build_response(False, error={"code": "target_not_found"})
-    detail = serialize_person_detail(target)
+        return build_response(False, error=build_interaction_error("target_not_found"))
+    detail = serialize_person_detail(target, viewer=caller)
     if not detail:
-        return build_response(False, error={"code": "target_not_person"})
+        return build_response(False, error=build_interaction_error("target_not_person", target=target.key))
     return build_response(True, {"target": target.key, "person": detail})
 
 
-def _handle_attack(caller, payload):
-    target = caller.search(payload.get("target"), location=caller.location)
+def _handle_inspect_npc_relationship(caller, payload):
+    target = find_target_in_room(caller, payload.get("target"))
     if not target:
-        return build_response(False, error={"code": "target_not_found"})
+        return build_response(False, error=build_interaction_error("target_not_found"))
+    detail = serialize_npc_relationship_detail(caller, target)
+    if not detail:
+        return build_response(False, error=build_interaction_error("npc_relationship_unavailable", target=target.key))
+    return build_response(True, {"target": target.key, "relationship": detail})
+
+
+def _handle_attack(caller, payload):
+    target = find_target_in_room(caller, payload.get("target"))
+    if not target:
+        return build_response(False, error=build_interaction_error("target_not_found"))
     if not getattr(target.db, "combat_target", False):
-        return build_response(False, error={"code": "target_not_attackable"})
+        return build_response(False, error=build_interaction_error("target_not_attackable", target=target.key))
 
     result = attack_training_target(caller, target)
     if not result.get("ok"):

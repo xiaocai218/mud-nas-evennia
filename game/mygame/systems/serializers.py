@@ -26,8 +26,10 @@
 - `serialize_battle_state`
 """
 
+from collections.abc import Mapping, Sequence
+
 from systems.areas import get_area_for_room
-from systems.battle import get_battle_snapshot, get_recent_combat_logs, list_available_cards, list_available_targets
+from systems.battle import get_battle_snapshot, get_recent_combat_logs
 from systems.chat_payloads import serialize_chat_message
 from systems.chat import get_recent_chat_messages, list_channel_status
 from systems.character_model import get_root_definition
@@ -37,7 +39,9 @@ from systems.enemy_model import get_enemy_definition, get_enemy_sheet, is_enemy
 from systems.items import get_inventory_items
 from systems.market import get_market_by_id, get_market_in_room, list_market_goods, list_my_market_status
 from systems.npc_model import get_npc_definition, get_npc_sheet, is_npc
+from systems.npc_relationships import get_npc_relationship
 from systems.player_stats import get_active_effect_text, get_stats
+from systems.realms import build_entity_realm_payload, describe_recommended_realm, format_entity_realm_display, format_realm_title, get_stage_bucket_display
 from systems.quests import (
     COMPLETED,
     NOT_STARTED,
@@ -62,6 +66,18 @@ OBJECT_DEFINITIONS = load_content("objects").get("objects", [])
 ENEMY_DEFINITIONS = load_content("enemies")
 
 
+def _to_plain_data(value):
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Mapping) or hasattr(value, "items"):
+        return {key: _to_plain_data(subvalue) for key, subvalue in value.items()}
+    if isinstance(value, set):
+        return [_to_plain_data(item) for item in value]
+    if isinstance(value, Sequence):
+        return [_to_plain_data(item) for item in value]
+    return value
+
+
 def serialize_map(map_key):
     data = MAP_DEFINITIONS.get(map_key)
     if not data:
@@ -82,7 +98,7 @@ def serialize_zone(zone_key):
         "key": data.get("key", zone_key),
         "desc": data.get("desc", ""),
         "map_id": data.get("map_id"),
-        "recommended_realm": data.get("recommended_realm"),
+        "recommended_realm": describe_recommended_realm(data.get("recommended_realm")),
     }
 
 
@@ -95,7 +111,7 @@ def serialize_area(area_key):
         "key": data.get("key", area_key),
         "desc": data.get("desc", ""),
         "zone_id": data.get("zone_id"),
-        "recommended_realm": data.get("recommended_realm"),
+        "recommended_realm": describe_recommended_realm(data.get("recommended_realm")),
         "facilities": list(data.get("facilities", [])),
         "rooms": list(data.get("rooms", [])),
         "tags": list(data.get("tags", [])),
@@ -117,15 +133,17 @@ def serialize_inventory(caller):
 def serialize_character(caller):
     stats = get_stats(caller)
     root_definition = get_root_definition(stats["root"])
+    realm_info = dict(stats.get("realm_info") or {})
+    realm_payload = build_entity_realm_payload(realm_info, entity_kind="player", suffix=caller.key, include_realm_info=True)
     return {
         "name": caller.key,
+        **realm_payload,
         "profile": getattr(caller.db, "character_profile", None),
         "stage": stats["stage"],
         "gender": stats.get("gender"),
         "gender_label": get_gender_label(stats.get("gender")),
         "root": stats["root"],
         "root_label": root_definition.get("label") if root_definition else None,
-        "realm": stats["realm"],
         "hp": stats["hp"],
         "max_hp": stats["max_hp"],
         "mp": stats["mp"],
@@ -136,12 +154,12 @@ def serialize_character(caller):
         "copper": stats["copper"],
         "spirit_stone": stats["spirit_stone"],
         "primary_currency": stats["primary_currency"],
-        "currencies": stats["currencies"],
-        "primary_stats": stats["primary_stats"],
-        "combat_stats": stats["combat_stats"],
-        "equipment": stats["equipment"],
-        "affinities": stats["affinities"],
-        "reserves": stats["reserves"],
+        "currencies": _to_plain_data(stats["currencies"]),
+        "primary_stats": _to_plain_data(stats["primary_stats"]),
+        "combat_stats": _to_plain_data(stats["combat_stats"]),
+        "equipment": _to_plain_data(stats["equipment"]),
+        "affinities": _to_plain_data(stats["affinities"]),
+        "reserves": _to_plain_data(stats["reserves"]),
         "effects_text": get_active_effect_text(caller),
         "inventory_count": len(get_inventory_items(caller)),
     }
@@ -149,14 +167,16 @@ def serialize_character(caller):
 
 def serialize_character_summary(character):
     stats = get_stats(character)
+    realm_info = dict(stats.get("realm_info") or {})
+    realm_payload = build_entity_realm_payload(realm_info, entity_kind="player", suffix=character.key, include_realm_info=True)
     return {
         "id": getattr(character, "pk", None),
         "key": character.key,
+        **realm_payload,
         "stage": stats["stage"],
         "gender": stats.get("gender"),
         "gender_label": get_gender_label(stats.get("gender")),
         "root": stats["root"],
-        "realm": stats["realm"],
         "hp": stats["hp"],
         "max_hp": stats["max_hp"],
         "mp": stats["mp"],
@@ -193,27 +213,6 @@ def serialize_room(room):
                 area_key = key
                 break
 
-    exits = []
-    room_exits = getattr(room, "exits", None)
-    if hasattr(room_exits, "items"):
-        for exit_name, exit_obj in room_exits.items():
-            exits.append(
-                {
-                    "key": exit_name,
-                    "name": exit_obj.key,
-                    "destination": getattr(exit_obj.destination, "key", None),
-                }
-            )
-    elif room_exits:
-        for exit_obj in room_exits:
-            exits.append(
-                {
-                    "key": exit_obj.key,
-                    "name": exit_obj.key,
-                    "destination": getattr(exit_obj.destination, "key", None),
-                }
-            )
-
     return {
         "id": room_content_id or room_id,
         "room_key": room_id,
@@ -221,7 +220,7 @@ def serialize_room(room):
         "desc": room.db.desc or "",
         "area_id": area.get("id") if area else None,
         "area_key": area_key,
-        "exits": exits,
+        "exits": _serialize_room_exits(room),
         "npcs": _serialize_room_npcs(room_id, room_content_id),
         "objects": _serialize_room_objects(room_id, room_content_id),
         "enemies": _serialize_room_enemies(room_id, room_content_id),
@@ -230,17 +229,41 @@ def serialize_room(room):
     }
 
 
-def serialize_person_detail(target):
+def serialize_person_detail(target, viewer=None):
     if not target:
         return None
 
     if is_npc(target):
-        return _serialize_npc_detail(target)
+        return _serialize_npc_detail(target, viewer=viewer)
     if is_enemy(target):
         return _serialize_enemy_detail(target)
     if getattr(getattr(target, "db", None), "character_profile", None) is not None or (getattr(target.db, "identity", None) or {}).get("stage"):
         return _serialize_player_detail(target)
     return None
+
+
+def serialize_npc_relationship_detail(caller, target):
+    if not caller or not target or not is_npc(target):
+        return None
+    sheet = get_npc_sheet(target)
+    identity = sheet["identity"]
+    npc_id = identity.get("content_id") or getattr(target.db, "content_id", None) or target.key
+    record = get_npc_relationship(caller, npc_id)
+    return {
+        "npc_id": npc_id,
+        "target": identity.get("name") or target.key,
+        "type": "npc_relationship",
+        "summary": {
+            "affection": record["affection"],
+            "reputation": record["reputation"],
+            "trust": record["trust"],
+        },
+        "stats": _build_relationship_stats(record),
+        "quest_flags": list(record["quest_flags"]),
+        "companion_unlocked": bool(record["companion_unlocked"]),
+        "projection_state": dict(record["projection_state"]),
+        "relocation_state": dict(record["relocation_state"]),
+    }
 
 
 def serialize_shop_in_room(room):
@@ -455,30 +478,26 @@ def serialize_chat_status(caller, limit=40):
 
 
 def serialize_battle_state(caller):
-    snapshot = get_battle_snapshot(caller)
-    if not snapshot:
-        return None
-    return {
-        **snapshot,
-        "available_cards": list_available_cards(caller),
-        "available_targets": list_available_targets(caller),
-    }
+    return get_battle_snapshot(caller)
 
 
 def _serialize_player_detail(target):
     stats = get_stats(target)
+    realm_info = dict(stats.get("realm_info") or {})
+    realm_payload = build_entity_realm_payload(realm_info, entity_kind="player", suffix=target.key, include_realm_info=True)
     return {
         "id": str(getattr(target, "pk", None) or getattr(target, "id", None) or target.key),
         "key": target.key,
         "type": "player",
         "tag": "玩家",
         "title": stats["stage"] == "cultivator" and "修士" or "凡人",
+        **realm_payload,
         "desc": getattr(target.db, "desc", None) or "",
         "gender": stats.get("gender"),
         "gender_label": get_gender_label(stats.get("gender")),
-        "realm": stats["realm"],
         "stats": [
             {"label": "阶段", "value": "修士" if stats["stage"] == "cultivator" else "凡人"},
+            {"label": "境界阶段", "value": get_stage_bucket_display(realm_info)},
             {"label": "气血", "value": f"{stats['hp']}/{stats['max_hp']}"},
             {"label": "灵力", "value": f"{stats['mp']}/{stats['max_mp']}"},
             {"label": "体力", "value": f"{stats['stamina']}/{stats['max_stamina']}"},
@@ -487,27 +506,24 @@ def _serialize_player_detail(target):
     }
 
 
-def _serialize_npc_detail(target):
+def _serialize_npc_detail(target, viewer=None):
     sheet = get_npc_sheet(target)
     identity = sheet["identity"]
     progression = sheet["progression"]
     combat = sheet["combat_stats"]
     meta = sheet["npc_meta"]
-    actions = []
-    if meta.get("talk_route") or identity.get("npc_role"):
-        actions.append("交谈")
-    if meta.get("shop_id"):
-        actions.append("商店")
-    return {
+    actions = _build_npc_actions(identity, meta, include_inspect=False, include_relationship=False)
+    realm_payload = build_entity_realm_payload(progression, entity_kind="npc", suffix=identity.get("name") or target.key)
+    detail = {
         "id": identity.get("content_id") or str(getattr(target, "id", None) or target.key),
         "key": identity.get("name") or target.key,
         "type": "npc",
         "tag": "NPC",
         "title": identity.get("npc_role") or "人物",
+        **realm_payload,
         "desc": meta.get("presentation", {}).get("desc") or getattr(target.db, "desc", "") or "",
         "gender": identity.get("gender"),
         "gender_label": get_gender_label(identity.get("gender")),
-        "realm": progression.get("realm"),
         "stats": [
             {"label": "身份", "value": identity.get("npc_role") or "npc"},
             {"label": "气血", "value": f"{combat['hp']}/{combat['max_hp']}"},
@@ -519,6 +535,12 @@ def _serialize_npc_detail(target):
         ],
         "actions": actions,
     }
+    if viewer:
+        relationship = serialize_npc_relationship_detail(viewer, target)
+        if relationship:
+            detail["relationship"] = relationship
+            detail["actions"] = [*actions, "关系"]
+    return detail
 
 
 def _serialize_enemy_detail(target):
@@ -526,16 +548,22 @@ def _serialize_enemy_detail(target):
     identity = sheet["identity"]
     progression = sheet["progression"]
     combat = sheet["combat_stats"]
+    realm_payload = build_entity_realm_payload(
+        progression,
+        entity_kind="enemy",
+        suffix=identity.get("name") or target.key,
+        enemy_type=identity.get("enemy_type"),
+    )
     return {
         "id": identity.get("content_id") or str(getattr(target, "id", None) or target.key),
         "key": identity.get("name") or target.key,
         "type": "enemy",
         "tag": "敌人",
         "title": identity.get("enemy_type") or "敌人",
+        **realm_payload,
         "desc": sheet["enemy_meta"].get("presentation", {}).get("desc") or getattr(target.db, "desc", "") or "",
         "gender": identity.get("gender"),
         "gender_label": get_gender_label(identity.get("gender")),
-        "realm": progression.get("realm"),
         "stats": [
             {"label": "类型", "value": identity.get("enemy_type") or "enemy"},
             {"label": "气血", "value": f"{combat['hp']}/{combat['max_hp']}"},
@@ -565,7 +593,9 @@ def _serialize_room_npcs(room_id, room_content_id):
                 "npc_role": identity.get("npc_role"),
                 "gender": identity.get("gender"),
                 "gender_label": get_gender_label(identity.get("gender")),
-                "realm": progression.get("realm"),
+                **build_entity_realm_payload(progression, entity_kind="npc", suffix=identity.get("name")),
+                "actions": _build_npc_actions(identity, npc_def["npc_meta"]),
+                "inspect_command": _build_inspect_command(identity.get("name")),
             }
         )
     return payload
@@ -599,14 +629,93 @@ def _serialize_room_enemies(room_id, room_content_id):
                 "enemy_type": identity.get("enemy_type"),
                 "gender": identity.get("gender"),
                 "gender_label": get_gender_label(identity.get("gender")),
-                "realm": enemy_def["progression"].get("realm"),
+                **build_entity_realm_payload(
+                    enemy_def["progression"],
+                    entity_kind="enemy",
+                    suffix=identity.get("name"),
+                    enemy_type=identity.get("enemy_type"),
+                ),
                 "max_hp": combat.get("max_hp"),
                 "attack_power": combat.get("attack_power"),
                 "drop_item_id": enemy_def["enemy_meta"].get("drop_item_id"),
                 "element": affinities.get("element"),
+                "actions": _build_enemy_actions(),
+                "inspect_command": _build_inspect_command(identity.get("name")),
             }
         )
     return payload
+
+
+def _serialize_room_exits(room):
+    exits = []
+    room_exits = getattr(room, "exits", None)
+    if hasattr(room_exits, "items"):
+        for exit_name, exit_obj in room_exits.items():
+            exits.append(
+                {
+                    "key": exit_name,
+                    "name": exit_obj.key,
+                    "destination": getattr(exit_obj.destination, "key", None),
+                }
+            )
+        return exits
+    for exit_obj in room_exits or []:
+        exits.append(
+            {
+                "key": exit_obj.key,
+                "name": exit_obj.key,
+                "destination": getattr(exit_obj.destination, "key", None),
+            }
+        )
+    return exits
+
+
+def _build_npc_actions(identity, meta, include_inspect=True, include_relationship=True):
+    actions = ["信息"] if include_inspect else []
+    if meta.get("talk_route") or identity.get("npc_role"):
+        actions.append("交谈")
+    if meta.get("shop_id"):
+        actions.append("商店")
+    if include_relationship:
+        actions.append("关系")
+    return actions
+
+
+def _build_enemy_actions():
+    return ["信息", "攻击"]
+
+
+def _build_inspect_command(name):
+    return f"信息 {name}"
+
+
+def _build_relationship_stats(record):
+    return [
+        {"label": "好感", "value": str(record["affection"])},
+        {"label": "声望", "value": str(record["reputation"])},
+        {"label": "信任", "value": str(record["trust"])},
+        {"label": "关系任务标记", "value": "、".join(record["quest_flags"]) if record["quest_flags"] else "无"},
+        {"label": "同行解锁", "value": "是" if record["companion_unlocked"] else "否"},
+        {"label": "投影状态", "value": _format_projection_state(record["projection_state"])},
+        {"label": "迁移状态", "value": _format_relocation_state(record["relocation_state"])},
+    ]
+
+
+def _format_projection_state(state):
+    if not state.get("active"):
+        return "未启用"
+    mode = state.get("projection_mode") or "active"
+    template = state.get("projection_template_id") or "默认模板"
+    return f"{mode} / {template}"
+
+
+def _format_relocation_state(state):
+    if not state.get("hidden") and not state.get("room_id_override") and not state.get("content_id_override"):
+        return "世界本体"
+    room_id = state.get("room_id_override") or "原区域隐藏"
+    content_id = state.get("content_id_override") or "沿用原实例"
+    hidden = "隐藏" if state.get("hidden") else "可见"
+    return f"{hidden} / {room_id} / {content_id}"
 
 
 def _find_zone_key(zone_data):

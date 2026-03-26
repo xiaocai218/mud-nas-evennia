@@ -28,10 +28,16 @@ class FakeAccount:
         self.pk = hash(username) & 0xFFFF
         self.is_authenticated = True
         self.messages = []
+        self.msg_calls = []
         self.db = SimpleNamespace(h5_event_queue=[], _last_puppet=None)
 
     def msg(self, text=None, *args, **kwargs):
-        self.messages.append("" if text is None else str(text))
+        self.msg_calls.append({"text": text, "args": args, "kwargs": kwargs})
+        if isinstance(text, tuple) and text:
+            rendered = text[0]
+        else:
+            rendered = text
+        self.messages.append("" if rendered is None else str(rendered))
 
 
 class FakeCharacter:
@@ -141,6 +147,33 @@ class ChatSystemTests(unittest.TestCase):
         self.assertIn("系统", removed_aliases)
         self.assertIn("chat_world", removed_aliases)
 
+    def test_list_channel_status_includes_aggregate_first(self):
+        sessions = [FakeSession(self.sender_account, puppet=self.sender)]
+        with self._patch_evennia(sessions=sessions):
+            statuses = chat.list_channel_status(self.sender)
+        self.assertEqual(statuses[0]["channel"], chat.CHANNEL_AGGREGATE)
+        self.assertEqual(statuses[0]["key"], "综合")
+        self.assertTrue(statuses[0]["available"])
+        self.assertFalse(statuses[0]["muted"])
+
+    def test_list_channel_status_falls_back_when_evennia_search_channel_is_unavailable(self):
+        sessions = [FakeSession(self.sender_account, puppet=self.sender)]
+        with (
+            patch("systems.chat.fallback_search_channel", side_effect=self._search_channel),
+            patch("systems.chat.fallback_create_channel", side_effect=self._create_channel),
+            patch.multiple(
+                "systems.chat.evennia",
+                search_channel=None,
+                create_channel=None,
+                search_object=lambda name: [],
+                search_account=lambda name: [],
+                SESSION_HANDLER=SimpleNamespace(get_sessions=lambda: sessions),
+            ),
+        ):
+            statuses = chat.list_channel_status(self.sender)
+        self.assertEqual(statuses[1]["channel"], chat.CHANNEL_WORLD)
+        self.assertEqual(statuses[1]["key"], "世界")
+
     def test_world_message_delivers_to_online_accounts(self):
         sessions = [
             FakeSession(self.sender_account, puppet=self.sender),
@@ -153,6 +186,8 @@ class ChatSystemTests(unittest.TestCase):
         self.assertIn("[世界] 甲: 大家好", self.sender_account.messages)
         self.assertIn("[世界] 甲: 大家好", self.target_account.messages)
         self.assertEqual(result["event"]["event"], "chat.message")
+        self.assertEqual(self.sender_account.msg_calls[0]["text"][0], "[世界] 甲: 大家好")
+        self.assertEqual(self.sender_account.msg_calls[0]["text"][1]["type"], "chat.world")
 
     def test_private_message_only_reaches_sender_and_target(self):
         sessions = [
@@ -224,6 +259,15 @@ class ChatSystemTests(unittest.TestCase):
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["event"], "chat.message")
         self.assertEqual(event_bus.pop_account_events(self.sender_account), [])
+
+    def test_chat_history_keeps_routed_type_without_emitting_oob_command(self):
+        sessions = [FakeSession(self.sender_account, puppet=self.sender)]
+        with self._patch_evennia(sessions=sessions):
+            result = chat.send_system_message("已创建队伍：123321。", recipients=[self.sender])
+        self.assertTrue(result["ok"])
+        self.assertEqual(self.sender_account.msg_calls[0]["kwargs"], {})
+        self.assertEqual(self.sender_account.msg_calls[0]["text"][1]["type"], "chat.system")
+        self.assertEqual(self.sender_account.db.chat_message_history[-1]["type"], "chat.system")
 
 
 if __name__ == "__main__":

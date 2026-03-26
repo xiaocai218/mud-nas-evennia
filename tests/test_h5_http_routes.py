@@ -156,6 +156,13 @@ class H5HttpRouteTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["payload"]["active_character_id"], 7)
 
+    def test_post_endpoints_are_csrf_exempt_for_h5_session_calls(self):
+        self.assertTrue(getattr(views.login_view, "csrf_exempt", False))
+        self.assertTrue(getattr(views.logout_view, "csrf_exempt", False))
+        self.assertTrue(getattr(views.character_select_view, "csrf_exempt", False))
+        self.assertTrue(getattr(views.ui_preferences_view, "csrf_exempt", False))
+        self.assertTrue(getattr(views.action_view, "csrf_exempt", False))
+
     def test_logout_view(self):
         request = self.factory.post("/api/h5/auth/logout/")
         request.session = {"puppet": 7, "website_authenticated_uid": 1, "webclient_authenticated_uid": 1}
@@ -186,6 +193,67 @@ class H5HttpRouteTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["payload"]["character"]["name"], "tester")
+
+    def test_chat_status_view_returns_recent_messages_and_preferences(self):
+        request = self.factory.get("/api/h5/chat-status/")
+        request.user = self.account
+        request.session = {}
+        with (
+            patch(
+                "web.api.views.serialize_chat_status",
+                return_value={
+                    "channels": [{"channel": "aggregate"}, {"channel": "world"}],
+                    "recent_messages": [{"formatted": "[世界] hi"}],
+                    "recent_combat_logs": [{"formatted": "回合 2 | hi", "type": "combat.log"}],
+                },
+            ),
+            patch("web.api.views.serialize_ui_preferences", return_value={"chat_layout": {"dock": "right-sidebar"}}),
+        ):
+            response = views.chat_status_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["payload"]["channels"][0]["channel"], "aggregate")
+        self.assertEqual(payload["payload"]["recent_combat_logs"][0]["type"], "combat.log")
+        self.assertEqual(payload["payload"]["ui_preferences"]["chat_layout"]["dock"], "right-sidebar")
+
+    def test_battle_status_view_returns_summary(self):
+        request = self.factory.get("/api/h5/battle-status/")
+        request.user = self.account
+        request.session = {}
+        with (
+            patch("web.api.views.get_battle_snapshot", return_value={"battle_id": "battle_1", "status": "active", "turn_count": 3, "current_actor_id": "obj_1", "log": [{"turn_count": 2}]}),
+            patch("web.api.views.render_battle_summary", return_value="战斗状态: active / 回合数 3"),
+        ):
+            response = views.battle_status_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["payload"]["battle"]["battle_id"], "battle_1")
+        self.assertEqual(payload["payload"]["summary"], "战斗状态: active / 回合数 3")
+        self.assertEqual(payload["payload"]["signature"], "battle_1:active:3:obj_1:2")
+
+    def test_ui_preferences_get_view(self):
+        request = self.factory.get("/api/h5/ui/preferences/")
+        request.user = self.account
+        request.session = {}
+        with patch("web.api.views.serialize_ui_preferences", return_value={"chat_layout": {"dock": "top-strip"}}):
+            response = views.ui_preferences_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["payload"]["ui_preferences"]["chat_layout"]["dock"], "top-strip")
+
+    def test_ui_preferences_post_view_updates_preferences(self):
+        request = self.factory.post(
+            "/api/h5/ui/preferences/",
+            data=json.dumps({"chat_layout": {"dock": "bottom-strip"}}),
+            content_type="application/json",
+        )
+        request.user = self.account
+        request.session = {}
+        with patch("web.api.views.update_ui_preferences", return_value={"chat_layout": {"dock": "bottom-strip"}}):
+            response = views.ui_preferences_view(request)
+        payload = self._decode(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(payload["payload"]["ui_preferences"]["chat_layout"]["dock"], "bottom-strip")
 
     def test_character_list_view(self):
         request = self.factory.get("/api/h5/account/characters/")

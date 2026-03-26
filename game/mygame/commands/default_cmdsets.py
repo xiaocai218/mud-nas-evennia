@@ -15,10 +15,11 @@ from .chat import (
 )
 from .combat import CmdAttack, CmdBattleStatus, CmdPlayCard, CmdTrain
 from .core import CmdGather, CmdNewbie, CmdRead, CmdStatus, CmdTrigger
-from .cultivation import CmdCultivate, CmdRecoverHp, CmdRest
+from .cultivation import CmdBreakthrough, CmdCultivate, CmdRecoverHp, CmdRest
 from .devtools import (
     CmdContent,
     CmdTestAddMoney,
+    CmdTestAdjustNpcRelationship,
     CmdTestBattleRoom,
     CmdTestBattleLog,
     CmdTestChooseRoot,
@@ -28,8 +29,13 @@ from .devtools import (
     CmdTestSpawnBeast,
     CmdTestSpawnCultivatorEnemy,
     CmdTestRefreshEnemy,
+    CmdTestRealm,
+    CmdTestRealmStatus,
     CmdTestResetBattle,
+    CmdTestResetNpcRelationship,
     CmdTestResetRoot,
+    CmdTestStamina,
+    CmdTestCultivationExp,
 )
 from .inventory import CmdInventory, CmdRefine, CmdUseItem
 from .market import (
@@ -41,7 +47,7 @@ from .market import (
     CmdMarket,
 )
 from .shop import CmdBuy, CmdShop
-from .social import CmdQuest, CmdResetQuest, CmdTalk
+from .social import CmdNpcRelationship, CmdPersonInfo, CmdQuest, CmdResetQuest, CmdTalk
 from .team import (
     CmdAcceptTeamInvite,
     CmdCreateTeam,
@@ -65,10 +71,13 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdGather())
         self.add(CmdTrigger())
         self.add(CmdCultivate())
+        self.add(CmdBreakthrough())
         self.add(CmdRest())
         self.add(CmdRecoverHp())
         self.add(CmdTrain())
         self.add(CmdTalk())
+        self.add(CmdPersonInfo())
+        self.add(CmdNpcRelationship())
         self.add(CmdAttack())
         self.add(CmdBattleStatus())
         self.add(CmdPlayCard())
@@ -106,6 +115,7 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdContent())
         self.add(CmdTestGoto())
         self.add(CmdTestAddMoney())
+        self.add(CmdTestAdjustNpcRelationship())
         self.add(CmdTestBattleRoom())
         self.add(CmdTestSpawnBeast())
         self.add(CmdTestSpawnCultivatorEnemy())
@@ -114,5 +124,10 @@ class CharacterCmdSet(EvenniaCharacterCmdSet):
         self.add(CmdTestBattleLog())
         self.add(CmdTestRefreshEnemy())
         self.add(CmdTestResetBattle())
+        self.add(CmdTestResetNpcRelationship())
         self.add(CmdTestChooseRoot())
         self.add(CmdTestResetRoot())
+        self.add(CmdTestRealm())
+        self.add(CmdTestCultivationExp())
+        self.add(CmdTestStamina())
+        self.add(CmdTestRealmStatus())

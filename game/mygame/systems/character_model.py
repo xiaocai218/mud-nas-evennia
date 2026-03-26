@@ -32,7 +32,16 @@ from copy import deepcopy
 from .character_profiles import get_character_profile
 from .entity_gender import GENDER_UNKNOWN, normalize_gender
 from .npc_relationships import ensure_npc_relationships
-from .realms import get_default_realm, get_realm_from_exp
+from .realms import (
+    build_entity_realm_payload,
+    build_awakened_progression,
+    build_mortal_progression,
+    format_entity_realm_display,
+    get_default_realm,
+    get_default_realm_key,
+    get_realm_attribute_growth,
+    resolve_realm_progression,
+)
 
 
 MORTAL_STAGE = "mortal"
@@ -185,8 +194,9 @@ def ensure_character_model(caller):
     progression = dict(getattr(caller.db, "progression", None) or {})
     progression["character_profile"] = getattr(caller.db, "character_profile", None) or profile["profile_key"]
     progression["root_choice_completed"] = bool(root)
-    progression["realm"] = _resolve_realm(caller, stage, profile)
-    progression["cultivation_exp"] = int(_coalesce(getattr(caller.db, "exp", None), progression.get("cultivation_exp"), profile["exp"]) or 0)
+    exp_total = int(_coalesce(getattr(caller.db, "exp", None), progression.get("cultivation_exp_total"), progression.get("cultivation_exp"), profile["exp"]) or 0)
+    progression.update(_resolve_realm_progression(caller, stage, profile, exp_total))
+    progression["cultivation_exp"] = progression["cultivation_exp_total"]
 
     primary_stats = dict(getattr(caller.db, "primary_stats", None) or {})
     for key, value in DEFAULT_PRIMARY_STATS.items():
@@ -209,9 +219,9 @@ def ensure_character_model(caller):
     currencies["spirit_stone"] = int(
         _coalesce(getattr(caller.db, "spirit_stone", None), currencies.get("spirit_stone"), profile.get("spirit_stone", 0)) or 0
     )
-    currencies["primary_currency"] = PRIMARY_CURRENCY_SPIRIT_STONE if stage == CULTIVATOR_STAGE else PRIMARY_CURRENCY_COPPER
+    currencies["primary_currency"] = _resolve_primary_currency(stage, progression)
 
-    combat_stats = _build_combat_stats(caller, stage, root, primary_stats, profile)
+    combat_stats = _build_combat_stats(caller, stage, root, primary_stats, profile, progression)
 
     caller.db.character_stage = stage
     caller.db.spiritual_root = root
@@ -227,8 +237,8 @@ def ensure_character_model(caller):
 
     # 当前仓库仍有不少旧逻辑直接读 `caller.db.hp / realm / copper` 这类散字段。
     # 这里集中写回兼容字段，目的是让新模型逐步落地时，不必一次性改完所有调用点。
-    caller.db.realm = progression["realm"]
-    caller.db.exp = progression["cultivation_exp"]
+    caller.db.realm = progression["display_name"]
+    caller.db.exp = progression["cultivation_exp_total"]
     caller.db.hp = combat_stats["hp"]
     caller.db.max_hp = combat_stats["max_hp"]
     caller.db.stamina = combat_stats["stamina"]
@@ -260,7 +270,7 @@ def resolve_character_realm(stage, exp, current_realm=None, root=None):
         return AWAKENED_REALM
     if root:
         return AWAKENED_REALM
-    return get_realm_from_exp(int(exp or 0)) or get_default_realm()
+    return resolve_realm_progression(int(exp or 0), realm_key=get_default_realm_key())["display_name"] or get_default_realm()
 
 
 def _read_character_sheet(caller):
@@ -295,7 +305,9 @@ def awaken_spiritual_root(caller, root_key, sect=None):
     current_realm = getattr(caller.db, "realm", None)
     # 灵根刚觉醒时先进入“启灵”，而不是立刻按 exp 映射正式境界。
     # 这样任务链还能显式承接“引气入体”这一步，而不会因为已有经验值直接跳段。
+    progression.update(build_awakened_progression(progression.get("cultivation_exp_total", getattr(caller.db, "exp", 0))))
     progression["realm"] = AWAKENED_REALM if current_realm in (None, "", MORTAL_REALM) else current_realm
+    progression["display_name"] = progression["realm"]
     caller.db.progression = progression
     caller.db.realm = progression["realm"]
     ensure_character_model(caller)
@@ -306,9 +318,9 @@ def promote_awakened_realm(caller):
     ensure_character_model(caller)
     if getattr(caller.db, "character_stage", None) != CULTIVATOR_STAGE or not getattr(caller.db, "spiritual_root", None):
         raise ValueError("character has not awakened a spiritual root")
-    caller.db.realm = get_default_realm()
     progression = dict(caller.db.progression or {})
-    progression["realm"] = caller.db.realm
+    progression.update(resolve_realm_progression(int(getattr(caller.db, "exp", 0) or 0), realm_key=get_default_realm_key()))
+    caller.db.realm = progression["display_name"]
     caller.db.progression = progression
     return ensure_character_model(caller)
 
@@ -326,8 +338,8 @@ def reset_spiritual_root(caller):
     identity["sect"] = None
     caller.db.identity = identity
     progression = dict(caller.db.progression or {})
+    progression.update(build_mortal_progression(int(getattr(caller.db, "exp", 0) or 0)))
     progression["root_choice_completed"] = False
-    progression["realm"] = MORTAL_REALM
     caller.db.progression = progression
     return ensure_character_model(caller)
 
@@ -348,14 +360,17 @@ def normalize_root_choice(choice):
     return ROOT_CHOICE_ALIASES.get(str(choice).strip().lower()) or ROOT_CHOICE_ALIASES.get(str(choice).strip())
 
 
-def _resolve_realm(caller, stage, profile):
-    exp = int(getattr(caller.db, "exp", profile["exp"]) or 0)
-    return resolve_character_realm(
-        stage,
-        exp,
-        current_realm=getattr(caller.db, "realm", None),
-        root=_normalize_root(getattr(caller.db, "spiritual_root", None)),
-    )
+def _resolve_realm_progression(caller, stage, profile, exp_total):
+    current_realm = getattr(caller.db, "realm", None)
+    root = _normalize_root(getattr(caller.db, "spiritual_root", None))
+    if stage != CULTIVATOR_STAGE:
+        return build_mortal_progression(exp_total)
+    if is_awakened_realm(current_realm):
+        return build_awakened_progression(exp_total)
+    if root and current_realm in (None, "", MORTAL_REALM):
+        return build_awakened_progression(exp_total)
+    realm_key = (getattr(caller.db, "progression", None) or {}).get("realm_key") or get_default_realm_key()
+    return resolve_realm_progression(exp_total, current_realm=current_realm, realm_key=realm_key)
 
 
 def _build_life_affinity(root):
@@ -365,7 +380,7 @@ def _build_life_affinity(root):
     return root_definition.get("life_affinity", [])
 
 
-def _build_combat_stats(caller, stage, root, primary_stats, profile):
+def _build_combat_stats(caller, stage, root, primary_stats, profile, progression):
     stats = deepcopy(DEFAULT_MORTAL_COMBAT)
     stats["max_hp"] = profile["max_hp"] + primary_stats["physique"] * 8 + primary_stats["bone"] * 2
     stats["max_stamina"] = profile["max_stamina"] + primary_stats["physique"] * 2 + primary_stats["agility"]
@@ -381,6 +396,12 @@ def _build_combat_stats(caller, stage, root, primary_stats, profile):
     stats["crit_rate"] = primary_stats["agility"]
     stats["crit_damage"] = DEFAULT_MORTAL_COMBAT["crit_damage"] + primary_stats["aether"] * 2
     stats["threat_modifier"] = DEFAULT_MORTAL_COMBAT["threat_modifier"]
+
+    if progression.get("realm_key") and progression.get("minor_stage"):
+        growth = get_realm_attribute_growth(progression["realm_key"])
+        tiers_completed = max(0, int(progression["minor_stage"]) - 1)
+        for stat_key, growth_value in growth.items():
+            stats[stat_key] = stats.get(stat_key, 0) + int(growth_value or 0) * tiers_completed
 
     if stage == CULTIVATOR_STAGE:
         _apply_root_bias(stats, root)
@@ -444,3 +465,19 @@ def _coalesce(*values):
         if value is not None:
             return value
     return None
+
+
+def get_realm_title(caller, suffix=None):
+    ensure_character_model(caller)
+    progression = dict(getattr(caller.db, "progression", None) or {})
+    fallback_suffix = suffix if suffix is not None else getattr(caller, "key", None)
+    return build_entity_realm_payload(progression, suffix=fallback_suffix).get("realm_title")
+
+
+def _resolve_primary_currency(stage, progression):
+    realm_key = (progression or {}).get("realm_key")
+    if stage != CULTIVATOR_STAGE:
+        return PRIMARY_CURRENCY_COPPER
+    if realm_key in (None, "", get_default_realm_key()):
+        return PRIMARY_CURRENCY_COPPER
+    return PRIMARY_CURRENCY_SPIRIT_STONE

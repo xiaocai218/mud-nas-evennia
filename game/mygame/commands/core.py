@@ -11,6 +11,7 @@ from systems.effect_executor import format_effect_result
 from systems.help_content import get_newbie_content
 from systems.items import get_inventory_items
 from systems.player_stats import get_active_effect_text, get_stats
+from systems.realms import get_progression_status_rows, get_stage_bucket_display
 from systems.world_objects import (
     gather_from_object,
     get_readable_text,
@@ -34,6 +35,13 @@ def parse_trigger_input(raw_args):
     if len(parts) >= 2 and normalize_root_choice(parts[-1]):
         return " ".join(parts[:-1]), parts[-1]
     return raw_args, None
+
+
+def _build_status_section(title, rows):
+    table = evtable.EvTable(border="cells", pad_width=1)
+    for label, value in rows:
+        table.add_row(label, value)
+    return f"|g{title}|n\n{table}"
 
 
 class CmdNewbie(Command):
@@ -71,24 +79,43 @@ class CmdStatus(Command):
         location = caller.location.key if caller.location else "未知"
         area = get_area_for_room(caller.location)
         item_count = len(get_inventory_items(caller))
-
-        table = evtable.EvTable(border="cells", pad_width=1)
-        table.add_row("姓名", caller.key)
-        table.add_row("阶段", "修士" if stats["stage"] == "cultivator" else "凡人")
-        table.add_row("灵根", get_root_label(stats["root"]))
-        table.add_row("境界", stats["realm"])
-        table.add_row("气血", f"{stats['hp']}/{stats['max_hp']}")
-        table.add_row("灵力", f"{stats['mp']}/{stats['max_mp']}")
-        table.add_row("体力", f"{stats['stamina']}/{stats['max_stamina']}")
-        table.add_row("修为", str(stats["exp"]))
-        table.add_row("铜钱", str(stats["copper"]))
-        table.add_row("灵石", str(stats["spirit_stone"]))
-        table.add_row("主货币", "灵石" if stats["primary_currency"] == "spirit_stone" else "铜钱")
-        table.add_row("区域", area["key"] if area else "未划分")
-        table.add_row("位置", location)
-        table.add_row("效果", get_active_effect_text(caller))
-        table.add_row("背包", f"{item_count} 件")
-        self.caller.msg("|g角色状态|n\n%s" % table)
+        realm_info = dict(stats.get("realm_info") or {})
+        combat_stats = dict(stats.get("combat_stats") or {})
+        overview_rows = [
+            ("姓名", caller.key),
+            ("阶段", "修士" if stats["stage"] == "cultivator" else "凡人"),
+            ("灵根", get_root_label(stats["root"])),
+            ("境界", stats.get("realm_display", stats["realm"])),
+            ("境界阶段", get_stage_bucket_display(realm_info)),
+        ]
+        progression_rows = get_progression_status_rows(realm_info)
+        combat_rows = [
+            ("气血", f"{stats['hp']}/{stats['max_hp']}"),
+            ("灵力", f"{stats['mp']}/{stats['max_mp']}"),
+            ("体力", f"{stats['stamina']}/{stats['max_stamina']}"),
+            ("攻击力", str(combat_stats.get("attack_power", 0))),
+            ("防御力", str(combat_stats.get("defense", 0))),
+            ("身法/速度", str(combat_stats.get("speed", 0))),
+        ]
+        utility_rows = [
+            ("修为", str(stats["exp"])),
+            ("铜钱", str(stats["copper"])),
+            ("灵石", str(stats["spirit_stone"])),
+            ("主货币", "灵石" if stats["primary_currency"] == "spirit_stone" else "铜钱"),
+            ("区域", area["key"] if area else "未划分"),
+            ("位置", location),
+            ("效果", get_active_effect_text(caller)),
+            ("背包", f"{item_count} 件"),
+        ]
+        sections = [
+            "|g角色状态总览|n",
+            _build_status_section("角色概览", overview_rows),
+        ]
+        if progression_rows:
+            sections.append(_build_status_section("修行进度", progression_rows))
+        sections.append(_build_status_section("战斗属性", combat_rows))
+        sections.append(_build_status_section("行囊与位置", utility_rows))
+        self.caller.msg("\n\n".join(sections))
 class CmdRead(Command):
     key = "阅读"
     aliases = ["read", "查看告示", "读"]

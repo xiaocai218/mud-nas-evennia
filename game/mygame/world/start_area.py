@@ -21,6 +21,7 @@ django.setup()
 from evennia.utils.create import create_object
 from evennia.objects.models import ObjectDB
 from systems.enemy_model import get_enemy_definition
+from systems.npc_model import get_npc_definition, ensure_npc_model
 from systems.object_index import get_object_by_content_id
 
 
@@ -146,6 +147,48 @@ def build_objects(rooms, object_defs):
         ensure_object(rooms[room_key], obj["key"], obj["desc"], attrs)
 
 
+def build_npcs(rooms, npc_defs):
+    for npc in npc_defs:
+        npc_id = npc.get("id")
+        npc_def = get_npc_definition(npc_id) if npc_id else None
+        room_key = (npc_def or {}).get("room_id") or npc.get("room_id") or npc.get("room")
+        room = rooms.get(room_key)
+        if not room and room_key:
+            room = next((candidate for candidate in rooms.values() if getattr(candidate.db, "content_id", None) == room_key), None)
+        if not room:
+            continue
+        identity = (npc_def or {}).get("identity", {})
+        progression = (npc_def or {}).get("progression", {})
+        combat_stats = (npc_def or {}).get("combat_stats", {})
+        npc_meta = (npc_def or {}).get("npc_meta", {})
+        obj = ensure_object(
+            room,
+            identity.get("name") or npc["key"],
+            npc_meta.get("presentation", {}).get("desc") or npc.get("desc", ""),
+            {
+                **dict(npc.get("attrs", {})),
+                "content_id": identity.get("content_id") or npc.get("id"),
+                "template_id": identity.get("template_id") or npc.get("id"),
+                "npc_id": identity.get("template_id") or npc.get("id"),
+                "identity": identity,
+                "progression": progression,
+                "primary_stats": (npc_def or {}).get("primary_stats", {}),
+                "combat_stats": combat_stats,
+                "affinities": (npc_def or {}).get("affinities", {}),
+                "reserves": (npc_def or {}).get("reserves", {}),
+                "npc_meta": npc_meta,
+                "npc_role": identity.get("npc_role") or (npc.get("attrs", {}) or {}).get("npc_role"),
+                "talk_route": npc_meta.get("talk_route") or (npc.get("attrs", {}) or {}).get("talk_route"),
+                "shop_id": npc_meta.get("shop_id") or (npc.get("attrs", {}) or {}).get("shop_id"),
+                "gender": identity.get("gender"),
+                "realm": progression.get("realm"),
+                "hp": combat_stats.get("hp"),
+                "max_hp": combat_stats.get("max_hp"),
+            },
+        )
+        ensure_npc_model(obj)
+
+
 def build_enemies(rooms, enemy_defs):
     for enemy_id in enemy_defs:
         enemy = get_enemy_definition(enemy_id)
@@ -197,7 +240,7 @@ def main():
 
     rooms = build_rooms(room_data["rooms"])
     build_exits(rooms, room_data["exits"])
-    build_objects(rooms, npc_data["npcs"])
+    build_npcs(rooms, npc_data["npcs"])
     build_objects(rooms, object_data["objects"])
     build_enemies(rooms, enemy_data)
 

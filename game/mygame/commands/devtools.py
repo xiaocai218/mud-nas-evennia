@@ -5,7 +5,15 @@ from evennia.utils import evtable
 
 from .command import Command
 from systems.battle import clear_battle, get_battle_log, start_battle
-from systems.character_model import ROOT_CHOICES, get_root_label, normalize_root_choice, reset_spiritual_root
+from systems.character_model import (
+    CULTIVATOR_STAGE,
+    MORTAL_STAGE,
+    ROOT_CHOICES,
+    ensure_character_model,
+    get_root_label,
+    normalize_root_choice,
+    reset_spiritual_root,
+)
 from systems.content_loader import (
     find_content_record,
     get_content_summary,
@@ -14,9 +22,22 @@ from systems.content_loader import (
     validate_content,
 )
 from systems.enemy_model import ensure_enemy_model, get_enemy_definition, is_enemy, spawn_enemy_instance
+from systems.npc_model import get_npc_sheet, is_npc
+from systems.npc_relationships import adjust_npc_relationship_metric, clear_npc_relationship, get_npc_relationship
 from systems.object_index import get_object_by_content_id
-from systems.player_stats import add_currency, get_stats
+from systems.player_stats import add_currency, get_stats, set_total_cultivation_exp, sync_cultivation_progression
+from systems.realms import (
+    AWAKENED_REALM,
+    MORTAL_REALM,
+    get_default_realm_key,
+    get_progression_hint,
+    get_progression_status_rows,
+    get_realm_definition,
+    get_stage_bucket_display,
+    resolve_realm_progression,
+)
 from systems.quests import ROOT_CHOICE_READY, prepare_root_choice_state
+from systems.targeting import find_npc_in_room
 from systems.world_objects import trigger_object
 
 TEST_DESTINATIONS = {
@@ -196,6 +217,77 @@ class CmdTestAddMoney(Command):
             return
         caller.msg(f"测试加钱完成：已为 {target.key} 增加 {amount} 铜钱。对方当前铜钱 {current}。")
         target.msg(f"[系统] 管理员为你补发了 {amount} 铜钱。当前铜钱 {current}。")
+
+
+class CmdTestAdjustNpcRelationship(Command):
+    key = "测试NPC关系"
+    aliases = ["testnpcrel", "devnpcrel"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        if not raw:
+            caller.msg("用法：|w测试NPC关系 NPC名 好感|声望|信任 增量|n")
+            return
+
+        parts = raw.split()
+        if len(parts) < 3:
+            caller.msg("用法：|w测试NPC关系 NPC名 好感|声望|信任 增量|n")
+            return
+
+        metric_raw = parts[-2]
+        delta_raw = parts[-1]
+        target_name = " ".join(parts[:-2]).strip()
+        metric = _normalize_relationship_metric(metric_raw)
+        if not target_name or not metric:
+            caller.msg("测试NPC关系只支持：好感、声望、信任。")
+            return
+        try:
+            delta = int(delta_raw)
+        except ValueError:
+            caller.msg("关系增量必须是整数。")
+            return
+
+        target = _find_npc_target(caller, target_name)
+        if not target:
+            caller.msg("没有找到要调整关系的 NPC。")
+            return
+
+        npc_id = _get_npc_content_id(target)
+        record = adjust_npc_relationship_metric(caller, npc_id, metric, delta)
+        caller.msg(
+            f"测试NPC关系完成：{target.key} 的{_relationship_metric_label(metric)}"
+            f" {'+' if delta >= 0 else ''}{delta}，当前为 {record[metric]}。"
+        )
+
+
+class CmdTestResetNpcRelationship(Command):
+    key = "测试重置NPC关系"
+    aliases = ["resetnpcrel", "testresetnpcrel"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        if not raw:
+            caller.msg("用法：|w测试重置NPC关系 NPC名|n")
+            return
+
+        target = _find_npc_target(caller, raw)
+        if not target:
+            caller.msg("没有找到要重置关系的 NPC。")
+            return
+
+        npc_id = _get_npc_content_id(target)
+        clear_npc_relationship(caller, npc_id)
+        record = get_npc_relationship(caller, npc_id)
+        caller.msg(
+            f"测试重置NPC关系完成：{target.key} 的关系已恢复默认。"
+            f" 当前好感 {record['affection']}，声望 {record['reputation']}，信任 {record['trust']}。"
+        )
 
 
 class CmdTestChooseRoot(Command):
@@ -514,6 +606,179 @@ class CmdTestBattleLog(Command):
         caller.msg("\n".join(lines))
 
 
+class CmdTestRealm(Command):
+    key = "测试境界"
+    aliases = ["testrealm", "devrealm"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        if not raw:
+            caller.msg("用法：|w测试境界 <凡人|启灵|炼气1阶|炼气10阶|炼气可突破>|n 或 |w测试境界 玩家名 <境界>|n。")
+            return
+
+        parts = raw.split()
+        target = caller
+        spec = raw
+        if len(parts) >= 2:
+            maybe_target = _find_test_target(" ".join(parts[:-1]).strip())
+            if maybe_target:
+                target = maybe_target
+                spec = parts[-1]
+
+        resolved = _resolve_test_realm_spec(spec)
+        if not resolved:
+            caller.msg("测试境界目前支持：凡人、启灵、炼气1阶-10阶、炼气可突破。")
+            return
+
+        _apply_test_realm(target, resolved)
+        stats = get_stats(target)
+        progression = dict(stats.get("realm_info") or {})
+        text = (
+            f"测试境界完成：{target.key} 当前为 {stats['realm']}，"
+            f"阶段 {get_stage_bucket_display(progression)}，"
+            f"修为 {progression.get('cultivation_exp_total', 0)}。"
+        )
+        if target == caller:
+            caller.msg(text)
+            return
+        caller.msg(text)
+        target.msg(f"[系统] 管理员已将你的境界调整为 {stats['realm']}。")
+
+
+class CmdTestCultivationExp(Command):
+    key = "测试修为"
+    aliases = ["testexp", "devexp"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        if not raw:
+            caller.msg("用法：|w测试修为 数值|n 或 |w测试修为 玩家名 数值|n。该命令会直接设置总修为。")
+            return
+
+        parts = raw.split()
+        target = caller
+        value_raw = raw
+        if len(parts) >= 2:
+            try:
+                int(parts[-1])
+                value_raw = parts[-1]
+                maybe_target = _find_test_target(" ".join(parts[:-1]).strip())
+                if maybe_target:
+                    target = maybe_target
+            except ValueError:
+                caller.msg("测试修为的数值必须是整数。")
+                return
+
+        try:
+            exp_total = int(value_raw)
+        except ValueError:
+            caller.msg("测试修为的数值必须是整数。")
+            return
+        if exp_total < 0:
+            caller.msg("测试修为不能小于 0。")
+            return
+
+        ensure_character_model(target)
+        set_total_cultivation_exp(target, exp_total)
+        stats = get_stats(target)
+        progression = dict(stats.get("realm_info") or {})
+        text = (
+            f"测试修为完成：{target.key} 总修为设为 {exp_total}，"
+            f"当前境界 {stats['realm']}，"
+            f"本阶 {progression.get('cultivation_exp_in_stage', 0)}/{progression.get('cultivation_exp_required', 0)}。"
+        )
+        if stats["realm"] == AWAKENED_REALM:
+            text += " 当前角色处于启灵过渡态，修为已更新，但不会自动进入正式境界。"
+        if target == caller:
+            caller.msg(text)
+            return
+        caller.msg(text)
+        target.msg(f"[系统] 管理员已将你的总修为调整为 {exp_total}。")
+
+
+class CmdTestStamina(Command):
+    key = "测试体力"
+    aliases = ["teststamina", "devstamina"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        if not raw:
+            caller.msg("用法：|w测试体力 数值|n 或 |w测试体力 玩家名 数值|n。")
+            return
+
+        parts = raw.split()
+        target = caller
+        value_raw = raw
+        if len(parts) >= 2:
+            try:
+                int(parts[-1])
+                value_raw = parts[-1]
+                maybe_target = _find_test_target(" ".join(parts[:-1]).strip())
+                if maybe_target:
+                    target = maybe_target
+            except ValueError:
+                caller.msg("测试体力的数值必须是整数。")
+                return
+
+        try:
+            stamina = int(value_raw)
+        except ValueError:
+            caller.msg("测试体力的数值必须是整数。")
+            return
+
+        stats = get_stats(target)
+        target.db.stamina = max(0, min(stamina, stats["max_stamina"]))
+        text = f"测试体力完成：{target.key} 当前体力 {target.db.stamina}/{stats['max_stamina']}。"
+        if target == caller:
+            caller.msg(text)
+            return
+        caller.msg(text)
+        target.msg(f"[系统] 管理员已将你的体力调整为 {target.db.stamina}/{stats['max_stamina']}。")
+
+
+class CmdTestRealmStatus(Command):
+    key = "测试境界状态"
+    aliases = ["testrealmstatus", "realmstatus"]
+    locks = "cmd:perm(Admin)"
+    help_category = "维护"
+
+    def func(self):
+        caller = self.caller
+        raw = self.args.strip()
+        target = caller
+        if raw:
+            target = _find_test_target(raw)
+            if not target:
+                caller.msg("没有找到要查看境界状态的目标玩家。")
+                return
+
+        stats = get_stats(target)
+        progression = dict(stats.get("realm_info") or {})
+        progress_rows = get_progression_status_rows(progression)
+        lines = [
+            f"{target.key} 的境界快照：",
+            f"- 阶段：{'修士' if stats['stage'] == CULTIVATOR_STAGE else '凡人'}",
+            f"- 境界：{stats['realm']}",
+            f"- 境界阶段：{get_stage_bucket_display(progression)}",
+            f"- 总修为：{progression.get('cultivation_exp_total', 0)}",
+            f"- 头衔：{stats.get('realm_display', stats['realm'])}·{target.key}",
+        ]
+        for label, value in progress_rows:
+            lines.append(f"- {label}：{value}")
+        if not progress_rows:
+            lines.append(f"- 下一步：{get_progression_hint(progression)}")
+        caller.msg("\n".join(lines))
+
+
 def _find_test_target(target_name):
     matches = evennia.search_object(target_name)
     if matches:
@@ -555,6 +820,100 @@ def _find_enemy_target(raw, room=None):
         if getattr(obj.db, "enemy_id", None) == raw or obj.key == raw:
             return obj
     return None
+
+
+def _find_npc_target(caller, lookup):
+    return find_npc_in_room(caller, lookup)
+
+
+def _get_npc_content_id(target):
+    sheet = get_npc_sheet(target)
+    return sheet["identity"].get("content_id") or getattr(target.db, "content_id", None) or target.key
+
+
+def _resolve_test_realm_spec(spec):
+    value = str(spec or "").strip()
+    if not value:
+        return None
+    if value == MORTAL_REALM:
+        return {"mode": "mortal"}
+    if value == AWAKENED_REALM:
+        return {"mode": "awakened"}
+    if value in {"炼气可突破", "可突破", "炼气突破"}:
+        realm_definition = get_realm_definition(get_default_realm_key()) or {}
+        breakthrough = dict(realm_definition.get("breakthrough") or {})
+        return {
+            "mode": "formal",
+            "realm_key": get_default_realm_key(),
+            "exp_total": int(breakthrough.get("exp_threshold", 750) or 750),
+        }
+    normalized = value
+    if normalized.endswith("层"):
+        normalized = normalized[:-1] + "阶"
+    if normalized.startswith("炼气") and normalized.endswith("阶"):
+        stage_text = normalized[2:-1]
+        try:
+            minor_stage = int(stage_text)
+        except ValueError:
+            return None
+        realm_definition = get_realm_definition(get_default_realm_key()) or {}
+        stages = realm_definition.get("minor_stages") or []
+        stage_record = next((entry for entry in stages if int(entry.get("stage", 0) or 0) == minor_stage), None)
+        if not stage_record:
+            return None
+        return {
+            "mode": "formal",
+            "realm_key": get_default_realm_key(),
+            "exp_total": int(stage_record.get("exp_threshold", 0) or 0),
+        }
+    return None
+
+
+def _apply_test_realm(target, resolved):
+    ensure_character_model(target)
+    mode = resolved["mode"]
+    if mode == "mortal":
+        target.db.character_stage = MORTAL_STAGE
+        target.db.spiritual_root = None
+        target.db.realm = MORTAL_REALM
+        if getattr(target.db, "progression", None):
+            target.db.progression.clear()
+        ensure_character_model(target)
+        return
+    if mode == "awakened":
+        target.db.character_stage = CULTIVATOR_STAGE
+        target.db.spiritual_root = getattr(target.db, "spiritual_root", None) or "water"
+        target.db.realm = AWAKENED_REALM
+        if getattr(target.db, "progression", None):
+            target.db.progression["realm_key"] = None
+        ensure_character_model(target)
+        return
+
+    exp_total = int(resolved.get("exp_total", 0) or 0)
+    target.db.character_stage = CULTIVATOR_STAGE
+    target.db.spiritual_root = getattr(target.db, "spiritual_root", None) or "water"
+    sync_cultivation_progression(target, exp_total=exp_total, realm_key=resolved.get("realm_key") or get_default_realm_key())
+
+
+def _normalize_relationship_metric(metric_raw):
+    metric_text = (metric_raw or "").strip()
+    mapping = {
+        "好感": "affection",
+        "affection": "affection",
+        "声望": "reputation",
+        "reputation": "reputation",
+        "信任": "trust",
+        "trust": "trust",
+    }
+    return mapping.get(metric_text) or mapping.get(metric_text.lower())
+
+
+def _relationship_metric_label(metric):
+    return {
+        "affection": "好感",
+        "reputation": "声望",
+        "trust": "信任",
+    }.get(metric, metric)
 
 
 def _refresh_enemy(enemy):

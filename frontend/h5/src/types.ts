@@ -64,6 +64,60 @@ export type H5Envelope<T> = {
   error?: CommerceError;
 };
 
+export type ChatChannel = "aggregate" | "world" | "team" | "private" | "system";
+
+export type ChatChannelStatusDTO = {
+  channel: ChatChannel;
+  key: string;
+  desc: string;
+  muted: boolean;
+  available: boolean;
+  reason?: string | null;
+};
+
+export type ChatMessageDTO = {
+  channel: Exclude<ChatChannel, "aggregate">;
+  sender_id?: number | null;
+  sender_name?: string | null;
+  sender_title?: string | null;
+  target_id?: number | null;
+  target_name?: string | null;
+  text: string;
+  ts: number;
+  level?: string;
+  code?: string | null;
+};
+
+export type RealmEndpoint = {
+  realm_key?: string | null;
+  minor_stage?: number | null;
+  display_name?: string | null;
+};
+
+export type RealmRecommendationDTO = {
+  mode: string;
+  label: string;
+  start?: RealmEndpoint | null;
+  end?: RealmEndpoint | null;
+};
+
+export type RealmInfoDTO = {
+  realm: string;
+  realm_key?: string | null;
+  realm_name?: string | null;
+  minor_stage?: number | null;
+  stage_bucket?: string | null;
+  display_name?: string | null;
+  is_peak?: boolean;
+  can_breakthrough?: boolean;
+  breakthrough_state?: string | null;
+  cultivation_exp_total?: number;
+  cultivation_exp_in_stage?: number;
+  cultivation_exp_required?: number;
+  next_realm_key?: string | null;
+  next_minor_stage?: number | null;
+};
+
 export type AccountSummary = {
   id: number;
   username: string;
@@ -74,6 +128,10 @@ export type CharacterSummary = {
   id: number;
   key: string;
   realm: string;
+  realm_info?: RealmInfoDTO;
+  realm_display?: string;
+  realm_title?: string;
+  stage_bucket?: string | null;
   hp?: number;
   max_hp?: number;
   stamina?: number;
@@ -98,6 +156,10 @@ export type CharacterDTO = {
   name: string;
   profile?: string | null;
   realm: string;
+  realm_info?: RealmInfoDTO;
+  realm_display?: string;
+  realm_title?: string;
+  stage_bucket?: string | null;
   hp: number;
   max_hp: number;
   stamina: number;
@@ -113,7 +175,7 @@ export type AreaDTO = {
   key: string;
   desc: string;
   zone_id?: string | null;
-  recommended_realm?: string | null;
+  recommended_realm?: RealmRecommendationDTO | null;
   facilities: string[];
   rooms: string[];
   tags: string[];
@@ -130,6 +192,8 @@ export type RoomEntityDTO = {
   key: string;
   npc_type?: string;
   object_type?: string;
+  realm?: string;
+  realm_display?: string;
   max_hp?: number;
   damage?: number;
   drop_item_id?: string | null;
@@ -234,6 +298,14 @@ export type RoomDTO = {
   enemies: RoomEntityDTO[];
   shop: ShopDTO | null;
   market: MarketDTO | null;
+};
+
+export type ZoneDTO = {
+  id: string;
+  key: string;
+  desc: string;
+  map_id?: string | null;
+  recommended_realm?: RealmRecommendationDTO | null;
 };
 
 export type WorldPositionDTO = {

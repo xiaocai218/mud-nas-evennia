@@ -42,6 +42,7 @@ from .battle_results import build_basic_attack_result, build_item_result, build_
 from .battle_summary import render_battle_summary
 from .battle_text import format_battle_finished_summary, format_battle_log_entry, format_disengaged_notice, format_turn_ready_entry
 from .chat import notify_player
+from .character_model import get_realm_title
 from .enemy_model import get_enemy_sheet, is_enemy
 from .event_bus import (
     combat_action_resolved,
@@ -55,6 +56,7 @@ from .items import find_item, get_inventory_items, use_item
 from .player_battle_cards import get_player_battle_card_pool
 from .player_stats import apply_exp, get_stats
 from .quests import mark_combat_kill
+from .realms import build_entity_realm_payload
 from .teams import get_team_member_characters, get_same_area_team_members
 
 
@@ -63,6 +65,7 @@ ACTION_TIMEOUT_SECONDS = 30
 MIN_FAILURE_HP = 1
 MIN_FAILURE_STAMINA = 5
 COMBAT_LOG_HISTORY_LIMIT = 80
+EMIT_TURN_READY_LOGS = True
 
 _BATTLE_REGISTRY = {}
 
@@ -201,7 +204,7 @@ def start_battle(caller, targets, team_mode=False):
 
     _BATTLE_REGISTRY[battle["battle_id"]] = battle
     _settle_battle_until_player_input(battle)
-    _emit_terminal_battle_summary(battle)
+    _broadcast_battle_hud(battle)
     _emit_battle_event(battle, combat_started(_serialize_battle(battle)))
     return {"ok": True, "result": "battle_started", "battle": _serialize_battle(battle)}
 
@@ -219,15 +222,7 @@ def submit_action(caller, card_id, target_id=None, item_id=None):
         return {"ok": False, "reason": "not_your_turn"}
 
     result = _resolve_action(battle, actor, card_id, target_id=target_id, item_id=item_id)
-    _check_battle_finished(battle)
-    if battle["status"] != "finished":
-        _advance_battle_to_next_actor(battle)
-        _settle_battle_until_player_input(battle)
-        _emit_terminal_battle_summary(battle)
-        _emit_battle_event(battle, combat_updated(_serialize_battle(battle)))
-    else:
-        _resolve_battle_result(battle)
-        _emit_terminal_battle_summary(battle)
+    _finalize_action_resolution(battle)
     return {"ok": True, "result": result, "battle": _serialize_battle(battle)}
 
 
@@ -263,6 +258,7 @@ def _create_player_combatant(caller):
     return {
         "combatant_id": _entity_ref_id(caller),
         "name": caller.key,
+        "display_name": get_realm_title(caller),
         "side": "player",
         "entity_type": "player",
         "entity_ref": caller,
@@ -289,9 +285,17 @@ def _create_enemy_combatant(enemy):
     combat = dict(sheet["combat_stats"])
     meta = dict(sheet["enemy_meta"])
     identity = dict(sheet["identity"])
+    progression = dict(sheet.get("progression") or {})
+    realm_payload = build_entity_realm_payload(
+        progression,
+        entity_kind="enemy",
+        suffix=identity["name"],
+        enemy_type=identity.get("enemy_type"),
+    )
     return {
         "combatant_id": _entity_ref_id(enemy),
         "name": identity["name"],
+        "display_name": realm_payload["realm_title"],
         "side": "enemy",
         "entity_type": "enemy",
         "entity_ref": enemy,
@@ -346,21 +350,15 @@ def _settle_battle_until_player_input(battle):
             deadline = battle.get("action_deadline_ts")
             if deadline and time.time() >= deadline:
                 _resolve_action(battle, actor, "basic_attack", target_id=None, item_id=None, auto=True)
-                _check_battle_finished(battle)
-                if battle["status"] == "finished":
-                    _resolve_battle_result(battle)
+                if _finalize_action_resolution(battle, settle_players=False):
                     break
-                _advance_battle_to_next_actor(battle)
                 continue
             break
         actor["available_cards"] = _build_available_cards(battle, actor)
         selected = choose_ai_card(battle, actor)
         _resolve_action(battle, actor, selected["card_id"], target_id=selected.get("target_id"), auto=True)
-        _check_battle_finished(battle)
-        if battle["status"] == "finished":
-            _resolve_battle_result(battle)
+        if _finalize_action_resolution(battle, settle_players=False):
             break
-        _advance_battle_to_next_actor(battle)
 
 
 def _advance_battle_to_next_actor(battle):
@@ -392,7 +390,7 @@ def _advance_battle_to_next_actor(battle):
                 }
             ),
         )
-        if actor["entity_type"] == "player":
+        if actor["entity_type"] == "player" and EMIT_TURN_READY_LOGS:
             _emit_terminal_combat_log(
                 battle,
                 format_turn_ready_entry(actor["name"], battle["turn_state"]["turn_count"]),
@@ -557,6 +555,26 @@ def _check_battle_finished(battle):
     return True
 
 
+def _finalize_action_resolution(battle, settle_players=True):
+    # 所有动作结算后的共用后处理都收在这里：
+    # 1. 判定是否结束
+    # 2. 未结束则推进到下一行动者
+    # 3. 按需继续自动结算到“等待玩家输入”的稳定点
+    # 4. 广播 HUD 和 combat.updated
+    _check_battle_finished(battle)
+    if battle["status"] == "finished":
+        _resolve_battle_result(battle)
+        _broadcast_battle_hud(battle)
+        return True
+
+    _advance_battle_to_next_actor(battle)
+    if settle_players:
+        _settle_battle_until_player_input(battle)
+    _broadcast_battle_hud(battle)
+    _emit_battle_event(battle, combat_updated(_serialize_battle(battle)))
+    return False
+
+
 def _resolve_battle_result(battle):
     if battle.get("_result_resolved"):
         return
@@ -626,29 +644,48 @@ def _handle_defeat(battle):
 
 def _serialize_battle(battle):
     current_actor = None if battle["status"] == "finished" else _get_current_actor(battle)
-    available_cards = current_actor["available_cards"] if current_actor else []
-    available_targets = _serialize_targets_for_actor(battle, current_actor) if current_actor else []
+    actor_view = _build_current_actor_view(battle, current_actor)
     return {
         "battle_id": battle["battle_id"],
         "status": battle["status"],
         "room_id": battle["room_id"],
         "turn_count": battle["turn_state"]["turn_count"],
-        "current_actor_id": current_actor["combatant_id"] if current_actor else None,
-        "current_actor_name": current_actor["name"] if current_actor else None,
+        "current_actor_id": actor_view["current_actor_id"],
+        "current_actor_name": actor_view["current_actor_name"],
+        "current_actor_display_name": actor_view["current_actor_display_name"],
         "action_deadline_ts": None if battle["status"] == "finished" else battle["action_deadline_ts"],
         "result": battle["result"],
-        "participants": [_serialize_combatant(entry) for entry in battle["participants"]],
+        "participants": [_serialize_combatant_dto(entry) for entry in battle["participants"]],
         "log": list(battle["log"][-10:]),
         "round_reports": list(battle.get("round_reports") or [])[-3:],
-        "available_cards": available_cards,
-        "available_targets": available_targets,
+        "available_cards": actor_view["available_cards"],
+        "available_targets": actor_view["available_targets"],
     }
 
 
-def _serialize_combatant(combatant):
+def _build_current_actor_view(battle, current_actor):
+    if not current_actor:
+        return {
+            "current_actor_id": None,
+            "current_actor_name": None,
+            "current_actor_display_name": None,
+            "available_cards": [],
+            "available_targets": [],
+        }
+    return {
+        "current_actor_id": current_actor["combatant_id"],
+        "current_actor_name": current_actor["name"],
+        "current_actor_display_name": current_actor.get("display_name", current_actor["name"]),
+        "available_cards": list(current_actor.get("available_cards") or []),
+        "available_targets": _serialize_targets_for_actor(battle, current_actor),
+    }
+
+
+def _serialize_combatant_dto(combatant):
     return {
         "combatant_id": combatant["combatant_id"],
         "name": combatant["name"],
+        "display_name": combatant.get("display_name", combatant["name"]),
         "side": combatant["side"],
         "entity_type": combatant["entity_type"],
         "alive": combatant["alive"],
@@ -668,17 +705,22 @@ def _serialize_combatant(combatant):
 
 def _serialize_targets_for_actor(battle, actor):
     return [
-        {
-            "combatant_id": target["combatant_id"],
-            "name": target["name"],
-            "side": target["side"],
-            "alive": target["alive"],
-            "hp": target["hp"],
-            "max_hp": target["max_hp"],
-        }
+        _serialize_target_dto(target)
         for target in battle["participants"]
         if target["alive"] and (target["side"] != actor["side"] or actor["entity_type"] == "player")
     ]
+
+
+def _serialize_target_dto(target):
+    return {
+        "combatant_id": target["combatant_id"],
+        "name": target["name"],
+        "display_name": target.get("display_name", target["name"]),
+        "side": target["side"],
+        "alive": target["alive"],
+        "hp": target["hp"],
+        "max_hp": target["max_hp"],
+    }
 
 
 def _get_current_actor(battle):
@@ -715,33 +757,36 @@ def _find_first_combat_item(caller):
 def _emit_battle_event(battle, event):
     # 同一场 battle 的事件同时发给所有参战账号，文本端和 H5 端共享这套事件源。
     # 后续如果调整事件粒度，通常也要同步检查 event_bus 和前端消费逻辑。
-    for combatant in battle["participants"]:
-        ref = combatant["entity_ref"]
-        account = getattr(ref, "account", None) or getattr(ref, "db", None) and getattr(ref.db, "account", None)
-        if account:
-            enqueue_account_event(account, event)
+    for _, account in _iter_battle_accounts(battle):
+        enqueue_account_event(account, event)
 
 
 def _emit_terminal_combat_log(battle, message, entry_kind="action", turn_count=None):
     if not message:
         return
-    for combatant in battle["participants"]:
-        ref = combatant["entity_ref"]
-        account = getattr(ref, "account", None) or getattr(ref, "db", None) and getattr(ref.db, "account", None)
-        if account:
-            account.msg(text=(message, {"type": "combat.log"}))
-            _append_account_combat_history(account, message, entry_kind=entry_kind, turn_count=turn_count)
+    for _, account in _iter_battle_accounts(battle):
+        account.msg(text=(message, {"type": "combat.log"}))
+        _append_account_combat_history(account, message, entry_kind=entry_kind, turn_count=turn_count)
 
 
-def _emit_terminal_battle_summary(battle):
+def _broadcast_battle_hud(battle):
+    # 先序列化一次 battle，再按查看者视角渲染。
+    # 这样 HUD 字段源保持一致，只把“谁在看”留给 render_battle_summary 处理。
+    snapshot = _serialize_battle(battle)
+    for combatant, account in _iter_battle_accounts(battle, players_only=True):
+        summary = render_battle_summary(snapshot, viewer_name=combatant["entity_ref"].key)
+        account.msg(summary)
+
+
+def _iter_battle_accounts(battle, players_only=False):
+    # battle 里的消息投递、事件广播、历史缓存都统一走这里收集账号，
+    # 避免后续在流程节点里重复手写 account 查找和 player 过滤。
     for combatant in battle["participants"]:
-        if combatant.get("entity_type") != "player":
+        if players_only and combatant.get("entity_type") != "player":
             continue
-        ref = combatant["entity_ref"]
-        account = getattr(ref, "account", None) or getattr(ref, "db", None) and getattr(ref.db, "account", None)
+        account = _get_account(combatant["entity_ref"])
         if account:
-            summary = render_battle_summary(_serialize_battle(battle), viewer_name=ref.key)
-            account.msg(summary)
+            yield combatant, account
 
 
 def _schedule_timeout_task(battle, actor):
@@ -781,13 +826,14 @@ def _handle_timeout_deadline(battle_id, turn_count):
     if not actor or actor.get("entity_type") != "player":
         return
     deadline = battle.get("action_deadline_ts")
-    if not deadline or time.time() < deadline:
+    if not deadline:
         return
     battle["_timeout_task"] = None
-    # 超时后不直接在这里硬编码执行动作，而是回到统一的结算循环。
-    # 这样玩家超时、AI 行动、胜负判定与事件广播仍复用同一套路径，避免分叉逻辑。
+    # delay 已经按当前回合挂好了定时器，这里用 turn_count 作为唯一护栏。
+    # 不再额外比较 wall clock，避免 defer 回调比 deadline 早几毫秒时直接漏掉整次超时推进。
+    battle["action_deadline_ts"] = min(float(deadline), time.time() - 0.001)
     _settle_battle_until_player_input(battle)
-    _emit_terminal_battle_summary(battle)
+    _broadcast_battle_hud(battle)
     if battle.get("status") != "finished":
         _emit_battle_event(battle, combat_updated(_serialize_battle(battle)))
 

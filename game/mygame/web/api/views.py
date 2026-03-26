@@ -5,19 +5,25 @@ import json
 from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from systems.action_router import dispatch_action
 from systems.client_protocol import ACTION_SPECS, build_response, validate_action_message
 from systems.event_bus import build_event_batch, pop_account_events
+from systems.battle_summary import render_battle_summary
+from systems.battle import get_battle_snapshot
 from systems.serializers import (
     build_bootstrap_payload,
     serialize_market_by_id,
     serialize_account,
+    serialize_chat_status,
     serialize_character_summary,
     serialize_quest_log,
     serialize_shop_by_id,
+    serialize_ui_preferences,
 )
+from systems.ui_preferences import update_ui_preferences
 
 
 def _json_response(payload, status=200):
@@ -83,6 +89,9 @@ def _get_active_character(request):
     )
 
 
+# H5 uses session cookies for these JSON endpoints; exempt them from Django's
+# form-oriented CSRF middleware so same-origin fetch requests can log in and act.
+@csrf_exempt
 @require_POST
 def login_view(request):
     payload, error_response = _load_json_body(request)
@@ -126,6 +135,7 @@ def login_view(request):
     )
 
 
+@csrf_exempt
 @require_POST
 def logout_view(request):
     if getattr(request, "session", None):
@@ -158,6 +168,7 @@ def character_list_view(request):
     )
 
 
+@csrf_exempt
 @require_POST
 def character_select_view(request):
     account = _get_account(request)
@@ -219,6 +230,8 @@ def protocol_overview_view(request):
             "character_list": "/api/h5/account/characters/",
             "character_select": "/api/h5/account/characters/select/",
             "bootstrap": "/api/h5/bootstrap/",
+            "chat_status": "/api/h5/chat-status/",
+            "ui_preferences": "/api/h5/ui/preferences/",
             "quests": "/api/h5/quests/",
             "action": "/api/h5/action/",
             "shop_detail": "/api/h5/shops/<shop_id>/",
@@ -296,6 +309,78 @@ def bootstrap_view(request):
 
 
 @require_GET
+def battle_status_view(request):
+    caller, error_response = _get_active_character(request)
+    if error_response:
+        return error_response
+    battle = get_battle_snapshot(caller)
+    if not battle:
+        return _json_response(build_response(True, {"battle": None, "summary": "", "signature": None}))
+    signature = ":".join(
+        [
+            str(battle.get("battle_id") or ""),
+            str(battle.get("status") or ""),
+            str(battle.get("turn_count") or 0),
+            str(battle.get("current_actor_id") or ""),
+            str((battle.get("log") or [{}])[-1].get("turn_count") if battle.get("log") else ""),
+        ]
+    )
+    return _json_response(
+        build_response(
+            True,
+            {
+                "battle": battle,
+                "summary": render_battle_summary(battle, viewer_name=caller.key),
+                "signature": signature,
+            },
+        )
+    )
+
+
+@require_GET
+def chat_status_view(request):
+    caller, error_response = _get_active_character(request)
+    if error_response:
+        return error_response
+    chat_status = serialize_chat_status(caller)
+    return _json_response(
+        build_response(
+            True,
+            {
+                "channels": chat_status["channels"],
+                "recent_messages": chat_status["recent_messages"],
+                "recent_combat_logs": chat_status.get("recent_combat_logs", []),
+                "ui_preferences": serialize_ui_preferences(caller),
+            },
+        )
+    )
+
+
+@csrf_exempt
+def ui_preferences_view(request):
+    account = _get_account(request)
+    if not account:
+        return _json_response(
+            build_response(False, error={"code": "not_authenticated", "message": "需要先登录账号"}),
+            status=401,
+        )
+
+    if request.method == "GET":
+        return _json_response(build_response(True, {"ui_preferences": serialize_ui_preferences(account)}))
+    if request.method != "POST":
+        return _json_response(
+            build_response(False, error={"code": "method_not_allowed", "message": "请求方法不支持"}),
+            status=405,
+        )
+
+    payload, error_response = _load_json_body(request)
+    if error_response:
+        return error_response
+    updated = update_ui_preferences(account, payload or {})
+    return _json_response(build_response(True, {"ui_preferences": updated}))
+
+
+@require_GET
 def quest_log_view(request):
     caller, error_response = _get_active_character(request)
     if error_response:
@@ -349,6 +434,7 @@ def market_detail_view(request, market_id):
     )
 
 
+@csrf_exempt
 @require_POST
 def action_view(request):
     caller, error_response = _get_active_character(request)

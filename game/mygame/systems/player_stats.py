@@ -38,7 +38,12 @@ from .character_model import (
     resolve_character_realm,
 )
 from .content_loader import load_content
-from .realms import get_realm_from_exp
+from .realms import (
+    evaluate_breakthrough_requirements,
+    format_entity_realm_display,
+    get_default_realm_key,
+    resolve_realm_progression,
+)
 
 
 EFFECT_DEFINITIONS = load_content("effects")
@@ -56,6 +61,8 @@ def get_stats(caller):
         "sect": identity.get("sect"),
         "gender": identity.get("gender"),
         "realm": progression["realm"],
+        "realm_info": progression,
+        "realm_display": progression.get("display_name", progression["realm"]),
         "hp": combat["hp"],
         "max_hp": combat["max_hp"],
         "mp": combat["mp"],
@@ -75,6 +82,30 @@ def get_stats(caller):
     }
 
 
+def sync_cultivation_progression(caller, *, exp_total=None, current_realm=None, realm_key=None):
+    """Resolve and write the structured cultivation progression back in one place."""
+    ensure_character_model(caller)
+    exp_total = int(getattr(caller.db, "exp", 0) if exp_total is None else exp_total)
+    current_realm = getattr(caller.db, "realm", None) if current_realm is None else current_realm
+    stored_progression = dict(getattr(caller.db, "progression", None) or {})
+    resolved_realm_key = realm_key if realm_key is not None else stored_progression.get("realm_key") or get_default_realm_key()
+    progression = resolve_realm_progression(exp_total, current_realm=current_realm, realm_key=resolved_realm_key)
+    caller.db.exp = exp_total
+    caller.db.progression = stored_progression
+    caller.db.progression.update(progression)
+    caller.db.realm = caller.db.progression["display_name"]
+    ensure_character_model(caller)
+    return dict(caller.db.progression)
+
+
+def set_total_cultivation_exp(caller, exp_total):
+    exp_total = int(exp_total or 0)
+    if exp_total < 0:
+        raise ValueError("cultivation exp cannot be negative")
+    progression = sync_cultivation_progression(caller, exp_total=exp_total)
+    return {"realm": progression["display_name"], "realm_info": progression, "exp": exp_total}
+
+
 def apply_exp(caller, gain):
     ensure_character_model(caller)
     gain = int(gain or 0)
@@ -87,18 +118,39 @@ def apply_exp(caller, gain):
         normalized_realm = old_realm
         # 0 或负向经验变化不推进境界，但会顺手把旧号的 realm 标准化一次。
         # 这样只要读到 stats，就能逐步把历史脏值纠正到当前境界规则。
-        if stage == CULTIVATOR_STAGE and current_realm not in (None, "", MORTAL_REALM) and not is_awakened_realm(current_realm):
-            normalized_realm = get_realm_from_exp(exp)
-        caller.db.realm = normalized_realm
+        if stage == CULTIVATOR_STAGE:
+            if current_realm not in (None, "", MORTAL_REALM) and not is_awakened_realm(current_realm):
+                normalized_realm = sync_cultivation_progression(caller, exp_total=exp, current_realm=current_realm)["display_name"]
+            elif is_awakened_realm(current_realm):
+                normalized_realm = sync_cultivation_progression(caller, exp_total=exp, current_realm=current_realm)["display_name"]
+            else:
+                caller.db.exp = exp
+                caller.db.realm = normalized_realm
+        else:
+            caller.db.realm = normalized_realm
         return normalized_realm, normalized_realm, exp
     exp += gain
     if stage == CULTIVATOR_STAGE:
-        new_realm = old_realm if is_awakened_realm(old_realm) else get_realm_from_exp(exp)
+        progression = sync_cultivation_progression(caller, exp_total=exp, current_realm=current_realm or old_realm)
+        new_realm = progression["display_name"]
     else:
         new_realm = resolve_character_realm(stage, exp, current_realm=None, root=root)
-    caller.db.exp = exp
+        caller.db.exp = exp
     caller.db.realm = new_realm
     return old_realm, new_realm, exp
+
+
+def try_breakthrough(caller):
+    sheet = ensure_character_model(caller)
+    progression = dict(sheet["progression"])
+    target_realm_key = progression.get("next_realm_key")
+    if not progression.get("can_breakthrough"):
+        return {"ok": False, "reason": "not_ready", "realm": progression.get("display_name")}
+    result = evaluate_breakthrough_requirements(caller, target_realm_key)
+    if not result.get("can_breakthrough"):
+        return {"ok": False, "reason": "requirements_not_met", "requirements": result, "realm": progression.get("display_name")}
+    progression = sync_cultivation_progression(caller, exp_total=int(caller.db.exp or 0), realm_key=target_realm_key)
+    return {"ok": True, "realm": progression["display_name"], "realm_info": progression}
 
 
 def clamp_hp(caller):

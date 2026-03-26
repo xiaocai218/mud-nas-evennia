@@ -40,6 +40,7 @@ ACTION_SPECS = {
     "gather": {"required": ["target"]},
     "read": {"required": ["target"]},
     "trigger_object": {"required": ["target"]},
+    "breakthrough": {"required": []},
     "use_item": {"required": ["target"]},
     "buy_item": {"required": ["target"]},
     "market_listings": {"required": []},
