@@ -13,3 +13,7 @@ runtime/logs/*
 !runtime/logs/.gitkeep
 runtime/static/*
 !runtime/static/.gitkeep
+realm-*.tar
+tmp_h5_cookies.txt
+.tmp_known_hosts
+*.tmp_known_hosts
